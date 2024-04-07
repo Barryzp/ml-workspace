@@ -1,0 +1,28 @@
+1. after_contrast_mi_datas
+    center = (1060, 969) #(1160, 1869) #(1060, 969)##(1210, 1101.2218) ## (100, 900) # (400, 359)
+    angle = 0           # Example rotation angle in degrees
+    csv_prefix = "after_contrast_"
+    # Crop and rotate
+    bins = 256
+    threshold = [128, 180]
+    bound = [0, 50]
+    lamda_mis = 5
+    x_delta = 1000
+    y_delta = 1000
+    
+    interval = 100
+
+2. after_contrast_1200mi_datas
+    center = (1060, 969) #(1160, 1869) #(1060, 969)##(1210, 1101.2218) ## (100, 900) # (400, 359)
+    size = (floated_height, floated_width)      # Example size (width, height)
+    angle = 0           # Example rotation angle in degrees
+    csv_prefix = "after_contrast_1200"
+    # Crop and rotate
+    bins = 256
+    threshold = [128, 180]
+    bound = [0, 50]
+    lamda_mis = 5
+    x_delta = 1200
+    y_delta = 1400
+
+    interval = 100
