@@ -1,9 +1,55 @@
-import cv2
+import cv2, os
 import numpy as np
-import itk
+import itk, yaml
+import pandas as pd
 from math import radians
+from munch import Munch
+from pathlib import Path
+from PIL import Image
 
 class Tools:
+    # 加载yaml文件并转化成一个对象
+    def load_yaml_config(path):
+        with open(Path(path)) as f:
+            yaml_config = yaml.safe_load(f)
+        config = Munch(yaml_config)
+        return config
+
+    # 将配置保存
+    def save_obj_yaml(path, obj):
+        # 将数据保存为 YAML 文件
+        with open(path, 'w') as file:
+            yaml.dump(obj, file)
+
+    def check_file(folder_path, file_name):
+        file_path = os.path.join(folder_path, file_name)
+        # 检查文件夹是否存在
+        if not os.path.isdir(folder_path):
+            # 如果文件夹不存在，创建它
+            os.makedirs(folder_path)
+        else:
+            # 如果文件夹存在，检查特定文件是否也存在
+            if os.path.exists(file_path):
+                # 如果文件存在，抛出异常
+                raise FileExistsError(f"The file '{file_path}' already exists.")
+            print(f"Folder '{folder_path}' already exists and the file '{file_name}' is not present.")
+        
+        return file_path
+    
+    # 保存图片
+    def save_img(folder_path, file_name, img):
+        # 检查一下
+        file_path = Tools.check_file(folder_path, file_name)
+        # 保存图像, 这个img是np数组类型的
+        saved_img = Image.fromarray(img.astype(np.uint8))
+        saved_img.save(file_path)
+
+    # 将数据保存至dataframe
+    def save_params2df(datas, columns, folder_path, file_name):
+        file_path = Tools.check_file(folder_path, file_name)
+        data_df = pd.DataFrame(datas, columns = columns)
+        data_df.to_csv(file_path, index=False)
+
     def crop_rotate(image, center, size, angle):
         """
         Crop and rotate a region from an image.

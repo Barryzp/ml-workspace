@@ -1,6 +1,6 @@
-import torch
-import random
-import math
+import torch, math, random
+import numpy as np
+from utils.tools import Tools
 
 # Particle class
 class Particle:
@@ -163,7 +163,13 @@ class PSO_optim:
 
         for _ in range(num_iterations):
             global_best_val, __ = self.fitness(global_best_position)
-            if record != None: record.append(global_best_position.numpy())
+            if record != None:
+                data_item = global_best_position.numpy()
+                data_item = np.insert(data_item, 0, _)
+                data_item = np.insert(data_item, data_item.size, global_best_val)
+                record.append(data_item.tolist())
+                self.save_iteration_best_reg_img(__, _)
+
             print(f"iterations: {_}, fitness: {global_best_val}, params: {global_best_position}")
             local_best = global_best_val
             for particle in particles:
@@ -178,13 +184,30 @@ class PSO_optim:
     def fitness(self, position):
         return self.reg_similarity(position)
 
+    # 保存迭代过程中的参数
+    def save_iteration_params(self, records):
+        if self.config.mode == "2d":
+            columns = ["iterations", "x", "y", "rotation", "fitness"]
+        elif self.config.mode == "3d":
+            columns = ["iterations", 
+                       "x", "y", "z", 
+                       "rotation_x", "rotation_y", "rotation_z",
+                       "fitness"]
+        file_path = f"{self.config.data_save_path}/{self.config.record_id}"
+        Tools.save_params2df(records, columns, file_path, f"pso_params_{self.config.mode}.csv")
+
+    def save_iteration_best_reg_img(self, img_array, iterations):
+        img_path = f"{self.config.data_save_path}/{self.config.record_id}"
+        file_name = f"iter{iterations}_best_reg.bmp"
+        Tools.save_img(img_path, file_name, img_array)
+
         # 进行优化
     def run(self):
         poses = [torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
         records = []
-
         # Running PSO
         best_position = self._algorithm(poses, self.iteratons, records)
+        self.save_iteration_params(records)
         print(f"The best position found is: {best_position}")
         val, best_regi_img = self.fitness(best_position)
         print(f"The maximum value of the function is: {val}")

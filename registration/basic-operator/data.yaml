@@ -1,0 +1,17 @@
+!munch.Munch
+conditions:
+- 4
+- 8
+- 12
+- 16
+- 20
+- 25
+- 34
+- 40
+max_num_steps: 7
+num_epochs: 10
+save_interval: 5
+test_set_root: ./test_imgs/cement
+training_set_root: data/p35-xyz/
+vertical_flip: true
+# hahah

@@ -1,0 +1,7 @@
+training_set_root: "data/p35-xyz/"
+test_set_root: "./test_imgs/cement"
+conditions: [4, 8, 12, 16, 20, 25, 34, 40]
+max_num_steps: 7
+vertical_flip: True
+save_interval: 5
+num_epochs: 10
