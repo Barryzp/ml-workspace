@@ -49,14 +49,16 @@ class Particle:
 
 class PSO_optim:
 
-    def __init__(self, reg_obj, mode) -> None:
-        self.reg_obj = reg_obj
-        self.init_basic_params()
+    def __init__(self, config) -> None:
+        self.config = config
 
-        if mode == "2d":
+    def set_init_params(self, refer_img_size, reg_similarity):
+        self.init_basic_params()
+        self.reg_similarity = reg_similarity
+        if self.config.mode == "2d":
             self.init_with_2d_params()
-        if mode == "3d":
-            height, width = self.reg_obj.get_moving_img_shape()
+        if self.config.mode == "3d":
+            width, height = refer_img_size
             if height > width:
                 border = width
             else:
@@ -65,13 +67,13 @@ class PSO_optim:
 
     # 基本参数的初始化
     def init_basic_params(self):
-        self.particle_num = 100
-        self.iteratons = 10
+        self.particle_num = self.config.particle_num
+        self.iteratons = self.config.iteratons
 
-        self.weight_inertia = 0.5  # Inertia weight
-        self.individual_w = 1.6    # Cognitive (particle's best) weight
-        self.global_w = 2.6    # Social (swarm's best) weight
-        self.speed_param_ratio = 0.1 # 0.1 ~ 0.2
+        self.weight_inertia = self.config.weight_inertia  # Inertia weight
+        self.individual_w = self.config.individual_w    # Cognitive (particle's best) weight
+        self.global_w = self.config.global_w    # Social (swarm's best) weight
+        self.speed_param_ratio = self.config.speed_param_ratio # 0.1 ~ 0.2
 
     # 2d/2d图像的寻找最优参数
     def init_with_2d_params(self):
@@ -160,7 +162,7 @@ class PSO_optim:
         global_best_position = max(particles, key=lambda p: p.best_value).position.clone()
 
         for _ in range(num_iterations):
-            global_best_val, __ = self.fintess(global_best_position)
+            global_best_val, __ = self.fitness(global_best_position)
             if record != None: record.append(global_best_position.numpy())
             print(f"iterations: {_}, fitness: {global_best_val}, params: {global_best_position}")
             local_best = global_best_val
@@ -173,8 +175,8 @@ class PSO_optim:
 
         return global_best_position
 
-    def fitness(self, params):
-        return self.reg_obj.similarity(params)
+    def fitness(self, position):
+        return self.reg_similarity(position)
 
         # 进行优化
     def run(self):
@@ -184,6 +186,6 @@ class PSO_optim:
         # Running PSO
         best_position = self._algorithm(poses, self.iteratons, records)
         print(f"The best position found is: {best_position}")
-        val, best_regi_img = self.fintess(best_position)
+        val, best_regi_img = self.fitness(best_position)
         print(f"The maximum value of the function is: {val}")
         return val, best_regi_img

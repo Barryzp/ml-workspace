@@ -2,16 +2,25 @@ import numpy as np
 import torch
 import cv2
 import itk
-
+from functools import partial
 from utils.tools import Tools
 
 
 class Registration:
     def __init__(self, config) -> None:
         self.itk_img = None
-        self.ref_img = None
-        self.pso_framework = None
+        self.refered_img = None
+        self.moving_image = None
+        self.optim_framework = None
         self.config = config
+        self.load_img()
+
+    def set_optim_algorithm(self, optim):
+        self.optim_framework = optim
+        height, width = self.get_referred_img_shape()
+        # 需要绑定实例对象
+        similarity_fun = partial(self.similarity)
+        optim.set_init_params((width, height), similarity_fun)
 
     def _load_moving_img(self):
         data_path = self.config.data_path
@@ -57,26 +66,29 @@ class Registration:
         # HACK 测试用例，先测试这个小块儿能不能跑通
         bse_file_name = "4-1-1-enhanced-roi-300"
         bse_file_path = f'{data_path}/sample{cement_sample_index}/bse/{bse_zoom_times}/{bse_file_name}.bmp'
-        refered_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
-        r_img_height, r_img_width = refered_img.shape
+        self.refered_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
+        r_img_height, r_img_width = self.refered_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
 
     def get_referred_img_shape(self):
         # (height, width)(rows, column)
-        return self.ref_img.shape
+        return self.refered_img.shape
 
     # 加载图像
     def load_img(self):
-        self._load_itk()
         self._load_ref_img()
+        if self.config.mode == "2d":
+            self._load_moving_img()
+        else:
+            self._load_itk()
 
     # 这个值越大越好 空间相关性
     def spatial_correlation(self, img1, img2):
         threshold = self.config.threshold
+        bound = self.config.bound
 
         img1_threshold = threshold[0]
         img2_threshold = threshold[1]
-        bound = bound
 
         shape = img1.shape
 
@@ -112,21 +124,55 @@ class Registration:
 
         return mi
 
-    # 相似度计算
-    def similarity(self, x):
+    def similarity_2d(self, x):
         rotation_center_xy = self.config.rotation_center_xy
         lamda_mis = self.config.lamda_mis
+
+        image = self.moving_image
+        r_height, r_width = self.get_referred_img_shape()
+        f_height, f_width = self.get_moving_img_shape()
+
+        # 步骤 2: 旋转图像
+        # 设置旋转中心为图像中心，旋转45度，缩放因子为1
+        angle = x[2].item()
+        scale = 1.0
+        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
+        # 应用旋转
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
+
+        # 步骤 4: 裁剪图像
+        # 设置裁剪区域
+        x, y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
+        cropped_image = rotated_image[y:y+h, x:x+w]
+        mi_value = self.mutual_information(cropped_image, self.refered_img)
+
+        spation_info = self.spatial_correlation(cropped_image, self.refered_img)
+        mis = mi_value + lamda_mis * spation_info
+        return mis, cropped_image
+
+
+    def similarity_3d(self, x):
+        rotation_center_xy = self.config.rotation_center_xy
+        lamda_mis = self.config.lamda_mis
+
+        height, width = self.get_referred_img_shape()
 
         rotation_center = (rotation_center_xy[0], rotation_center_xy[1], x[2].item())
         rotation = (x[3].item(), x[4].item(), x[5].item())
         slice_indeces = (int(x[0]), int(x[1]), int(x[2]))
-        slice_img = Tools.get_slice_from_itk(rotation_center, rotation, slice_indeces)
+        slice_img = Tools.get_slice_from_itk(self.itk_img, rotation_center, rotation, slice_indeces, (width, height))
 
         mi_value = self.mutual_information(slice_img, self.refered_img)
         spation_info = self.spatial_correlation(slice_img, self.refered_img)
-        mis = mi_value ##+ lamda_mis * spation_info
+        mis = mi_value + lamda_mis * spation_info
         return mis, slice_img
 
+    # 相似度计算 HACK 分2d还是3d
+    def similarity(self, x):
+        if self.config.mode == "2d":
+            return self.similarity_2d(x)
+        elif self.config.mode == "3d":
+            return self.similarity_3d(x)
 
     def registrate(self):
-        value, result = self.pso_framework()
+        return self.optim_framework.run()
