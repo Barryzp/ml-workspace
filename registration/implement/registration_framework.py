@@ -165,7 +165,7 @@ class Registration:
         mi_value = self.mutual_information(slice_img, self.refered_img)
         spation_info = self.spatial_correlation(slice_img, self.refered_img)
         mis = mi_value + lamda_mis * spation_info
-        return mis, slice_img
+        return mis, slice_img.reshape((width, height))
 
     # 相似度计算 HACK 分2d还是3d
     def similarity(self, x):

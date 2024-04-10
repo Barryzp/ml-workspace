@@ -1,8 +1,8 @@
 
 
 
-record_id : "test-2-2d"
-remark : "2d图片无空间信息"
+record_id : "test-1-3d"
+remark : "3d图片无空间信息"
 data_save_path : "D:/workspace/ml-workspace/registration/result"
 
 # 直方图划分
@@ -33,7 +33,7 @@ rotation_center_xy : [960.0, 960.0]
 translate_delta : [20.0, 15.0, 10.0]
 # 模式：2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，真实进行的配准
-mode : "2d"
+mode : "3d"
 # 2d索引
 ct_2d_index : 32
 

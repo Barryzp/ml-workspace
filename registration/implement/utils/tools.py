@@ -10,7 +10,7 @@ from PIL import Image
 class Tools:
     # 加载yaml文件并转化成一个对象
     def load_yaml_config(path):
-        with open(Path(path)) as f:
+        with open(Path(path), 'r', encoding='utf-8') as f:
             yaml_config = yaml.safe_load(f)
         config = Munch(yaml_config)
         return config
