@@ -16,9 +16,11 @@ class Tools:
         return config
 
     # 将配置保存
-    def save_obj_yaml(path, obj):
+    def save_obj_yaml(folder_path, file_name, obj):
+        # 检查一下
+        file_path = Tools.check_file(folder_path, file_name)
         # 将数据保存为 YAML 文件
-        with open(path, 'w') as file:
+        with open(file_path, 'w') as file:
             yaml.dump(obj, file)
 
     def check_file(folder_path, file_name):
