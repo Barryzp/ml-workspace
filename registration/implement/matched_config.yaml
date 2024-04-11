@@ -1,7 +1,7 @@
 
-record_id : "matched-4-2d"
-remark : "2d图片无空间信息"
-data_save_path : "D:/workspace/ml-workspace/registration/result"
+record_id : "matched-sample4"
+remark : "测试"
+data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 registration_type : "matched"
 
@@ -32,30 +32,38 @@ end_index : 49
 data_path : "D:/workspace/ml-workspace/registration/datasets"
 # 对应第几个水泥样本
 cement_sample_index : 4
+
+# bse图像后缀，编号外的
+bse_suffix : "matched-masked"
+
 # bse放大倍数
 bse_zoom_times : 100
 # 对应bse放大某个倍数下，第几个BSE成像图像
 sample_bse_index : 1
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [312.0, 312.0]
+rotation_delta : [0.0, 0.0, 360.0]
+# 初始位移，以图像的左上角为原点
+init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围
 translate_delta : [368.0, 368.0, 0.0]
 # 模式：2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，真实进行的配准
-mode : "2d"
+# matched代表匹配
+mode : "matched"
 # 2d索引
 ct_2d_index : 32
 
 # PSO 参数
 # 粒子个数
-particle_num : 100
+particle_num : 150
 # 迭代次数
 iteratons : 50
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
-weight_inertia : 0.5  # Inertia weight
+weight_inertia : 0.7  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
-individual_w : 1.6    # Cognitive (particle's best) weight
+individual_w : 1.6    # Cognitive (particle's best) weight [0, 4]
 # 群体学习因子，朝着全局最佳方向
-global_w : 2.6    # Social (swarm's best) weight
+global_w : 3.5    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
-speed_param_ratio : 0.1 # 0.1 ~ 0.2
+speed_param_ratio : 0.15 # 0.1 ~ 0.2

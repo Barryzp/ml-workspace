@@ -5,8 +5,6 @@ record_id : "test-3-2d"
 remark : "2d图片无空间信息"
 data_save_path : "D:/workspace/ml-workspace/registration/result"
 
-registration_type : "normal"
-
 # 直方图划分
 bins : 256
 # spatial_information阈值设定，ct对应0项，bse对应1项，大于这个阈值的才保留
@@ -25,12 +23,19 @@ end_index : 49
 data_path : "D:/workspace/ml-workspace/registration/datasets"
 # 对应第几个水泥样本
 cement_sample_index : 4
+
+# bse图像后缀，编号外的
+bse_suffix : "enhanced-roi-300"
+
 # bse放大倍数
 bse_zoom_times : 100
 # 对应bse放大某个倍数下，第几个BSE成像图像
 sample_bse_index : 1
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [960.0, 960.0]
+rotation_delta : [0.0, 0.0, 10.0]
+# 初始位移，以图像的左上角为原点
+init_translate : [794.0, 799.0, 0.0]
 # 最大允许的平移量范围
 translate_delta : [20.0, 15.0, 10.0]
 # 模式：2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
@@ -40,6 +45,9 @@ mode : "2d"
 ct_2d_index : 32
 # 是否有遮罩
 masked : False
+# 切片数量
+slice_num : 40
+
 
 # PSO 参数
 # 粒子个数

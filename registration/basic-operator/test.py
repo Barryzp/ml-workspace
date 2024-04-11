@@ -6,12 +6,8 @@ import yaml
 from pathlib import Path
 
 import os
-print(os.getcwd())
 
 
-with open(Path("basic-operator/test.yml")) as f:
-    yaml_config = yaml.safe_load(f)
+a = np.array(1)
 
-yaml_config
-print(yaml_config.cement)
-
+print(-1.1 % 120)

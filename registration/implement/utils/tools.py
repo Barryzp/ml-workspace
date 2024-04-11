@@ -30,10 +30,10 @@ class Tools:
             # 如果文件夹不存在，创建它
             os.makedirs(folder_path)
         else:
-            # 如果文件夹存在，检查特定文件是否也存在
-            if os.path.exists(file_path):
-                # 如果文件存在，抛出异常
-                raise FileExistsError(f"The file '{file_path}' already exists.")
+            # # 如果文件夹存在，检查特定文件是否也存在
+            # if os.path.exists(file_path):
+            #     # 如果文件存在，抛出异常
+            #     raise FileExistsError(f"The file '{file_path}' already exists.")
             print(f"Folder '{folder_path}' already exists and the file '{file_name}' is not present.")
         
         return file_path

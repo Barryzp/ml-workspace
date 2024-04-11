@@ -7,21 +7,38 @@ from utils.tools import Tools
 
 
 class Registration:
-    def __init__(self, config) -> None:
+    def __init__(self, config, ct_index_array) -> None:
         self.itk_img = None
         self.refered_img = None
         self.moving_image = None
         self.masked_img = None
         self.optim_framework = None
         self.config = config
+        
+        # 匹配过程中ct的索引数组
+        self.ct_index_array = ct_index_array
+        self.matched_moving_imgs = {}
+
         self.load_img()
 
-    def set_optim_algorithm(self, optim):
+    def set_optim_algorithm(self, optim, ct_matching_slice_index):
         self.optim_framework = optim
+
         height, width = self.get_referred_img_shape()
         # 需要绑定实例对象
         similarity_fun = partial(self.similarity)
-        optim.set_init_params((width, height), similarity_fun)
+        optim.set_init_params((width, height), similarity_fun, ct_matching_slice_index)
+
+    def _load_matched_moving_img(self):
+        ct_index_array = self.ct_index_array
+        data_path = self.config.data_path
+        cement_sample_index = self.config.cement_sample_index
+        ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
+
+        for index in ct_index_array:
+            file_path = f"{ct_image_path}/cropped_ct_{index}.bmp"
+            moving_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+            self.matched_moving_imgs[index] = moving_img
 
     def _load_moving_img(self):
         data_path = self.config.data_path
@@ -63,9 +80,11 @@ class Registration:
         data_path = self.config.data_path
         bse_zoom_times = self.config.bse_zoom_times
         cement_sample_index = self.config.cement_sample_index
+        sample_bse_index = self.config.sample_bse_index
+        prefix = f"{cement_sample_index}-{bse_zoom_times//100}-{sample_bse_index}"
+        suffix = self.config.bse_suffix
 
-        # HACK 测试用例，先测试这个小块儿能不能跑通
-        bse_file_name = "4-1-1-enhanced-roi-300"
+        bse_file_name = f"{prefix}-{suffix}"
         bse_file_path = f'{data_path}/sample{cement_sample_index}/bse/{bse_zoom_times}/{bse_file_name}.bmp'
         self.refered_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
         r_img_height, r_img_width = self.refered_img.shape
@@ -76,23 +95,28 @@ class Registration:
         return self.refered_img.shape
 
     # 加载遮罩图像
-    def load_masked_img(self):
+    def _load_masked_img(self):
         data_path = self.config.data_path
         bse_zoom_times = self.config.bse_zoom_times
         cement_sample_index = self.config.cement_sample_index
+        sample_bse_index = self.config.sample_bse_index
+
         if self.config.masked:
-            
-            masked_path = f"{data_path}/sample{cement_sample_index}/bse/{bse_zoom_times}/"
-            pass
-        pass
+            prefix = f"{cement_sample_index}-{bse_zoom_times//100}-{sample_bse_index}"
+            file_name = f"{prefix}-matched-masked.bmp"
+            masked_path = f"{data_path}/sample{cement_sample_index}/bse/{bse_zoom_times}/{file_name}"
+            self.masked_img = cv2.imread(masked_path, cv2.IMREAD_GRAYSCALE)
 
     # 加载图像
     def load_img(self):
         self._load_ref_img()
         if self.config.mode == "2d":
             self._load_moving_img()
-        else:
+        elif self.config.mode == "3d":
             self._load_itk()
+        elif self.config.mode == "matched":
+            self._load_matched_moving_img()
+            self._load_masked_img()
 
     # 这个值越大越好 空间相关性
     def spatial_correlation(self, img1, img2):
@@ -118,6 +142,23 @@ class Registration:
         count = np.sum((diff_imgs >= lower_bound) & (diff_imgs <= upper_bound))
         return count/(shape[0] * shape[1])
 
+    # 带遮罩的空间信息
+    def spatial_correlation_with_mask(self, img1, img2):
+        bound = self.config.bound
+        lower_bound = bound[0]
+        upper_bound = bound[1]
+
+        img1_after_masked = img1 & self.masked_img
+        img2_after_masked = img2 & self.masked_img
+
+        width = self.config.cropped_bse_size[0]
+        height = self.config.cropped_bse_size[1]
+
+        diff_imgs = np.abs(img1_after_masked - img2_after_masked)
+        # 这个下界不能包含了，不然就有问题了，因为上述位运算会出来许多的0
+        count = np.sum((diff_imgs > lower_bound) & (diff_imgs <= upper_bound))
+        return count.item() / (width * height)
+
     def mutual_information(self, image1, image2):
         bins = self.config.bins
 
@@ -136,8 +177,46 @@ class Registration:
 
         return mi
 
-    def similarity_only_mask_spatial(self, x):
-        pass
+    # 只利用遮罩的空间信息
+    def similarity_only_mask_spatial(self, x, ct_matching_slice_index):
+        rotation_center_xy = self.config.rotation_center_xy
+
+        image = self.matched_moving_imgs[ct_matching_slice_index]
+        r_height, r_width = self.get_referred_img_shape()
+        f_height = self.config.cropped_ct_size[0]
+        f_width = self.config.cropped_ct_size[1]
+
+        angle = x[2].item()
+        scale = 1.0
+        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
+
+        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
+        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
+        spatial_info = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
+        return spatial_info, cropped_image
+
+    # 只利用遮罩的空间信息
+    def similarity_matched_mi(self, x, ct_matching_slice_index):
+        rotation_center_xy = self.config.rotation_center_xy
+
+        image = self.matched_moving_imgs[ct_matching_slice_index]
+        r_height, r_width = self.get_referred_img_shape()
+        f_height = self.config.cropped_ct_size[0]
+        f_width = self.config.cropped_ct_size[1]
+
+        angle = x[2].item()
+        scale = 1.0
+        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
+
+        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
+        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
+        
+        mi = self.mutual_information(cropped_image, self.refered_img)
+        #sp = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
+        return mi, cropped_image
+
 
     def similarity_2d(self, x):
         rotation_center_xy = self.config.rotation_center_xy
@@ -157,8 +236,8 @@ class Registration:
 
         # 步骤 4: 裁剪图像
         # 设置裁剪区域
-        x, y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
-        cropped_image = rotated_image[y:y+h, x:x+w]
+        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
+        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         mi_value = self.mutual_information(cropped_image, self.refered_img)
 
         spation_info = self.spatial_correlation(cropped_image, self.refered_img)
@@ -182,12 +261,13 @@ class Registration:
         mis = mi_value + lamda_mis * spation_info
         return mis, slice_img.reshape((width, height))
 
-    # 相似度计算 HACK 分2d还是3d
-    def similarity(self, x):
+    def similarity(self, x, ct_matching_slice_index):
         if self.config.mode == "2d":
             return self.similarity_2d(x)
         elif self.config.mode == "3d":
             return self.similarity_3d(x)
+        elif self.config.mode == "matched":
+            return self.similarity_matched_mi(x, ct_matching_slice_index)
 
     def registrate(self):
         return self.optim_framework.run()

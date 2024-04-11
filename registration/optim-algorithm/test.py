@@ -3,9 +3,7 @@ import torch
 import pandas as pd
 
 
-# 创建一个示例数组
-array = np.array([[1, 5, 3], [2, 5, 7]])
-array = array.T
-df = pd.DataFrame(array, ["x", "y", "z"])
-df.to_csv("asdasd.csv")
-print(np.insert(array, 0, 100))
+t1 = torch.tensor([1,2,3])
+t2 = torch.tensor([1,2,3])
+
+print(torch.concat((t1, t2), dim=0).tolist())
