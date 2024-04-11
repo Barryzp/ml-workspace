@@ -11,6 +11,7 @@ class Registration:
         self.itk_img = None
         self.refered_img = None
         self.moving_image = None
+        self.masked_img = None
         self.optim_framework = None
         self.config = config
         self.load_img()
@@ -74,6 +75,17 @@ class Registration:
         # (height, width)(rows, column)
         return self.refered_img.shape
 
+    # 加载遮罩图像
+    def load_masked_img(self):
+        data_path = self.config.data_path
+        bse_zoom_times = self.config.bse_zoom_times
+        cement_sample_index = self.config.cement_sample_index
+        if self.config.masked:
+            
+            masked_path = f"{data_path}/sample{cement_sample_index}/bse/{bse_zoom_times}/"
+            pass
+        pass
+
     # 加载图像
     def load_img(self):
         self._load_ref_img()
@@ -123,6 +135,9 @@ class Registration:
         mi = np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
 
         return mi
+
+    def similarity_only_mask_spatial(self, x):
+        pass
 
     def similarity_2d(self, x):
         rotation_center_xy = self.config.rotation_center_xy

@@ -1,11 +1,9 @@
 
-
-
-record_id : "test-3-2d"
+record_id : "matched-4-2d"
 remark : "2d图片无空间信息"
 data_save_path : "D:/workspace/ml-workspace/registration/result"
 
-registration_type : "normal"
+registration_type : "matched"
 
 # 直方图划分
 bins : 256
@@ -16,7 +14,16 @@ bound : [0, 50]
 # spatial_information占的权重系数
 lamda_mis : 0
 
+# 剪切的bse尺寸大小
+cropped_bse_size : [256, 256]
+# 剪切的ct尺寸
+cropped_ct_size : [624, 624]
+# 间隔多少张来抽取一张图像进行匹配
+sample_interval : 20
 
+
+# 是否有遮罩
+masked : True
 # ct图像开始索引
 start_index : 10
 # ct图像终止索引
@@ -30,16 +37,14 @@ bse_zoom_times : 100
 # 对应bse放大某个倍数下，第几个BSE成像图像
 sample_bse_index : 1
 # CT图像的XOY平面上的旋转中心
-rotation_center_xy : [960.0, 960.0]
+rotation_center_xy : [312.0, 312.0]
 # 最大允许的平移量范围
-translate_delta : [20.0, 15.0, 10.0]
+translate_delta : [368.0, 368.0, 0.0]
 # 模式：2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，真实进行的配准
 mode : "2d"
 # 2d索引
 ct_2d_index : 32
-# 是否有遮罩
-masked : False
 
 # PSO 参数
 # 粒子个数
