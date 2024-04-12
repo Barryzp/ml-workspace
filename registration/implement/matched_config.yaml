@@ -1,5 +1,5 @@
 
-record_id : "matched-sample4"
+record_id : "matched-sample4-S2"
 remark : "测试"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
@@ -38,8 +38,10 @@ bse_suffix : "matched-masked"
 
 # bse放大倍数
 bse_zoom_times : 100
+# 样品第几个SEM成像
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
-sample_bse_index : 1
+zoom_bse_index : 1
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [312.0, 312.0]
 rotation_delta : [0.0, 0.0, 360.0]

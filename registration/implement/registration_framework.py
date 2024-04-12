@@ -77,15 +77,12 @@ class Registration:
     
     # 加载参考图像
     def _load_ref_img(self):
-        data_path = self.config.data_path
-        bse_zoom_times = self.config.bse_zoom_times
-        cement_sample_index = self.config.cement_sample_index
-        sample_bse_index = self.config.sample_bse_index
-        prefix = f"{cement_sample_index}-{bse_zoom_times//100}-{sample_bse_index}"
+        src_path, file_name = Tools.get_processed_referred_path(self.config)
+        prefix = file_name
         suffix = self.config.bse_suffix
 
         bse_file_name = f"{prefix}-{suffix}"
-        bse_file_path = f'{data_path}/sample{cement_sample_index}/bse/{bse_zoom_times}/{bse_file_name}.bmp'
+        bse_file_path = f'{src_path}/{bse_file_name}.bmp'
         self.refered_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
         r_img_height, r_img_width = self.refered_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
@@ -96,15 +93,11 @@ class Registration:
 
     # 加载遮罩图像
     def _load_masked_img(self):
-        data_path = self.config.data_path
-        bse_zoom_times = self.config.bse_zoom_times
-        cement_sample_index = self.config.cement_sample_index
-        sample_bse_index = self.config.sample_bse_index
+        src_path, prefix = Tools.get_processed_referred_path(self.config)
 
         if self.config.masked:
-            prefix = f"{cement_sample_index}-{bse_zoom_times//100}-{sample_bse_index}"
             file_name = f"{prefix}-matched-masked.bmp"
-            masked_path = f"{data_path}/sample{cement_sample_index}/bse/{bse_zoom_times}/{file_name}"
+            masked_path = f"{src_path}/{file_name}"
             self.masked_img = cv2.imread(masked_path, cv2.IMREAD_GRAYSCALE)
 
     # 加载图像

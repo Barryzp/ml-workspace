@@ -3,7 +3,7 @@
 
 record_id : "test-3-2d"
 remark : "2d图片无空间信息"
-data_save_path : "D:/workspace/ml-workspace/registration/result"
+data_save_path : "D:/workspace/ml-workspace/registration/result/normal"
 
 # 直方图划分
 bins : 256
@@ -29,8 +29,10 @@ bse_suffix : "enhanced-roi-300"
 
 # bse放大倍数
 bse_zoom_times : 100
+# 样品第几个SEM成像
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
-sample_bse_index : 1
+zoom_bse_index : 1
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [960.0, 960.0]
 rotation_delta : [0.0, 0.0, 10.0]

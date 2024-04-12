@@ -38,6 +38,26 @@ class Tools:
         
         return file_path
     
+    def get_save_path(config):
+        # record_id用于标注哪一个，就行了
+        path_prefix = config.data_save_path
+        path_prefix = f"{path_prefix}/{config.record_id}"
+        return path_prefix
+
+
+    def get_processed_referred_path(config):
+        sample_index = config.cement_sample_index
+        bse_sample_index = config.sample_bse_index
+
+        zoom_times = config.bse_zoom_times
+        middle = zoom_times // 100
+        end_index = config.zoom_bse_index
+
+        file_name = f"{sample_index}-{middle}-{end_index}"
+        # BSE 图像裁剪以及对比度增强处理
+        src_path = f"D:/workspace/ml-workspace/registration/datasets/sample{sample_index}/bse/s{bse_sample_index}/{zoom_times}"
+        return src_path, file_name
+
     # 保存图片
     def save_img(folder_path, file_name, img):
         # 检查一下

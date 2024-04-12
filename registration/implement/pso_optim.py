@@ -207,7 +207,7 @@ class PSO_optim:
 
     # 保存迭代过程中的参数
     def save_iteration_params(self, records):
-        file_path = f"{self.config.data_save_path}/{self.config.record_id}"
+        file_path = Tools.get_save_path(self.config)
         file_name = f"pso_params_{self.config.mode}.csv"
 
         if self.config.mode == "2d" :
@@ -224,16 +224,16 @@ class PSO_optim:
         Tools.save_params2df(records, columns, file_path, file_name)
 
     def save_iteration_best_reg_img(self, img_array, iterations):
-        img_path = f"{self.config.data_save_path}/{self.config.record_id}"
+        file_path = Tools.get_save_path(self.config)
         file_name = f"iter{iterations}_best_reg.bmp"
         if self.config.mode == "matched": file_name = f"best_reg_{self.ct_matching_slice_index}.bmp"
-        Tools.save_img(img_path, file_name, img_array)
+        Tools.save_img(file_path, file_name, img_array)
 
     # 保存pso的所有参数
     def save_psos_parameters(self, psos, prefix = ""):
         if self.config.mode != "matched": return
 
-        file_path = f"{self.config.data_save_path}/{self.config.record_id}"
+        file_path = Tools.get_save_path(self.config)
         file_name = f"{self.ct_matching_slice_index}_{prefix}_particle_pos.csv"
         columns = ["x", "y", "rotation", "v1", "v2", "v3"]
         records = []
