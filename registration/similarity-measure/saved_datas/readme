@@ -26,3 +26,6 @@
     y_delta = 1400
 
     interval = 100
+
+3. new_sp_statistics_1200
+    主要用于比较新的空间信息是否能够完成预期目的

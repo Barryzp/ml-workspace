@@ -144,13 +144,18 @@ class Registration:
         img1_after_masked = img1 & self.masked_img
         img2_after_masked = img2 & self.masked_img
 
-        width = self.config.cropped_bse_size[0]
-        height = self.config.cropped_bse_size[1]
+        mask_white_bool = self.masked_img == 255
+        mask_num = mask_white_bool.sum()
+
+        img1_after_masked = np.int16(img1_after_masked)
+        img2_after_masked = np.int16(img2_after_masked)
 
         diff_imgs = np.abs(img1_after_masked - img2_after_masked)
+        diff_imgs = np.uint8(diff_imgs)
+
         # 这个下界不能包含了，不然就有问题了，因为上述位运算会出来许多的0
         count = np.sum((diff_imgs > lower_bound) & (diff_imgs <= upper_bound))
-        return count.item() / (width * height)
+        return count.item() / mask_num
 
     def mutual_information(self, image1, image2):
         bins = self.config.bins
@@ -190,7 +195,7 @@ class Registration:
         return spatial_info, cropped_image
 
     # 只利用遮罩的空间信息
-    def similarity_matched_mi(self, x, ct_matching_slice_index):
+    def similarity_matched_mi(self, x, ct_matching_slice_index, sp_lambda):
         rotation_center_xy = self.config.rotation_center_xy
 
         image = self.matched_moving_imgs[ct_matching_slice_index]
@@ -207,8 +212,11 @@ class Registration:
         cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         
         mi = self.mutual_information(cropped_image, self.refered_img)
-        #sp = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
-        return mi, cropped_image
+        sp = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
+        weightd_sp = self.config.lamda_mis * sp * sp_lambda
+        similar = mi + weightd_sp
+        # print(f"sp: {sp}, mi: {mi}, similar: {similar}")
+        return similar, cropped_image, mi, sp, weightd_sp 
 
 
     def similarity_2d(self, x):
@@ -254,13 +262,13 @@ class Registration:
         mis = mi_value + lamda_mis * spation_info
         return mis, slice_img.reshape((width, height))
 
-    def similarity(self, x, ct_matching_slice_index):
+    def similarity(self, x, ct_matching_slice_index, sp_lambda):
         if self.config.mode == "2d":
             return self.similarity_2d(x)
         elif self.config.mode == "3d":
             return self.similarity_3d(x)
         elif self.config.mode == "matched":
-            return self.similarity_matched_mi(x, ct_matching_slice_index)
+            return self.similarity_matched_mi(x, ct_matching_slice_index, sp_lambda)
 
     def registrate(self):
         return self.optim_framework.run()

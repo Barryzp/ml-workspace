@@ -1,5 +1,6 @@
 import torch, math, random
 import numpy as np
+from scipy.stats import qmc
 from utils.tools import Tools
 
 # Particle class
@@ -10,7 +11,9 @@ class Particle:
 
         self.velocity = torch.rand_like(x0)
         self.best_position = x0
-        self.best_value,_ = pso_optim.fitness(x0)
+
+        fit_res = pso_optim.fitness(x0)
+        self.best_value = fit_res[0]
 
     def update_velocity(self, global_best_position):
         r1 = random.random()
@@ -40,7 +43,8 @@ class Particle:
         # constrain the position in a range
         self.position = self.pso_optim.constrain(self.position)
 
-        value,_ = self.pso_optim.fitness(self.position)
+        fit_res = self.pso_optim.fitness(self.position)
+        value = fit_res[0]
 
         if value > self.best_value:
             self.best_position = self.position
@@ -52,14 +56,19 @@ class PSO_optim:
         # 匹配过程中的ct切片索引
         self.ct_matching_slice_index = None
         self.share_records_out = share_records_out
+        self.current_iterations = 0
         self.config = config
 
-    def put_best_data_in_share(self, max_val, position):
+    def put_best_data_in_share(self, fit_res, position):
+        max_val, _, mi, sp, weighted_sp = fit_res
         if self.config.mode != "matched": return
         if self.share_records_out == None: return
         pos_np = position.numpy()
         pos_np = np.insert(pos_np, 0, self.ct_matching_slice_index)
         pos_np = np.insert(pos_np, pos_np.size, max_val)
+        pos_np = np.insert(pos_np, pos_np.size, mi)
+        pos_np = np.insert(pos_np, pos_np.size, sp)
+        pos_np = np.insert(pos_np, pos_np.size, weighted_sp)
         self.share_records_out.append(pos_np.tolist())
 
     def set_init_params(self, refer_img_size, reg_similarity, ct_matching_slice_index):
@@ -182,7 +191,12 @@ class PSO_optim:
         self.save_psos_parameters(particles, "start")
 
         for _ in range(num_iterations):
-            global_best_val, __ = self.fitness(global_best_position)
+            self.current_iterations = _
+
+            fit_res = self.fitness(global_best_position)
+            global_best_val = fit_res[0]
+            __ = fit_res[1]
+            
             if record != None:
                 data_item = global_best_position.numpy()
                 data_item = np.insert(data_item, 0, _)
@@ -202,8 +216,14 @@ class PSO_optim:
         self.save_psos_parameters(particles, "end")
         return global_best_position
 
+    def auto_nonlinear_sp_lambda(self, k=12, a=0.7):
+        all_iteration = self.config.iteratons + 1
+        x = self.current_iterations / all_iteration
+        return 1 / (1 + np.exp(-k * (x - a)))
+
     def fitness(self, position):
-        return self.reg_similarity(position, self.ct_matching_slice_index)
+        sp_lambda = self.auto_nonlinear_sp_lambda()
+        return self.reg_similarity(position, self.ct_matching_slice_index, sp_lambda)
 
     # 保存迭代过程中的参数
     def save_iteration_params(self, records):
@@ -245,17 +265,39 @@ class PSO_optim:
             
         Tools.save_params2df(records, columns, file_path, file_name)
 
+    # 使用此方法粒子数的数量必须是2^n
+    def spawn_uniform_particles(self):
+        """
+        使用Sobol序列生成在给定边界内均匀分布的点
+        :param num_points: 点的数量
+        :param bounds: 每个维度的边界，格式为 [(min_x, max_x), (min_y, max_y), (min_z, max_z)]
+        :return: numpy array of points
+        """
+        num_points = self.particle_num
+        dimension = self.parameters_num
+        bounds = np.array((self.minV, self.maxV)).transpose()
+
+        sampler = qmc.Sobol(d=dimension, scramble=True)
+        sample = sampler.random_base2(m=int(np.log2(num_points)))
+        scaled_sample = qmc.scale(sample, [b[0] for b in bounds], [b[1] for b in bounds])
+
+        return torch.tensor(scaled_sample)
+    
+    def spawn_random_particles(self):
+        return [torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
+
         # 进行优化
     def run(self):
-        poses = [torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
+        poses = self.spawn_uniform_particles()#[torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
         records = []
 
         # Running PSO
         best_position = self._algorithm(poses, self.iteratons, records)
         print(f"The best position found is: {best_position}")
-        val, best_regi_img = self.fitness(best_position)
+        fit_res = self.fitness(best_position)
+        val, best_regi_img, mi, sp, weighted_sp = fit_res
         print(f"The maximum value of the function is: {val}")
-        self.put_best_data_in_share(val, best_position)
+        self.put_best_data_in_share(fit_res, best_position)
         self.save_iteration_params(records)
         if self.config.mode == "matched":
             # 保存相关数据(图像之类的)

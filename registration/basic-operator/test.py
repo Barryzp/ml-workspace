@@ -4,10 +4,15 @@ from glob import glob
 import os
 import yaml
 from pathlib import Path
+import os
+import matplotlib.pyplot as plt
+
 
 import os
 
+a = [10, 20, 30]
+b = [20, 70, 80]
 
-a = np.array(1)
+c = np.array((a, b)).transpose()
 
-print(-1.1 % 120)
+print(c[0])
