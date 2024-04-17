@@ -14,12 +14,24 @@ class Registration:
         self.masked_img = None
         self.optim_framework = None
         self.config = config
-        
+        self.matched_ct_size = self.config.cropped_ct_size
+
         # 匹配过程中ct的索引数组
         self.ct_index_array = ct_index_array
         self.matched_moving_imgs = {}
 
         self.load_img()
+        self.set_config_delta()
+    
+    def set_config_delta(self):
+        if self.config.mode == "matched":
+            bse_height, bse_width = self.get_referred_img_shape()
+            ct_height, ct_width = self.matched_ct_size[0], self.matched_ct_size[1]
+            translate_x = ct_width - bse_width
+            translate_y = ct_height - bse_height
+            self.config.translate_delta[0] = translate_x
+            self.config.translate_delta[1] = translate_y
+
 
     def set_optim_algorithm(self, optim, ct_matching_slice_index):
         self.optim_framework = optim
@@ -39,6 +51,7 @@ class Registration:
             file_path = f"{ct_image_path}/cropped_ct_{index}.bmp"
             moving_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
             self.matched_moving_imgs[index] = moving_img
+            
 
     def _load_moving_img(self):
         data_path = self.config.data_path

@@ -103,6 +103,7 @@ class PSO_optim:
 
         init_translate = self.config.init_translate
         init_rotation = 0.0
+
         # 位移限制的范围
         translate_delta = self.config.translate_delta
         rotation_delta = self.config.rotation_delta[-1]
