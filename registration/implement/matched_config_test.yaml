@@ -1,6 +1,6 @@
 
-record_id : "test-matched-sample4-S2-bigsize-2"
-remark : "测试：解决PSO算法BUG，以及调整fitness的算法重新进行匹配，测试"
+record_id : "matched-sample3-S1-sp-lambda-1"
+remark : "测试：保持原样"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 registration_type : "matched"
@@ -11,13 +11,11 @@ bins : 256
 threshold : [128, 180]
 # spatial_information差异值在多大范围内才进行统计
 bound : [0, 100]
-# 是否自动改变lambda
-auto_lambda : False
 # spatial_information占的权重系数
-lamda_mis : 0.05
+lamda_mis : 0.08
 
 # 剪切的ct尺寸
-cropped_ct_size : [1024, 1024]
+cropped_ct_size : [624, 624]
 # 间隔多少张来抽取一张图像进行匹配
 sample_interval : 20
 
@@ -31,7 +29,7 @@ end_index : 49
 # 图像路径
 data_path : "D:/workspace/ml-workspace/registration/datasets"
 # 对应第几个水泥样本
-cement_sample_index : 4
+cement_sample_index : 3
 
 # bse图像后缀，编号外的
 bse_suffix : "matched-masked"
@@ -39,11 +37,11 @@ bse_suffix : "matched-masked"
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 2
+sample_bse_index : 1
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # CT图像的XOY平面上的旋转中心
-rotation_center_xy : [512.0, 512.0]
+rotation_center_xy : [312.0, 312.0]
 rotation_delta : [0.0, 0.0, 360.0]
 # 初始位移，以图像的左上角为原点
 init_translate : [0.0, 0.0, 0.0]
@@ -63,10 +61,10 @@ particle_num : 128
 # 迭代次数
 iteratons : 50
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
-weight_inertia : 0.729  # Inertia weight
+weight_inertia : 0.7  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
-individual_w : 2.06    # Cognitive (particle's best) weight [0, 4]
+individual_w : 1.6    # Cognitive (particle's best) weight [0, 4]
 # 群体学习因子，朝着全局最佳方向
-global_w : 2.05    # Social (swarm's best) weight [0, 4]
+global_w : 3.5    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.15 # 0.1 ~ 0.2

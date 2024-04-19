@@ -7,18 +7,19 @@ from utils.tools import Tools
 
 
 class Registration:
-    def __init__(self, config, ct_index_array) -> None:
+    def __init__(self, config, ct_index_array = None) -> None:
         self.itk_img = None
         self.refered_img = None
         self.moving_image = None
         self.masked_img = None
         self.optim_framework = None
         self.config = config
-        self.matched_ct_size = self.config.cropped_ct_size
 
-        # 匹配过程中ct的索引数组
-        self.ct_index_array = ct_index_array
-        self.matched_moving_imgs = {}
+        if self.config.mode == "matched":
+            # 匹配过程中ct的索引数组
+            self.matched_ct_size = self.config.cropped_ct_size
+            self.ct_index_array = ct_index_array
+            self.matched_moving_imgs = {}
 
         self.load_img()
         self.set_config_delta()
@@ -33,7 +34,7 @@ class Registration:
             self.config.translate_delta[1] = translate_y
 
 
-    def set_optim_algorithm(self, optim, ct_matching_slice_index):
+    def set_optim_algorithm(self, optim, ct_matching_slice_index = None):
         self.optim_framework = optim
 
         height, width = self.get_referred_img_shape()
@@ -46,9 +47,10 @@ class Registration:
         data_path = self.config.data_path
         cement_sample_index = self.config.cement_sample_index
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
+        suffix = f"{self.config.cropped_ct_size[0]}"
 
         for index in ct_index_array:
-            file_path = f"{ct_image_path}/cropped_ct_{index}.bmp"
+            file_path = f"{ct_image_path}/cropped_ct_{index}_{suffix}.bmp"
             moving_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
             self.matched_moving_imgs[index] = moving_img
             
@@ -109,20 +111,21 @@ class Registration:
         src_path, prefix = Tools.get_processed_referred_path(self.config)
 
         if self.config.masked:
-            file_name = f"{prefix}-matched-masked.bmp"
+            file_name = f"{prefix}-{self.config.mask_suffix}.bmp"
             masked_path = f"{src_path}/{file_name}"
             self.masked_img = cv2.imread(masked_path, cv2.IMREAD_GRAYSCALE)
 
     # 加载图像
     def load_img(self):
         self._load_ref_img()
+        if self.config.masked:
+            self._load_masked_img()
         if self.config.mode == "2d":
             self._load_moving_img()
         elif self.config.mode == "3d":
             self._load_itk()
         elif self.config.mode == "matched":
             self._load_matched_moving_img()
-            self._load_masked_img()
 
     # 这个值越大越好 空间相关性
     def spatial_correlation(self, img1, img2):
@@ -150,6 +153,9 @@ class Registration:
 
     # 带遮罩的空间信息
     def spatial_correlation_with_mask(self, img1, img2):
+        if self.config.masked == False:
+            return 0
+
         bound = self.config.bound
         lower_bound = bound[0]
         upper_bound = bound[1]
@@ -165,10 +171,16 @@ class Registration:
 
         diff_imgs = np.abs(img1_after_masked - img2_after_masked)
         diff_imgs = np.uint8(diff_imgs)
+        above_lower_bound = diff_imgs > lower_bound
+        less_upper_bound = diff_imgs <= upper_bound
+        above_upper_bound = diff_imgs > upper_bound
+
+        count = np.sum(above_lower_bound & less_upper_bound)
+        penalty = np.sum(above_upper_bound)
 
         # 这个下界不能包含了，不然就有问题了，因为上述位运算会出来许多的0
         count = np.sum((diff_imgs > lower_bound) & (diff_imgs <= upper_bound))
-        return count.item() / mask_num
+        return (count - penalty).item() / mask_num
 
     def mutual_information(self, image1, image2):
         bins = self.config.bins
@@ -254,7 +266,7 @@ class Registration:
         cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         mi_value = self.mutual_information(cropped_image, self.refered_img)
 
-        spation_info = self.spatial_correlation(cropped_image, self.refered_img)
+        spation_info = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
         mis = mi_value + lamda_mis * spation_info
         return mis, cropped_image
 
@@ -275,7 +287,7 @@ class Registration:
         mis = mi_value + lamda_mis * spation_info
         return mis, slice_img.reshape((width, height))
 
-    def similarity(self, x, ct_matching_slice_index, sp_lambda):
+    def similarity(self, x, ct_matching_slice_index=None, sp_lambda=0):
         if self.config.mode == "2d":
             return self.similarity_2d(x)
         elif self.config.mode == "3d":

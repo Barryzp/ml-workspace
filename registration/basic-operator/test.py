@@ -1,18 +1,16 @@
 import itk
 import numpy as np
 from glob import glob
-import os
+import os, torch
 import yaml
 from pathlib import Path
-import os
 import matplotlib.pyplot as plt
 
 
-import os
+import os, random
 
-a = [10, 20, 30]
-b = [20, 70, 80]
+A = torch.tensor([[10, 20, 30],[2, 3, 4]])
+B = torch.tensor([8, 30, 25])
 
-c = np.array((a, b)).transpose()
+print(np.clip(A, -B, B))
 
-print(c[0])

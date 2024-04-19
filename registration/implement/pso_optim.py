@@ -5,12 +5,15 @@ from utils.tools import Tools
 
 # Particle class
 class Particle:
-    def __init__(self, x0, pso_optim):
+    def __init__(self, x0, pso_optim, id):
+        self.id = id
         self.position = x0
         self.pso_optim = pso_optim
 
         self.velocity = torch.rand_like(x0)
-        self.best_position = x0
+        self.best_position = torch.clone(x0)
+        
+        self.debug = False
 
         fit_res = pso_optim.fitness(x0)
         self.best_value = fit_res[0]
@@ -22,32 +25,35 @@ class Particle:
         global_w = self.pso_optim.global_w
         weight_inertia = self.pso_optim.weight_inertia
 
-        cog_dir = torch.zeros_like(global_best_position)
         cog_delta = (self.best_position - self.position)
-        cog_norm = torch.norm(cog_delta)
-        if cog_norm > 0:
-            cog_dir = cog_delta / cog_norm 
-        cognitive_velocity = individual_w * r1 * cog_dir
-        
-        soc_dir = torch.zeros_like(global_best_position)
+        # cog_dir = torch.zeros_like(global_best_position)
+        # cog_norm = torch.norm(cog_delta)
+        # if cog_norm > 0:
+        #     cog_dir = cog_delta / cog_norm
+        cognitive_velocity = individual_w * r1 * cog_delta
+
+
         soc_delta = (global_best_position - self.position)
-        soc_norm = torch.norm(soc_delta)
-        if soc_norm > 0:
-            soc_dir = soc_delta / soc_norm
-        social_velocity = global_w * r2 * soc_dir
+        # soc_dir = torch.zeros_like(global_best_position)
+        # soc_norm = torch.norm(soc_delta)
+        # if soc_norm > 0:
+        #     soc_dir = soc_delta / soc_norm
+        social_velocity = global_w * r2 * soc_delta
+        
         self.velocity = weight_inertia * self.velocity + cognitive_velocity + social_velocity
+        self.velocity = self.pso_optim.constrain_velocity(self.velocity)
 
     def move(self):
-        speed = self.pso_optim.speed
-        self.position += self.velocity * speed
+        self.position += self.velocity
         # constrain the position in a range
         self.position = self.pso_optim.constrain(self.position)
+
 
         fit_res = self.pso_optim.fitness(self.position)
         value = fit_res[0]
 
         if value > self.best_value:
-            self.best_position = self.position
+            self.best_position = self.position.clone()
             self.best_value = value
 
 class PSO_optim:
@@ -60,9 +66,9 @@ class PSO_optim:
         self.config = config
 
     def put_best_data_in_share(self, fit_res, position):
-        max_val, _, mi, sp, weighted_sp = fit_res
         if self.config.mode != "matched": return
         if self.share_records_out == None: return
+        max_val, _, mi, sp, weighted_sp = fit_res
         pos_np = position.numpy()
         pos_np = np.insert(pos_np, 0, self.ct_matching_slice_index)
         pos_np = np.insert(pos_np, pos_np.size, max_val)
@@ -71,7 +77,7 @@ class PSO_optim:
         pos_np = np.insert(pos_np, pos_np.size, weighted_sp)
         self.share_records_out.append(pos_np.tolist())
 
-    def set_init_params(self, refer_img_size, reg_similarity, ct_matching_slice_index):
+    def set_init_params(self, refer_img_size, reg_similarity, ct_matching_slice_index = None):
         self.init_basic_params()
         self.reg_similarity = reg_similarity
         if self.config.mode == "2d":
@@ -121,9 +127,9 @@ class PSO_optim:
         ]
 
         # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
-        speed_x = translate_delta[0] * 2 * self.speed_param_ratio
-        speed_y = translate_delta[1] * 2 * self.speed_param_ratio
-        speed_rotation = rotation_delta * 2 * self.speed_param_ratio
+        speed_x = translate_delta[0] * self.speed_param_ratio
+        speed_y = translate_delta[1] * self.speed_param_ratio
+        speed_rotation = rotation_delta * self.speed_param_ratio
         self.speed = torch.tensor([speed_x, speed_y, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
 
 
@@ -184,12 +190,21 @@ class PSO_optim:
 
         return t
 
+    # 将速度限制在最大范围内
+    def constrain_velocity(self, velocity):
+        max_velocity = self.speed
+        return torch.clip(velocity, -max_velocity, max_velocity)
+
     # PSO algorithm
     def _algorithm(self, particle_vals, num_iterations, record):
-        particles = [Particle(particle_vals[i], self) for i in range(len(particle_vals))]
+        particles = [Particle(particle_vals[i], self, i) for i in range(len(particle_vals))]
         global_best_position = max(particles, key=lambda p: p.best_value).position.clone()
         
         self.save_psos_parameters(particles, "start")
+
+        matched_suffix = ""
+        if self.config.mode == "matched":
+            matched_suffix = f" slice_index: {self.ct_matching_slice_index},"
 
         for _ in range(num_iterations):
             self.current_iterations = _
@@ -205,7 +220,7 @@ class PSO_optim:
                 record.append(data_item.tolist())
                 if self.config.mode != "matched": self.save_iteration_best_reg_img(__, _)
 
-            print(f"iterations: {_}, fitness: {global_best_val}, params: {global_best_position}")
+            print(f"iterations: {_}, fitness: {global_best_val},{matched_suffix} params: {global_best_position}")
             local_best = global_best_val
             for particle in particles:
                 particle.update_velocity(global_best_position)
@@ -223,7 +238,9 @@ class PSO_optim:
         return 1 / (1 + np.exp(-k * (x - a)))
 
     def fitness(self, position):
-        sp_lambda = self.auto_nonlinear_sp_lambda()
+        sp_lambda = 1
+        if self.config.auto_lambda:
+         sp_lambda = self.auto_nonlinear_sp_lambda()
         return self.reg_similarity(position, self.ct_matching_slice_index, sp_lambda)
 
     # 保存迭代过程中的参数
@@ -296,7 +313,7 @@ class PSO_optim:
         best_position = self._algorithm(poses, self.iteratons, records)
         print(f"The best position found is: {best_position}")
         fit_res = self.fitness(best_position)
-        val, best_regi_img, mi, sp, weighted_sp = fit_res
+        val, best_regi_img = fit_res[0], fit_res[1]
         print(f"The maximum value of the function is: {val}")
         self.put_best_data_in_share(fit_res, best_position)
         self.save_iteration_params(records)
