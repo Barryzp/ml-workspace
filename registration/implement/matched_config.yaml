@@ -34,7 +34,9 @@ data_path : "D:/workspace/ml-workspace/registration/datasets"
 cement_sample_index : 4
 
 # bse图像后缀，编号外的
-bse_suffix : "matched-masked"
+bse_suffix : "matched-bse"
+# mask图像后缀
+mask_suffix : "matched-masked"
 
 # bse放大倍数
 bse_zoom_times : 100

@@ -56,6 +56,10 @@ class Registration:
             
 
     def _load_moving_img(self):
+        if self.config.debug:
+            self.moving_image = cv2.imread(self.config.debug_ct_path, cv2.IMREAD_GRAYSCALE)
+            return
+
         data_path = self.config.data_path
         cement_sample_index = self.config.cement_sample_index
         sample_bse_index = self.config.sample_bse_index
@@ -92,6 +96,10 @@ class Registration:
     
     # 加载参考图像
     def _load_ref_img(self):
+        if self.config.debug:
+            self.refered_img = cv2.imread(self.config.debug_bse_path, cv2.IMREAD_GRAYSCALE)
+            return
+
         src_path, file_name = Tools.get_processed_referred_path(self.config)
         prefix = file_name
         suffix = self.config.bse_suffix
@@ -108,6 +116,10 @@ class Registration:
 
     # 加载遮罩图像
     def _load_masked_img(self):
+        if self.config.debug and self.config.masked:
+            self.masked_img = cv2.imread(self.config.debug_mask_path, cv2.IMREAD_GRAYSCALE)
+            return
+
         src_path, prefix = Tools.get_processed_referred_path(self.config)
 
         if self.config.masked:
@@ -118,6 +130,8 @@ class Registration:
     # 加载图像
     def load_img(self):
         self._load_ref_img()
+        print(f"H_Refer: {Tools.caculate_entropy(self.refered_img)}")
+
         if self.config.masked:
             self._load_masked_img()
         if self.config.mode == "2d":
@@ -237,6 +251,7 @@ class Registration:
         cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         
         mi = self.mutual_information(cropped_image, self.refered_img)
+
         sp = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
         weightd_sp = self.config.lamda_mis * sp * sp_lambda
         similar = mi + weightd_sp
@@ -267,8 +282,9 @@ class Registration:
         mi_value = self.mutual_information(cropped_image, self.refered_img)
 
         spation_info = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
-        mis = mi_value + lamda_mis * spation_info
-        return mis, cropped_image
+        weighted_sp = lamda_mis * spation_info
+        mis = mi_value + weighted_sp
+        return mis, cropped_image, weighted_sp
 
 
     def similarity_3d(self, x):

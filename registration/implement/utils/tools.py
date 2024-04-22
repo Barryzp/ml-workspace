@@ -72,6 +72,20 @@ class Tools:
         data_df = pd.DataFrame(datas, columns = columns)
         data_df.to_csv(file_path, index=False)
 
+    def caculate_hist_entropy(hist):
+        p = hist / hist.sum()
+        p = p[p > 0] # 移除概率为0的项
+        return -np.sum(p * np.log2(p))
+
+    # 计算图片的熵
+    def caculate_entropy(image):
+        hist = np.histogram(image, 256)[0]
+        return Tools.caculate_hist_entropy(hist)
+
+    def caculate_joint_entropy(img1, img2):
+        hist_2d, _, _ = np.histogram2d(img1.ravel(), img2.ravel(), bins=256)
+        return Tools.caculate_hist_entropy(hist_2d)
+
     def crop_rotate(image, center, size, angle):
         """
         Crop and rotate a region from an image.

@@ -212,6 +212,7 @@ class PSO_optim:
             fit_res = self.fitness(global_best_position)
             global_best_val = fit_res[0]
             __ = fit_res[1]
+            weighted_sp = fit_res[-1]
             
             if record != None:
                 data_item = global_best_position.numpy()
@@ -220,7 +221,7 @@ class PSO_optim:
                 record.append(data_item.tolist())
                 if self.config.mode != "matched": self.save_iteration_best_reg_img(__, _)
 
-            print(f"iterations: {_}, fitness: {global_best_val},{matched_suffix} params: {global_best_position}")
+            print(f"iterations: {_}, fitness: {global_best_val}, weighted_sp: {weighted_sp},{matched_suffix} params: {global_best_position}")
             local_best = global_best_val
             for particle in particles:
                 particle.update_velocity(global_best_position)

@@ -1,10 +1,15 @@
 
 
 
-record_id : "test-4-2d"
+record_id : "test-4-2-2d-1"
 remark : "测试PSO最佳效果"
 data_save_path : "D:/workspace/ml-workspace/registration/result/normal"
 
+# 用于直接测试配准图像，直接从路径中加载，免得麻烦
+debug: True
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/s1/enhanced/cropped_ct_585_1024.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
 
 # 直方图划分
 bins : 256
@@ -38,24 +43,26 @@ bse_suffix : "matched-bse"
 # mask图像后缀
 mask_suffix : "matched-masked"
 
+# 用于临时测试CT图像的路径
+
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 1
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # CT图像的XOY平面上的旋转中心
-rotation_center_xy : [960.0, 960.0]
-rotation_delta : [0.0, 0.0, 10.0]
+rotation_center_xy : [512.0, 512.0]
+rotation_delta : [0.0, 0.0, 360.0]
 # 初始位移，以图像的左上角为原点
-init_translate : [600.0, 600.0, 0.0]
+init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围
-translate_delta : [800.0, 800.0, 10.0]
+translate_delta : [768.0, 768.0, 10.0]
 # 模式：2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，真实进行的配准
 mode : "2d"
 # 2d索引
-ct_2d_index : 32
+ct_2d_index : 10
 # 是否有遮罩
 masked : True
 # 切片数量
@@ -64,14 +71,14 @@ slice_num : 40
 
 # PSO 参数
 # 粒子个数
-particle_num : 128
+particle_num : 256
 # 迭代次数
 iteratons : 30
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
 weight_inertia : 0.729  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
-individual_w : 2.06    # Cognitive (particle's best) weight
+individual_w : 1.06    # Cognitive (particle's best) weight
 # 群体学习因子，朝着全局最佳方向
-global_w : 2.06    # Social (swarm's best) weight
+global_w : 1.06    # Social (swarm's best) weight
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.18 # 0.1 ~ 0.2
