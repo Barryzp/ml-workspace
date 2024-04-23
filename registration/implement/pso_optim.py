@@ -213,11 +213,13 @@ class PSO_optim:
             global_best_val = fit_res[0]
             __ = fit_res[1]
             weighted_sp = fit_res[-1]
-            
+            mi_value = fit_res[-3]
+            sp = fit_res[-2]
             if record != None:
                 data_item = global_best_position.numpy()
                 data_item = np.insert(data_item, 0, _)
                 data_item = np.insert(data_item, data_item.size, global_best_val)
+                data_item = np.append(data_item, [weighted_sp, mi_value, sp])
                 record.append(data_item.tolist())
                 if self.config.mode != "matched": self.save_iteration_best_reg_img(__, _)
 
@@ -247,10 +249,10 @@ class PSO_optim:
     # 保存迭代过程中的参数
     def save_iteration_params(self, records):
         file_path = Tools.get_save_path(self.config)
-        file_name = f"pso_params_{self.config.mode}.csv"
+        file_name = f"{self.config.repeat_count}_pso_params_{self.config.mode}.csv"
 
         if self.config.mode == "2d" :
-            columns = ["iterations", "x", "y", "rotation", "fitness"]
+            columns = ["iterations", "x", "y", "rotation", "fitness", "weighted_sp", "mi", "sp"]
         elif self.config.mode == "3d":
             columns = ["iterations", 
                        "x", "y", "z", 

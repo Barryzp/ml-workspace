@@ -1,9 +1,17 @@
 
-record_id : "test-matched-sample4-S2-bigsize-2"
-remark : "测试：解决PSO算法BUG，以及调整fitness的算法重新进行匹配，测试"
+record_id : "test-matched-sample4-S2-downsample-test-2"
+remark : "测试：下采样+改进的算法测试"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
-registration_type : "matched"
+
+# 用于直接测试配准图像，直接从路径中加载，免得麻烦
+debug: False
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/s1/enhanced/cropped_ct_585_1024.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
+
+# 用来记录第几次覆盖
+repeat_count : 3
 
 # 直方图划分
 bins : 256
@@ -14,13 +22,14 @@ bound : [0, 100]
 # 是否自动改变lambda
 auto_lambda : False
 # spatial_information占的权重系数
-lamda_mis : 0.05
+lamda_mis : 0.1
 
 # 剪切的ct尺寸
 cropped_ct_size : [1024, 1024]
 # 间隔多少张来抽取一张图像进行匹配
 sample_interval : 20
-
+downsampled : True
+downsample_times : 2
 
 # 是否有遮罩
 masked : True
@@ -34,7 +43,7 @@ data_path : "D:/workspace/ml-workspace/registration/datasets"
 cement_sample_index : 4
 
 # bse图像后缀，编号外的
-bse_suffix : "matched-bse"
+bse_suffix : "matched-masked"
 # mask图像后缀
 mask_suffix : "matched-masked"
 
@@ -61,14 +70,14 @@ ct_2d_index : 32
 
 # PSO 参数
 # 粒子个数
-particle_num : 128
+particle_num : 256
 # 迭代次数
 iteratons : 50
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
 weight_inertia : 0.729  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
-individual_w : 2.06    # Cognitive (particle's best) weight [0, 4]
+individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
 # 群体学习因子，朝着全局最佳方向
 global_w : 2.05    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
-speed_param_ratio : 0.15 # 0.1 ~ 0.2
+speed_param_ratio : 0.18 # 0.1 ~ 0.2

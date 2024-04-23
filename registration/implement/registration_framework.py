@@ -17,7 +17,6 @@ class Registration:
 
         if self.config.mode == "matched":
             # 匹配过程中ct的索引数组
-            self.matched_ct_size = self.config.cropped_ct_size
             self.ct_index_array = ct_index_array
             self.matched_moving_imgs = {}
 
@@ -25,9 +24,11 @@ class Registration:
         self.set_config_delta()
     
     def set_config_delta(self):
-        if self.config.mode == "matched":
+        mode = self.config.mode
+        if mode == "matched" or mode == "2d":
             bse_height, bse_width = self.get_referred_img_shape()
-            ct_height, ct_width = self.matched_ct_size[0], self.matched_ct_size[1]
+            ct_height, ct_width = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
+            self.config.rotation_center_xy = [ct_width/2, ct_height/2]
             translate_x = ct_width - bse_width
             translate_y = ct_height - bse_height
             self.config.translate_delta[0] = translate_x
@@ -52,12 +53,16 @@ class Registration:
         for index in ct_index_array:
             file_path = f"{ct_image_path}/cropped_ct_{index}_{suffix}.bmp"
             moving_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+            if self.config.downsampled: moving_img = Tools.downsample_image(moving_img, self.config.downsample_times)
             self.matched_moving_imgs[index] = moving_img
+            if self.config.mode == "matched": self.config.cropped_ct_size = moving_img.shape
             
 
     def _load_moving_img(self):
         if self.config.debug:
             self.moving_image = cv2.imread(self.config.debug_ct_path, cv2.IMREAD_GRAYSCALE)
+            if self.config.downsampled: self.moving_image = Tools.downsample_image(self.moving_image, self.config.downsample_times)
+            self.config.cropped_ct_size = self.moving_image.shape
             return
 
         data_path = self.config.data_path
@@ -67,7 +72,9 @@ class Registration:
 
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/s{sample_bse_index}/enhanced"
         self.moving_image = cv2.imread(f"{ct_image_path}/slice_enhanced_{ct_2d_index}.bmp", cv2.IMREAD_GRAYSCALE)
-    
+        if self.config.downsampled: self.moving_image = Tools.downsample_image(self.moving_image, self.config.downsample_times)
+        self.config.cropped_ct_size = self.moving_img.shape
+
     def get_moving_img_shape(self):
         # (height, width)(rows, column)
         return self.moving_image.shape
@@ -98,6 +105,7 @@ class Registration:
     def _load_ref_img(self):
         if self.config.debug:
             self.refered_img = cv2.imread(self.config.debug_bse_path, cv2.IMREAD_GRAYSCALE)
+            if self.config.downsampled: self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
             return
 
         src_path, file_name = Tools.get_processed_referred_path(self.config)
@@ -107,6 +115,7 @@ class Registration:
         bse_file_name = f"{prefix}-{suffix}"
         bse_file_path = f'{src_path}/{bse_file_name}.bmp'
         self.refered_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
+        if self.config.downsampled: self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
         r_img_height, r_img_width = self.refered_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
 
@@ -118,6 +127,7 @@ class Registration:
     def _load_masked_img(self):
         if self.config.debug and self.config.masked:
             self.masked_img = cv2.imread(self.config.debug_mask_path, cv2.IMREAD_GRAYSCALE)
+            if self.config.downsampled: self.masked_img = Tools.downsample_image(self.masked_img, self.config.downsample_times)
             return
 
         src_path, prefix = Tools.get_processed_referred_path(self.config)
@@ -126,6 +136,7 @@ class Registration:
             file_name = f"{prefix}-{self.config.mask_suffix}.bmp"
             masked_path = f"{src_path}/{file_name}"
             self.masked_img = cv2.imread(masked_path, cv2.IMREAD_GRAYSCALE)
+            if self.config.downsampled: self.masked_img = Tools.downsample_image(self.masked_img, self.config.downsample_times)
 
     # 加载图像
     def load_img(self):
@@ -284,7 +295,7 @@ class Registration:
         spation_info = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
         weighted_sp = lamda_mis * spation_info
         mis = mi_value + weighted_sp
-        return mis, cropped_image, weighted_sp
+        return mis, cropped_image, mi_value, spation_info, weighted_sp
 
 
     def similarity_3d(self, x):

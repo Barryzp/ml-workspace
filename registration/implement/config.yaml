@@ -1,15 +1,18 @@
 
 
 
-record_id : "test-4-2-2d-1"
-remark : "测试PSO最佳效果"
+record_id : "test-4-2-2d-3-downsample-2"
+remark : "测试4另一个样本"
 data_save_path : "D:/workspace/ml-workspace/registration/result/normal"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
-debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/s1/enhanced/cropped_ct_585_1024.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/s2/enhanced/cropped_ct_545_1024.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-matched-masked.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-matched-masked.bmp"
+
+# 用来记录第几次覆盖
+repeat_count : 1
 
 # 直方图划分
 bins : 256
@@ -20,13 +23,15 @@ bound : [0, 100]
 # 是否自动改变lambda
 auto_lambda : False
 # spatial_information占的权重系数
-lamda_mis : 0.05
+lamda_mis : 0.1
 
 
-# 剪切的ct尺寸
+# 初始的ct尺寸
 cropped_ct_size : [1024, 1024]
 # 间隔多少张来抽取一张图像进行匹配
 sample_interval : 20
+downsampled : True
+downsample_times : 2
 
 
 # ct图像开始索引
@@ -73,12 +78,12 @@ slice_num : 40
 # 粒子个数
 particle_num : 256
 # 迭代次数
-iteratons : 30
-# HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
-weight_inertia : 0.729  # Inertia weight
+iteratons : 50
+# HACK 可以进行改进 惯性权重
+weight_inertia : 0.729  # Inertia weight[0.4 - 0.9]
 # 个体学习因子，朝着个体最佳方向
-individual_w : 1.06    # Cognitive (particle's best) weight
+individual_w : 1.56    # Cognitive (particle's best) weight[1.5~2.5]
 # 群体学习因子，朝着全局最佳方向
-global_w : 1.06    # Social (swarm's best) weight
+global_w : 2.06    # Social (swarm's best) weight[1.5~2.5]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.18 # 0.1 ~ 0.2

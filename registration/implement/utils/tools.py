@@ -23,6 +23,10 @@ class Tools:
         with open(file_path, 'w') as file:
             yaml.dump(obj, file)
 
+    def check_file_exist(folder_path, file_name):
+        file_path = os.path.join(folder_path, file_name)
+        return os.path.exists(file_path)
+
     def check_file(folder_path, file_name):
         file_path = os.path.join(folder_path, file_name)
         # 检查文件夹是否存在
@@ -85,6 +89,12 @@ class Tools:
     def caculate_joint_entropy(img1, img2):
         hist_2d, _, _ = np.histogram2d(img1.ravel(), img2.ravel(), bins=256)
         return Tools.caculate_hist_entropy(hist_2d)
+
+    # 下采样图像
+    def downsample_image(image_np, downsample_times, size = None):
+        # 使用缩放因子来减半图片尺寸
+        resized_image = cv2.resize(image_np, dsize=size, fx=1/downsample_times, fy=1/downsample_times, interpolation=cv2.INTER_AREA)
+        return resized_image
 
     def crop_rotate(image, center, size, angle):
         """
