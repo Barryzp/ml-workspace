@@ -73,12 +73,6 @@ class OptimBase:
                 init_rotation + rotation_delta, 
         ]
 
-        # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
-        speed_x = translate_delta[0] * self.speed_param_ratio
-        speed_y = translate_delta[1] * self.speed_param_ratio
-        speed_rotation = rotation_delta * self.speed_param_ratio
-        self.speed = torch.tensor([speed_x, speed_y, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
-
     # 2d/3d图像的最优参数查找
     def init_with_3d_params(self, img_border_len):
         ############## 初始参数变量范围设置，六个（translate_x,y,z, rotation_x,y,z）###################
@@ -109,13 +103,6 @@ class OptimBase:
                 init_rotation[1] + rotation_delta,
                 init_rotation[2] + rotation_delta,
         ]
-
-        # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
-        speed_x = translate_delta[0] * 2 * self.speed_param_ratio
-        speed_y = translate_delta[1] * 2 * self.speed_param_ratio
-        speed_z = translate_delta[0] * 2 * self.speed_param_ratio
-        speed_rotation = rotation_delta * 2 * self.speed_param_ratio
-        self.speed = torch.tensor([speed_x, speed_y, speed_z, speed_rotation, speed_rotation, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
 
     def auto_nonlinear_sp_lambda(self, k=12, a=0.7):
         all_iteration = self.config.iteratons + 1

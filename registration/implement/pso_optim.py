@@ -71,6 +71,31 @@ class PSO_optim(OptimBase):
         self.global_w = self.config.global_w    # Social (swarm's best) weight
         self.speed_param_ratio = self.config.speed_param_ratio # 0.1 ~ 0.2
 
+    def init_with_2d_params(self):
+        super(PSO_optim, self).init_with_2d_params()
+        # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
+        # 位移限制的范围
+        translate_delta = self.config.translate_delta
+        rotation_delta = self.config.rotation_delta[-1]
+        speed_x = translate_delta[0] * self.speed_param_ratio
+        speed_y = translate_delta[1] * self.speed_param_ratio
+        speed_rotation = rotation_delta * self.speed_param_ratio
+        self.speed = torch.tensor([speed_x, speed_y, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
+
+    def init_with_3d_params(self, img_border_len):
+        super(PSO_optim, self).init_with_3d_params(img_border_len)
+
+        # 位移限制的范围
+        translate_delta = self.config.translate_delta
+        rotation_delta = math.degrees(math.atan((self.slice_num * 0.5)/(img_border_len * 0.5)))
+
+        # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
+        speed_x = translate_delta[0] * 2 * self.speed_param_ratio
+        speed_y = translate_delta[1] * 2 * self.speed_param_ratio
+        speed_z = translate_delta[0] * 2 * self.speed_param_ratio
+        speed_rotation = rotation_delta * 2 * self.speed_param_ratio
+        self.speed = torch.tensor([speed_x, speed_y, speed_z, speed_rotation, speed_rotation, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
+
     # 需要进行调参，惯性权重，个体最优系数，种群最有系数
     # 采用环形边界的方式将点限制在一个范围内
     def constrain(self, t):

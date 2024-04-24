@@ -1,8 +1,8 @@
 
 
 
-record_id : "test-4-2-2d-3-downsample-2"
-remark : "测试4另一个样本"
+record_id : "test-4-2-2d-3-downsample-3"
+remark : "测试-抽象代码"
 data_save_path : "D:/workspace/ml-workspace/registration/result/normal"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
