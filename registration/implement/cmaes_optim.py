@@ -8,7 +8,7 @@ class CMAES(OptimBase):
     def __init__(self, config, share_records_out = None) -> None:
         super(CMAES, self).__init__(config, share_records_out)
         
-        # CMA-ES的特殊初始化
+        # CMA-ES的特殊初始化，正常情况下是个负值
         self.best_value = 1000
 
     # 基本参数的初始化
