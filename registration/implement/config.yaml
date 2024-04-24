@@ -87,3 +87,12 @@ individual_w : 1.56    # Cognitive (particle's best) weight[1.5~2.5]
 global_w : 2.06    # Social (swarm's best) weight[1.5~2.5]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.18 # 0.1 ~ 0.2
+
+
+# CMA-ES 参数
+# 初始多维高斯分布标准差
+sigma0 : 45
+# 种群数量
+pop_size : 256
+# 最大迭代数目
+max_iter : 50
