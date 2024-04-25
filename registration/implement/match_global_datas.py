@@ -19,6 +19,7 @@ class GlobalMatchDatas():
             self.global_best_position = best_position
             self.global_best_img = best_img
             self.aim_slice_index = ct_slice_index
+            print(f"best val: {best_val}; ct_slice_index: {ct_slice_index}")
         
         if self.global_best_value > self.threshold:
             self.stop_loop = True
