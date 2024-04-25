@@ -1,6 +1,6 @@
 
-record_id : "test-matched-sample4-S2-emaes-2"
-remark : "测试：改进后的匹配算法进行匹配，嫌疑sample4-s2为例子"
+record_id : "matched-sample3-S1-emaes-1"
+remark : "测试：cma-es死啊没法进行样本3，第一个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -11,7 +11,7 @@ debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/
 debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
 
 # 用来记录第几次覆盖
-repeat_count : 3
+repeat_count : 1
 
 # 直方图划分
 bins : 256
@@ -31,7 +31,7 @@ sample_interval : 20
 downsampled : True
 downsample_times : 2
 # 每张图片循环多少次进行查找
-match_loop_times : 1
+match_loop_times : 7
 
 # 是否有遮罩
 masked : True
