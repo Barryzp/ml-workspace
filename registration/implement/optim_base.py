@@ -4,12 +4,15 @@ from utils.tools import Tools
 
 class OptimBase:
 
-    def __init__(self, config, share_records_out = None) -> None:
+    def __init__(self, config, global_share_datas = None) -> None:
         # 匹配过程中的ct切片索引
         self.ct_matching_slice_index = None
-        self.share_records_out = share_records_out
+        # 用于匹配过程中的全局数据共享
+        self.global_share_obj = global_share_datas
+        
         self.current_iterations = 0
         self.config = config
+        self.records = []
 
         # 最优解
         self.best_solution = None
@@ -19,15 +22,15 @@ class OptimBase:
 
     def put_best_data_in_share(self, fit_res, position):
         if self.config.mode != "matched": return
-        if self.share_records_out == None: return
-        max_val, _, mi, sp, weighted_sp = fit_res
+        if self.global_share_obj == None: return
+        max_val, _, mi, sp, weighted_sp = self.best_result_per_iter
         pos_np = position.numpy()
         pos_np = np.insert(pos_np, 0, self.ct_matching_slice_index)
         pos_np = np.insert(pos_np, pos_np.size, max_val)
         pos_np = np.insert(pos_np, pos_np.size, mi)
         pos_np = np.insert(pos_np, pos_np.size, sp)
         pos_np = np.insert(pos_np, pos_np.size, weighted_sp)
-        self.share_records_out.append(pos_np.tolist())
+        self.global_share_obj.put_in_share_objects(pos_np.tolist())
 
     def set_init_params(self, refer_img_size, reg_similarity, ct_matching_slice_index = None):
         self.init_basic_params()
@@ -116,7 +119,7 @@ class OptimBase:
         return self.reg_similarity(position, self.ct_matching_slice_index, sp_lambda)
 
     # 保存迭代过程中的参数
-    def save_iteration_params(self, records):
+    def save_iteration_params(self):
         file_path = Tools.get_save_path(self.config)
         file_name = f"{self.config.repeat_count}_pso_params_{self.config.mode}.csv"
 
@@ -128,10 +131,10 @@ class OptimBase:
                        "rotation_x", "rotation_y", "rotation_z",
                        "fitness"]
         elif self.config.mode == "matched":
-            columns = ["iterations", "x", "y", "rotation", "fitness"]
+            columns = ["iterations", "x", "y", "rotation", "fitness", "weighted_sp", "mi", "sp"]
             file_name = f"pso_params_{self.ct_matching_slice_index}.csv"
 
-        Tools.save_params2df(records, columns, file_path, file_name)
+        Tools.save_params2df(self.records, columns, file_path, file_name)
 
     def save_iteration_best_reg_img(self, img_array, iterations):
         file_path = Tools.get_save_path(self.config)
@@ -139,8 +142,7 @@ class OptimBase:
         if self.config.mode == "matched": file_name = f"best_reg_{self.ct_matching_slice_index}.bmp"
         Tools.save_img(file_path, file_name, img_array)
 
-    def save_iter_records(self, records, iter):
-        if records == None: return
+    def save_iter_records(self, iter):
 
         fit_res = self.best_result_per_iter
         global_best_val = fit_res[0]
@@ -153,7 +155,7 @@ class OptimBase:
         data_item = np.insert(data_item, 0, iter)
         data_item = np.insert(data_item, data_item.size, global_best_val)
         data_item = np.append(data_item, [weighted_sp, mi_value, sp])
-        records.append(data_item.tolist())
+        self.records.append(data_item.tolist())
 
         if self.config.mode != "matched": self.save_iteration_best_reg_img(__, iter)
 
@@ -161,6 +163,23 @@ class OptimBase:
     def _algorithm(self, particle_vals, num_iterations, record):
         pass
 
+    # 用于判断匹配是否完成，从而及时跳出循环
+    def check_match_finished(self):
+        if self.config.mode != "matched": return False
+        return self.global_share_obj.get_loop_state()
+
+    # best_val为正值
+    def set_global_best_datas(self, best_val, best_position, best_img):
+        if self.global_share_obj == None: return
+        self.global_share_obj.set_best(best_val, best_position, best_img, self.ct_matching_slice_index)
+
     # 进行优化
     def run(self):
         pass
+
+    # 反复进行循环run函数，目的是寻找最优
+    def run_with_loops(self):
+        loop_times = self.config.match_loop_times
+        for i in range(loop_times):
+            if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
+            self.run()

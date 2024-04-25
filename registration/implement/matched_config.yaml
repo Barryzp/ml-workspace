@@ -1,6 +1,6 @@
 
-record_id : "test-matched-sample4-S2-downsample-test-2"
-remark : "测试：下采样+改进的算法测试"
+record_id : "test-matched-sample4-S2-emaes-2"
+remark : "测试：改进后的匹配算法进行匹配，嫌疑sample4-s2为例子"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -30,6 +30,8 @@ cropped_ct_size : [1024, 1024]
 sample_interval : 20
 downsampled : True
 downsample_times : 2
+# 每张图片循环多少次进行查找
+match_loop_times : 1
 
 # 是否有遮罩
 masked : True
@@ -81,3 +83,12 @@ individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
 global_w : 2.05    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.18 # 0.1 ~ 0.2
+
+
+# CMA-ES 参数
+# 初始多维高斯分布标准差
+sigma0 : 45
+# 种群数量
+pop_size : 256
+# 最大迭代数目
+max_iter : 50

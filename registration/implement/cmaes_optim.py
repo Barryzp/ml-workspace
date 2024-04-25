@@ -27,6 +27,9 @@ class CMAES(OptimBase):
         initial_guess = np.array([init_solve[0], init_solve[1], self.maxV[-1] / 2])
         return initial_guess
 
+    def set_global_best_datas(self):
+        super(CMAES, self).set_global_best_datas(-self.best_value, self.best_solution, self.best_match_img)
+
     # 定义目标函数，主义CMA-ES优化目标是最小值，我们想要求得最大值需要取个负号
     def objective_function(self, x):
         x = torch.tensor(x)
@@ -37,10 +40,11 @@ class CMAES(OptimBase):
             self.best_solution = x
             self.best_match_img = res[1]
             self.best_result_per_iter = res
+            self.set_global_best_datas()
         return fitness
 
     # PSO algorithm
-    def _algorithm(self, records):
+    def _algorithm(self):
         bounds = np.array((self.minV, self.maxV))
          # 初始猜测解，根据问题维度调整
         initial_guess = self.spawn_initial_guess()
@@ -68,7 +72,10 @@ class CMAES(OptimBase):
             # 计算每个样本点的目标函数值
             function_values = [self.objective_function(solution) for solution in solutions]
             # 每一次迭代保存一下
-            self.save_iter_records(records, iterations)
+            self.save_iter_records(iterations)
+
+            check = self.check_match_finished()
+            if check : return
 
             print(f"iterations solution found: {self.best_solution}")
             print(f"iterations fitness achieved: {-self.best_value}")
@@ -86,14 +93,13 @@ class CMAES(OptimBase):
 
     # 进行优化
     def run(self):
-        records = []
         # Running CMA-ES
-        self._algorithm(records)
+        self._algorithm()
         best_val = -self.best_value
         print(f"The best position found is: {self.best_solution}")
         print(f"The maximum value of the function is: {best_val}")
         self.put_best_data_in_share(best_val, self.best_solution)
-        self.save_iteration_params(records)
+        self.save_iteration_params()
         if self.config.mode == "matched":
             # 保存相关数据(图像之类的)
             self.save_iteration_best_reg_img(self.best_match_img, self.config.max_iter)

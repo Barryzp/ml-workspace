@@ -32,6 +32,8 @@ cropped_ct_size : [1024, 1024]
 sample_interval : 20
 downsampled : True
 downsample_times : 2
+# 每张图片循环多少次进行查找
+match_loop_times : 5
 
 
 # ct图像开始索引
