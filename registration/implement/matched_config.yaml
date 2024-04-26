@@ -1,6 +1,6 @@
 
-record_id : "matched-sample3-S2-emaes-1"
-remark : "测试：cma-es进行样本3，第2个匹配"
+record_id : "matched-sample5-S1-emaes-1"
+remark : "测试：cma-es进行样本5，第1个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
