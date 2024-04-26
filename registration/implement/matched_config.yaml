@@ -10,6 +10,32 @@ debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/s1/en
 debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
 debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked.bmp"
 
+# region 水泥样品相关信息
+# 对应第几个水泥样本
+cement_sample_index : 5
+# bse放大倍数
+bse_zoom_times : 100
+# 样品第几个SEM成像
+sample_bse_index : 1
+# 对应bse放大某个倍数下，第几个BSE成像图像
+zoom_bse_index : 1
+# endregion
+
+# region 相关路径
+# 图像路径
+data_path : "D:/workspace/ml-workspace/registration/datasets"
+# 图像后缀
+# bse图像后缀，编号外的
+bse_suffix : "matched-masked"
+# mask图像后缀
+mask_suffix : "matched-masked"
+# 模式：
+# 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
+# 3d代表2d/3d配准，进行目标配准，流程的最后一步
+# matched代表匹配
+mode : "matched"
+# endregion
+
 # 用来记录第几次覆盖
 repeat_count : 1
 
@@ -36,26 +62,8 @@ matched_threshold: 0.1
 
 # 是否有遮罩
 masked : True
-# ct图像开始索引
-start_index : 10
-# ct图像终止索引
-end_index : 49
-# 图像路径
-data_path : "D:/workspace/ml-workspace/registration/datasets"
-# 对应第几个水泥样本
-cement_sample_index : 5
 
-# bse图像后缀，编号外的
-bse_suffix : "matched-masked"
-# mask图像后缀
-mask_suffix : "matched-masked"
 
-# bse放大倍数
-bse_zoom_times : 100
-# 样品第几个SEM成像
-sample_bse_index : 1
-# 对应bse放大某个倍数下，第几个BSE成像图像
-zoom_bse_index : 1
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [512.0, 512.0]
 rotation_delta : [0.0, 0.0, 360.0]
@@ -63,11 +71,14 @@ rotation_delta : [0.0, 0.0, 360.0]
 init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
 translate_delta : [368.0, 368.0, 0.0]
-# 模式：
-# 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
-# 3d代表2d/3d配准，进行目标配准，流程的最后一步
-# matched代表匹配
-mode : "matched"
+
+# 2d/3d配准相关
+# ct图像开始索引
+start_index : 10
+# ct图像终止索引
+end_index : 49
+
+
 # 2d索引
 ct_2d_index : 32
 

@@ -11,6 +11,32 @@ debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/s2/en
 debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-matched-masked.bmp"
 debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-matched-masked.bmp"
 
+# region 水泥样品相关信息
+# 对应第几个水泥样本
+cement_sample_index : 5
+# bse放大倍数
+bse_zoom_times : 100
+# 样品第几个SEM成像
+sample_bse_index : 1
+# 对应bse放大某个倍数下，第几个BSE成像图像
+zoom_bse_index : 1
+# endregion
+
+# region 相关路径
+# 图像路径
+data_path : "D:/workspace/ml-workspace/registration/datasets"
+# 图像后缀
+# bse图像后缀，编号外的
+bse_suffix : "matched-masked"
+# mask图像后缀
+mask_suffix : "matched-masked"
+# 模式：
+# 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
+# 3d代表2d/3d配准，进行目标配准，流程的最后一步
+# matched代表匹配
+mode : "matched"
+# endregion
+
 # 用来记录第几次覆盖
 repeat_count : 1
 
@@ -25,68 +51,49 @@ auto_lambda : False
 # spatial_information占的权重系数
 lamda_mis : 0.1
 
-
-# 初始的ct尺寸
+# 剪切的ct尺寸
 cropped_ct_size : [1024, 1024]
 # 间隔多少张来抽取一张图像进行匹配
 sample_interval : 20
 downsampled : True
 downsample_times : 2
 # 每张图片循环多少次进行查找
-match_loop_times : 5
+match_loop_times : 7
+matched_threshold: 0.1
+
+# 是否有遮罩
+masked : True
 
 
-# ct图像开始索引
-start_index : 10
-# ct图像终止索引
-end_index : 49
-# 图像路径
-data_path : "D:/workspace/ml-workspace/registration/datasets"
-# 对应第几个水泥样本
-cement_sample_index : 4
-
-# bse图像后缀，编号外的
-bse_suffix : "matched-bse"
-# mask图像后缀
-mask_suffix : "matched-masked"
-
-# 用于临时测试CT图像的路径
-
-# bse放大倍数
-bse_zoom_times : 100
-# 样品第几个SEM成像
-sample_bse_index : 2
-# 对应bse放大某个倍数下，第几个BSE成像图像
-zoom_bse_index : 1
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [512.0, 512.0]
 rotation_delta : [0.0, 0.0, 360.0]
 # 初始位移，以图像的左上角为原点
 init_translate : [0.0, 0.0, 0.0]
-# 最大允许的平移量范围
-translate_delta : [768.0, 768.0, 10.0]
-# 模式：2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
-# 3d代表2d/3d配准，真实进行的配准
-mode : "2d"
-# 2d索引
-ct_2d_index : 10
-# 是否有遮罩
-masked : True
-# 切片数量
-slice_num : 40
+# 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
+translate_delta : [368.0, 368.0, 0.0]
 
+# 2d/3d配准相关
+# ct图像开始索引
+start_index : 10
+# ct图像终止索引
+end_index : 49
+
+
+# 2d索引
+ct_2d_index : 32
 
 # PSO 参数
 # 粒子个数
 particle_num : 256
 # 迭代次数
 iteratons : 50
-# HACK 可以进行改进 惯性权重
-weight_inertia : 0.729  # Inertia weight[0.4 - 0.9]
+# HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
+weight_inertia : 0.729  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
-individual_w : 1.56    # Cognitive (particle's best) weight[1.5~2.5]
+individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
 # 群体学习因子，朝着全局最佳方向
-global_w : 2.06    # Social (swarm's best) weight[1.5~2.5]
+global_w : 2.05    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.18 # 0.1 ~ 0.2
 
