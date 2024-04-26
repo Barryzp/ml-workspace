@@ -77,8 +77,8 @@ class CMAES(OptimBase):
             check = self.check_match_finished()
             if check : return
 
-            # print(f"iterations solution found: {self.best_solution}")
-            # print(f"iterations fitness achieved: {-self.best_value}")
+            print(f"iterations solution found: {self.best_solution}")
+            print(f"iterations fitness achieved: {-self.best_value}")
 
             # 将目标函数值反馈给 CMA-ES
             es.tell(solutions, function_values)
@@ -96,8 +96,8 @@ class CMAES(OptimBase):
         # Running CMA-ES
         self._algorithm()
         best_val = -self.best_value
-        # print(f"The best position found is: {self.best_solution}")
-        # print(f"The maximum value of the function is: {best_val}")
+        print(f"The best position found is: {self.best_solution}")
+        print(f"The maximum value of the function is: {best_val}")
         self.put_best_data_in_share(best_val, self.best_solution)
         self.save_iteration_params()
         if self.config.mode == "matched":
