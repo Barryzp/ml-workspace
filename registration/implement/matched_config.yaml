@@ -1,6 +1,6 @@
 
-record_id : "matched-sample5-S1-emaes-1"
-remark : "测试：cma-es进行样本5，第1个匹配"
+record_id : "matched-sample8-S2-emaes-1"
+remark : "测试：cma-es进行样本8，第2个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -12,11 +12,11 @@ debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
-cement_sample_index : 5
+cement_sample_index : 8
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 1
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # endregion

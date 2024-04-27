@@ -60,7 +60,7 @@ class CMAES(OptimBase):
             {   'popsize': pop_size, 
                 'bounds': [bounds[0], bounds[1]],
                 'maxiter': max_iter,
-                'verb_disp': 1,    # 每代打印一次信息
+                #'verb_disp': 1,    # 每代打印一次信息
                 })
 
         iterations = 0
@@ -104,4 +104,5 @@ class CMAES(OptimBase):
             # 保存相关数据(图像之类的)
             self.save_iteration_best_reg_img(self.best_match_img, self.config.max_iter)
 
+        print("===================================divided line.=================================\n")
         return best_val, self.best_match_img

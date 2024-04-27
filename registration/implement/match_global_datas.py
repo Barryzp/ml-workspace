@@ -23,7 +23,7 @@ class GlobalMatchDatas():
             self.global_best_img = best_img
             self.aim_slice_index = ct_slice_index
             self.iteration_count += 1
-            print(f"best val: {best_val}; ct_slice_index: {ct_slice_index}")
+            print(f"id: {self.iteration_count}; best val: {best_val}; ct_slice_index: {ct_slice_index}")
             # 把这张图片保存一下
             self.save_best_match()
         
@@ -33,7 +33,7 @@ class GlobalMatchDatas():
     # 保存最佳图像
     def save_best_match(self):
         file_path = Tools.get_save_path(self.config)
-        file_name = f"best_match_{self.aim_slice_index}_{self.iteration_count}.bmp"
+        file_name = f"{self.iteration_count}_best_match_{self.aim_slice_index}.bmp"
         Tools.save_img(file_path, file_name, self.global_best_img)
 
     def get_loop_state(self):

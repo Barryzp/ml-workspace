@@ -38,8 +38,8 @@ class Tools:
             # if os.path.exists(file_path):
             #     # 如果文件存在，抛出异常
             #     raise FileExistsError(f"The file '{file_path}' already exists.")
-            print(f"Folder '{folder_path}' already exists and the file '{file_name}' is not present.")
-        
+            # print(f"Folder '{folder_path}' already exists and the file '{file_name}' is not present.")
+            pass
         return file_path
     
     def get_save_path(config):
