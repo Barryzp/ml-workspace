@@ -8,9 +8,9 @@ data_save_path : "D:/workspace/ml-workspace/registration/result/test"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
-debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample5/ct/matched/cropped_ct_825_1024.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample5/bse/s1/100/5-1-1-matched-masked.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample5/bse/s1/100/5-1-1-matched-masked.bmp"
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/ct/matched/cropped_ct_825_1024.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s2/100/3-1-1-matched-masked.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s2/100/3-1-1-matched-masked.bmp"
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
@@ -35,11 +35,11 @@ mask_suffix : "matched-masked"
 # 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，进行目标配准，流程的最后一步
 # matched代表匹配
-mode : "matched"
+mode : "2d"
 # endregion
 
 # 用来记录第几次覆盖
-repeat_count : 3
+repeat_count : 1
 
 # 直方图划分
 bins : 256
