@@ -5,7 +5,7 @@ import pandas as pd
 from math import radians
 from munch import Munch
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageDraw
 
 class Tools:
     # 加载yaml文件并转化成一个对象
@@ -135,6 +135,36 @@ class Tools:
 
         return cropped
     
+    # image: PIL的Image对象
+    def crop_circle(image, radius, center):
+        """
+        裁剪灰度图像中的圆形区域。
+
+        参数:
+        image_path: 图像的路径。
+        radius: 圆的半径。
+        center: 圆的中心点坐标（x, y）。如果为None，则使用图像中心。
+        """
+
+        width, height = image.size
+
+        # 创建遮罩
+        mask = Image.new('L', (width, height), 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((center[0]-radius, center[1]-radius, center[0]+radius, center[1]+radius), fill=255)
+
+        # 应用遮罩
+        result = Image.new('L', (width, height))
+        result.paste(image, (0, 0), mask)
+
+        return result
+
+    # image: PIL的Image对象
+    def crop_rectangle(img, crop_rectangle):
+        # 裁剪图像
+        cropped_image = img.crop(crop_rectangle)
+        return cropped_image
+
     # 从itk体素中进行切片（旋转中心，旋转角度，切片的索引）
     def get_slice_from_itk(itk_img, rotation_center, rotation, slice_indeces, size):
         # 定义平移和旋转参数

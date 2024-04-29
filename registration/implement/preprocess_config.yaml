@@ -1,0 +1,68 @@
+
+# 图像预处理配置文件
+record_id : "记录的防伪标签"
+# 对应第几个水泥样本
+cement_sample_index : 5
+# bse放大倍数
+bse_zoom_times : 100
+# 样品第几个SEM成像
+sample_bse_index : 1
+# 对应bse放大某个倍数下，第几个BSE成像图像
+zoom_bse_index : 1
+# endregion
+
+# region 相关路径
+# ct源文件路径
+ct_src_root : "D:/workspace/ml-workspace/registration/datasets"
+# bse图像源文件路径
+bse_src_root : "G:/BSE"
+# 处理过后图像的存放路径
+data_save_root : "D:/workspace/ml-workspace/registration/datasets"
+# endregion
+
+# region 裁剪图像配置
+# 中心点偏移量(遮罩的)
+center_offset_x : -10
+center_offset_y : -35
+crop_radius : 580
+
+# 矩形裁剪配置
+# rect # (left, upper, right, lower)
+# 这个rect实际上也就是左上角后右下角点
+rect_left : 36
+rect_right : 1236
+scale_bar_height : 64
+# roi区域的大小
+rect_roi_width : 624
+rect_roi_height : 512
+
+# 裁剪时偏移量
+roi_cropped_offset : [-30, -4]
+# 裁剪时的增强算法配置
+clipLimit : 3.0
+tileGridSize : [8, 8]
+# endregion
+
+# region 图像分割以及遮罩相关
+# 最多分的类别
+class_num : 4
+# 左上角为(0, 0)，下面是rect(left, top, right, down)
+start_left : 270
+start_top : 0
+cropped_width : 256
+cropped_height : 256
+# 按照中心裁剪，裁剪偏移量
+offset_x : 50
+offset_y : -130
+# 遮罩来自于从哪张图像进行分割的
+mask_classfied_num : 3
+gray_cls : 127
+# 腐蚀扩张形态学相关操作参数
+kernel_size : 3
+# 去除掉一些较大的颗粒
+size_threshold : 128
+# endregion
+
+# region 不同BSE图像到ct图像时的下采样倍数
+subsample_100 : 1.39139
+# endregion
