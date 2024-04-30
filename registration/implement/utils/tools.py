@@ -209,3 +209,82 @@ class Tools:
         # 将切片转换为 NumPy 数组并显示
         slice_array = itk.GetArrayFromImage(slice_image)
         return slice_array
+
+    def mutual_information(image1, image2, bins=256):
+
+        # Calculate the histogram of the images
+        hist_2d, _, _ = np.histogram2d(image1.ravel(), image2.ravel(), bins=bins)
+
+        # Calculate the joint probability distribution
+        pxy = hist_2d / float(np.sum(hist_2d))
+        px = np.sum(pxy, axis=1) # Marginal for x over y
+        py = np.sum(pxy, axis=0) # Marginal for y over x
+
+        # Calculate the mutual information
+        px_py = px[:, None] * py[None, :]
+        nzs = pxy > 0 # Non-zero joint probabilities
+        mi = np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+
+        return mi
+
+    def normalized_mutual_information(image1, image2, bins=256):
+        """计算归一化互信息（NMI）。"""
+        hist_2d, _, _ = np.histogram2d(image1.ravel(), image2.ravel(), bins=bins)
+
+        # 计算边缘熵
+        h1_entropy = Tools.caculate_entropy(image1)
+        h2_entropy = Tools.caculate_entropy(image2)
+
+        # 计算联合熵
+        h12_entropy = Tools.caculate_hist_entropy(hist_2d)
+
+        # 计算 NMI
+        nmi = (h1_entropy + h2_entropy) / h12_entropy
+        return nmi
+    
+    # 这个值越大越好
+    def spatial_correlation(img1, img2, threshold, bound):
+        img1_threshold = threshold[0]
+        img2_threshold = threshold[1]
+
+        shape = img1.shape
+
+        img1_cp = np.array(img1).astype(float)
+        img2_cp = np.array(img2).astype(float)
+
+        # 两张图片分别填充bound之外的值，从而容易筛选出我们想要的元素的个数
+        img1_cp[img1 < img1_threshold] = 0
+        img2_cp[img2 < img2_threshold] = 255
+
+        lower_bound = bound[0]
+        upper_bound = bound[1]
+
+        diff_imgs = np.abs(img1_cp - img2_cp)
+        count = np.sum((diff_imgs >= lower_bound) & (diff_imgs <= upper_bound))
+        return count/(shape[0] * shape[1])
+
+    # 带遮罩的空间信息
+    def spatial_correlation_with_mask(masked_img, img1, img2, bound):
+        lower_bound = bound[0]
+        upper_bound = bound[1]
+
+        img1_after_masked = img1 & masked_img
+        img2_after_masked = img2 & masked_img
+
+        mask_white_bool = masked_img == 255
+        mask_num = mask_white_bool.sum()
+
+        img1_after_masked = np.int16(img1_after_masked)
+        img2_after_masked = np.int16(img2_after_masked)
+
+        diff_imgs = np.abs(img1_after_masked - img2_after_masked)
+        diff_imgs = np.uint8(diff_imgs)
+
+        # 这个下界不能包含了，不然就有问题了，因为上述位运算会出来许多的0
+        above_lower_bound = diff_imgs > lower_bound
+        less_upper_bound = diff_imgs <= upper_bound
+        above_upper_bound = diff_imgs > upper_bound
+
+        count = np.sum(above_lower_bound & less_upper_bound)
+        penalty = np.sum(above_upper_bound)
+        return (count - penalty).item() / mask_num, diff_imgs, img1_after_masked, img2_after_masked

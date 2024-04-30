@@ -9,6 +9,9 @@ class CMAES(OptimBase):
         super(CMAES, self).__init__(config, share_records_out)
         
         # CMA-ES的特殊初始化，正常情况下是个负值
+        self.reset()
+
+    def reset(self):
         self.best_value = 1000
 
     # 基本参数的初始化
@@ -45,6 +48,7 @@ class CMAES(OptimBase):
 
     # PSO algorithm
     def _algorithm(self):
+        self.reset()
         bounds = np.array((self.minV, self.maxV))
          # 初始猜测解，根据问题维度调整
         initial_guess = self.spawn_initial_guess()

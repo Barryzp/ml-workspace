@@ -8,8 +8,8 @@ from math import radians
 from munch import Munch
 from pathlib import Path
 from PIL import Image, ImageDraw
-from ..utils.tools import Tools
-from ..utils.segmentation_kms import SegmentationKMS
+from utils.tools import Tools
+from utils.segmentation_kms import SegmentationKMS
 
 class ImageProcess:
     def __init__(self, config) -> None:
@@ -114,8 +114,8 @@ class ImageProcess:
     # image是cv2读取的numpy对象
     def kms_segmentation(self, image):
         cls_num = self.config.class_num
-        save_path = self.config.bse_save_path
-        file_pref = self.config.file_name_pref
+        save_path = self.bse_save_path
+        file_pref = self.file_name_pref
 
         for i in range(cls_num):
             classified_num = i + 2
@@ -124,9 +124,9 @@ class ImageProcess:
             cv2.imwrite(classified_path, seg_result)
     
     # bse_img_enhanced, bin_img 都是numpy
-    def crop_processed_bse_bin_images(self, bse_img_enhanced, bin_img, left_top, cropped_size, offset):
-        save_path = self.config.bse_save_path
-        file_pref = self.config.file_name_pref
+    def crop_processed_bse_bin_images(self, bse_img_enhanced, bin_img, left_top, cropped_size, offset, suffix=""):
+        save_path = self.bse_save_path
+        file_pref = self.file_name_pref
         
         bse_img = Image.fromarray(bse_img_enhanced)
         masked_img = Image.fromarray(bin_img)
@@ -150,28 +150,30 @@ class ImageProcess:
         cropped_masked_img_np = np.array(cropped_masked_img)
         masked_white_region = cropped_bse_img_np & cropped_masked_img_np
 
-        cropped_bse_img.save(f"{save_path}/{file_pref}-matched-bse.bmp", format="BMP")
-        cropped_masked_img.save(f"{save_path}/{file_pref}-matched-masked.bmp", format="BMP")
+        cropped_bse_img.save(f"{save_path}/{file_pref}-matched-bse{suffix}.bmp", format="BMP")
+        cropped_masked_img.save(f"{save_path}/{file_pref}-matched-masked{suffix}.bmp", format="BMP")
 
         return cropped_bse_img, cropped_masked_img, masked_white_region
 
-    def seg_and_crop_masked(self, image):
+    def seg_and_crop_masked(self, image, final_res_suffix):
+        # 1. 对图像进行分割
         self.kms_segmentation(image)
-        path_pref = f"{self.config.bse_save_path}/{self.config.file_name_pref}"
+        path_pref = f"{self.bse_save_path}/{self.file_name_pref}"
         classfied_img_path = f"{path_pref}-enhanced-roi-kms{self.config.mask_classfied_num}.bmp"
         kms = cv2.imread(classfied_img_path, cv2.IMREAD_GRAYSCALE)
-        # 经过一些腐蚀操作去除掉一些细微的颗粒
+        # 2. 经过一些腐蚀操作去除掉一些细微的颗粒
         processed_img = self.segmentation.morphy_process_kms_image(kms, self.config.gray_cls, self.config.kernel_size)
         cv2.imwrite(f'{path_pref}-enhanced-roi-kms3-filter.bmp', processed_img)
-
+        # 3. 计算联通区域筛选出较大的颗粒
         filterred_image = self.segmentation.filter_small_size_out(processed_img, self.config.size_threshold)
         cv2.imwrite(f"{path_pref}-masked.bmp", filterred_image)
 
-        cropped_bse, cropped_masked, mask_with_bse = self.crop_processed_bse_bin_images(
+        return self.crop_processed_bse_bin_images(
             image, filterred_image, 
             [self.config.start_left, self.config.start_top],
             [self.config.cropped_width, self.config.cropped_height],
-            [self.config.offset_x, self.config.offset_y])
+            [self.config.offset_x, self.config.offset_y],
+            final_res_suffix)
     
     def total_matched_img_processed(self):
         # 裁剪并增强

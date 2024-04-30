@@ -2,7 +2,7 @@
 # 图像预处理配置文件
 record_id : "记录的防伪标签"
 # 对应第几个水泥样本
-cement_sample_index : 5
+cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
@@ -52,8 +52,8 @@ start_top : 0
 cropped_width : 256
 cropped_height : 256
 # 按照中心裁剪，裁剪偏移量
-offset_x : 50
-offset_y : -130
+offset_x : 100
+offset_y : -100
 # 遮罩来自于从哪张图像进行分割的
 mask_classfied_num : 3
 gray_cls : 127

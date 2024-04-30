@@ -1,16 +1,16 @@
 
 
 
-record_id : "test-choose-match-1"
-remark : "测试-验证选择哪种类型的匹配图像来进行匹配"
+record_id : "test-choose-match-8-4-100-100"
+remark : "测试-(100, 100)"
 # 正式配准把test改成normal
 data_save_path : "D:/workspace/ml-workspace/registration/result/test"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
-debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/ct/matched/cropped_ct_825_1024.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s2/100/3-1-1-matched-masked.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s2/100/3-1-1-matched-masked.bmp"
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/matched/cropped_ct_585_1024.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked-100-100.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked-100-100.bmp"
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
