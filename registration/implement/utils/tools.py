@@ -6,6 +6,8 @@ from math import radians
 from munch import Munch
 from pathlib import Path
 from PIL import Image, ImageDraw
+from .common_config import CommonConfig
+
 
 class Tools:
     # 加载yaml文件并转化成一个对象
@@ -48,7 +50,6 @@ class Tools:
         path_prefix = f"{path_prefix}/{config.record_id}"
         return path_prefix
 
-
     def get_processed_referred_path(config):
         sample_index = config.cement_sample_index
         bse_sample_index = config.sample_bse_index
@@ -61,6 +62,9 @@ class Tools:
         # BSE 图像裁剪以及对比度增强处理
         src_path = f"D:/workspace/ml-workspace/registration/datasets/sample{sample_index}/bse/s{bse_sample_index}/{zoom_times}"
         return src_path, file_name
+
+    def get_ct_img(cement_id, slice_index):
+        return CommonConfig.get_cement_ct_slice(cement_id, slice_index)
 
     # 保存图片
     def save_img(folder_path, file_name, img):
@@ -96,6 +100,15 @@ class Tools:
         resized_image = cv2.resize(image_np, dsize=size, fx=1/downsample_times, fy=1/downsample_times, interpolation=cv2.INTER_AREA)
         return resized_image
 
+    # 剪切并旋转，这个就是图像的mi中的那个
+    def crop_rotate_mi(image, center, size, angle, rect):
+        rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)     
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (size[0], size[1]))
+        pos_x, pos_y, w, h = int(rect[0]), int(rect[1]), int(rect[2]), int(rect[3])  # 裁剪位置和大小
+        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
+        return cropped_image
+
+    # image是np对象，围绕着中心旋转
     def crop_rotate(image, center, size, angle):
         """
         Crop and rotate a region from an image.

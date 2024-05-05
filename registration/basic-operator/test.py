@@ -9,8 +9,4 @@ import matplotlib.pyplot as plt
 
 import os, random
 
-A = torch.tensor([[10, 20, 30],[2, 3, 4]])
-B = torch.tensor([8, 30, 25])
-
-print(np.append(B, [1, 2]))
-
+print([1, 2] * 2)

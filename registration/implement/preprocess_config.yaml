@@ -65,4 +65,7 @@ size_threshold : 128
 
 # region 不同BSE图像到ct图像时的下采样倍数
 subsample_100 : 1.39139
+subsample_200 : 2.782
+subsample_400 : 5.59
+subsample_600 : 8.45
 # endregion

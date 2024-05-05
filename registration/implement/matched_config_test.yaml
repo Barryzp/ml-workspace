@@ -29,7 +29,7 @@ end_index : 49
 # 图像路径
 data_path : "D:/workspace/ml-workspace/registration/datasets"
 # 对应第几个水泥样本
-cement_sample_index : 3
+cement_sample_index : 4
 
 # bse图像后缀，编号外的
 bse_suffix : "matched-masked"
@@ -68,3 +68,18 @@ individual_w : 1.6    # Cognitive (particle's best) weight [0, 4]
 global_w : 3.5    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.15 # 0.1 ~ 0.2
+
+# region 粗匹配时得到的结果的基本参数
+origin_ct_size : [1024, 1024]
+origin_matched_size : [256, 256]
+# 位于BSE图像中的剪切偏移量
+bse_cropped_offset : [401, 128]
+# BSE图像的兴趣域尺寸
+bse_roi_size : [624, 512]
+
+downsample_times : 1
+
+matched_slice_index : 585
+matched_translate : [423, 365]
+matched_rotation : 244
+# endregion

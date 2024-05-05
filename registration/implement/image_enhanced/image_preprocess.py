@@ -66,7 +66,7 @@ class ImageProcess:
 
         width_ = image.width
         height_ = image.height
-        center_new = (roi_cropped_offset[0] + image.width // 2, 
+        center_new = (roi_cropped_offset[0] + width_ // 2, 
                       roi_cropped_offset[1] +  height_ // 2)
         rect_roi_width = roi_size[0]
         rect_roi_height = roi_size[1]

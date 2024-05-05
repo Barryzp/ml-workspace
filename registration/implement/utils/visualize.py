@@ -16,6 +16,15 @@ class VisualizeData:
         self.fixed_height, self.fixed_width = fixed.shape
         self.mi_datas = None
 
+    def show_imgs(imgs, imgs_name):
+        count = len(imgs)
+        cols = 2
+        rows = count // cols + 1
+        plt.figure(figsize=(12, 8))
+        for i in range(count):
+            plt.subplot(rows, cols, i + 1), plt.imshow(imgs[i], cmap='gray',vmin=0, vmax=255), plt.title(f'{imgs_name[i]}')
+
+
     # delta代表在多大范围内进行的， interval代表的是步长
     def spawn_datas(self, delta, interval, csv_prefix = "visualize_data"):
         x_delta, y_delta = delta[0], delta[1]
