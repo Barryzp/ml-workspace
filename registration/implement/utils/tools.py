@@ -21,9 +21,9 @@ class Tools:
     def save_obj_yaml(folder_path, file_name, obj):
         # 检查一下
         file_path = Tools.check_file(folder_path, file_name)
-        # 将数据保存为 YAML 文件
-        with open(file_path, 'w') as file:
-            yaml.dump(obj, file)
+        # 将数据保存为 YAML 文件，中文内容正常显示
+        with open(file_path, 'w', encoding='utf-8') as file:
+            yaml.dump(obj, file, allow_unicode=True)
 
     def check_file_exist(folder_path, file_name):
         file_path = os.path.join(folder_path, file_name)

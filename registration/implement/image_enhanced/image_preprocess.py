@@ -180,3 +180,159 @@ class ImageProcess:
         roi_enhanced = self.crop_enhaned_bse()
         # 分割并保存
         self.seg_and_crop_masked(roi_enhanced)
+
+    # 计算在剪切后的CT图像中的mi值
+    def compute_mi_in_cropped(self, ct_img, bse_img, crop_rect, rot):
+        ct_size = self.config.ground_ct_size
+        cropped_bse_rect_in_ct = Tools.crop_rotate_mi(ct_img, 
+                                       [ct_size[0] * 0.5, ct_size[0] * 0.5],
+                                       ct_size,
+                                       rot,
+                                       crop_rect
+                                       )
+        mi = Tools.mutual_information(cropped_bse_rect_in_ct, bse_img)
+        return mi
+
+    # 正向或者反向获取最优的slice
+    def get_best_slice_idx(self, start_idx, interval, refer_img, crop_rect, rot, forward = True):
+        delta = -1
+        if forward : delta = 1
+
+        start_ct_img = Tools.get_ct_img(self.config.cement_sample_index, start_idx)
+        best_slice_index = start_idx
+        best_mi = self.compute_mi_in_cropped(start_ct_img, refer_img, crop_rect, rot)
+
+        for i in range(interval):
+            slice_idx = start_idx + (i + 1)*delta
+            ct_img = Tools.get_ct_img(self.config.cement_sample_index, slice_idx)
+
+            mi = self.compute_mi_in_cropped(ct_img, refer_img, crop_rect, rot)
+            print(f"slice: {slice_idx}, mi: {mi}")
+            if mi > best_mi :
+                best_mi = mi
+                best_slice_index = slice_idx
+
+        return best_mi, best_slice_index
+
+
+    # 匹配图像成功后最后的一些处理
+    def cropped_rect_remapping(self):
+        # 剪切区域位置到原始CT图像的重映射
+        ct_size = self.config.ground_ct_size
+        crop_from_origin_delta_x = (ct_size[0] - self.config.origin_ct_size[0]) * 0.5
+        crop_from_origin_delta_y = (ct_size[1] - self.config.origin_ct_size[1]) * 0.5
+        # 映射到未下采样时的裁剪坐标点
+        pos_in_origin_crop = np.array(self.config.matched_translate) * self.config.downsample_times
+        # 映射到原始CT图像中的裁剪坐标点
+        crop_ground_ct_pos = pos_in_origin_crop + [crop_from_origin_delta_x, crop_from_origin_delta_y]
+
+        # 匹配图像剪切
+        matched_cropped_rect = [crop_ground_ct_pos[0], 
+                        crop_ground_ct_pos[1],
+                        self.config.origin_matched_size[0],
+                        self.config.origin_matched_size[1],
+                        ]
+
+        # 匹配的BSE图像的剪切
+        matched_bse_rect = [
+            crop_ground_ct_pos[0] - self.config.bse_cropped_offset[0] + self.config.origin_matched_size[0] * 0.5,
+            crop_ground_ct_pos[1] - self.config.bse_cropped_offset[1] + self.config.origin_matched_size[1] * 0.5,
+            self.config.bse_roi_size[0],
+            self.config.bse_roi_size[1]
+        ]
+
+        return matched_cropped_rect, matched_bse_rect
+
+    def get_best_slice_idx_from_ct(self, init_slice_index, bse_cropped_matched, cropped_rect):
+        latent_slice_area = self.config.latent_slice_area
+
+        ct_size = self.config.ground_ct_size
+        ct_img = Tools.get_ct_img(self.config.cement_sample_index, init_slice_index)
+        ct_cropped_matched = Tools.crop_rotate_mi(ct_img, 
+                                   [ct_size[0] * 0.5, ct_size[0] * 0.5],
+                                   ct_size,
+                                   self.config.matched_rotation,
+                                   cropped_rect
+                                   )
+
+        init_mi = Tools.mutual_information(bse_cropped_matched, ct_cropped_matched)
+        print(f"init best slice: {init_slice_index}, mi: {init_mi}")
+
+        forward_best_mi, forward_best_idx = self.get_best_slice_idx(init_slice_index, 
+                                                               latent_slice_area, 
+                                                               bse_cropped_matched, 
+                                                               cropped_rect, 
+                                                               self.config.matched_rotation)
+        backward_best_mi, backward_best_idx = self.get_best_slice_idx(init_slice_index, 
+                                                               latent_slice_area, 
+                                                               bse_cropped_matched, 
+                                                               cropped_rect, 
+                                                               self.config.matched_rotation,
+                                                               False)
+
+        cropped_mis = np.array([init_mi, forward_best_mi, backward_best_mi])
+        cropped_index = np.array([init_slice_index, forward_best_idx, backward_best_idx])
+
+        best_cropped_array_index = np.argmax(cropped_mis)
+        best_cropped_index = cropped_index[best_cropped_array_index]
+        best_cropped_mi = cropped_mis[best_cropped_array_index]
+        return best_cropped_index, best_cropped_mi
+    
+    def process_and_save_ct(self, slice_index, interval, file_path):
+
+        ct_size = self.config.ground_ct_size
+        angle = self.config.matched_rotation
+        center = [ct_size[0] * 0.5, ct_size[0] * 0.5]
+
+        clahe = cv2.createCLAHE(clipLimit=4, tileGridSize=(16, 16))
+
+        for i in range(interval):
+            index = slice_index + i
+            ct_img = Tools.get_ct_img(self.config.cement_sample_index, index)
+            file_name = f"{index}_enhanced.bmp"
+            # 进行旋转
+            rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)     
+            rotated_image = cv2.warpAffine(ct_img, rotation_matrix, (ct_size[0], ct_size[1]))
+            # 进行对比度增强
+            enhanced_img = clahe.apply(rotated_image)
+            # 进行保存
+            Tools.save_img(file_path, file_name, enhanced_img)
+
+
+    # 选择最佳潜在区域，并保存起来
+    def choose_best_slices_save(self):
+        # (1) 剪切区域重映射
+        # (2) 获取匹配区域最优的slice
+        # (3) 获取整个BSE ROI最优的slice
+        # (4) 对最优的BSE进行选择
+        # (5) 得到最优区域之后将图像复制到指定文件夹中
+        matched_rect_init, matched_rect_bse = self.cropped_rect_remapping()
+        matched_bse_refer_path, matched_bse_refer_filename = Tools.get_processed_referred_path(self.config)
+        file_pref = f"{matched_bse_refer_path}/{matched_bse_refer_filename}"
+        matched_bse_img = cv2.imread(f"{file_pref}-enhanced-roi.bmp", cv2.IMREAD_GRAYSCALE)
+        matched_bse_cropped_img = cv2.imread(f"{file_pref}-matched-bse.bmp", cv2.IMREAD_GRAYSCALE)
+        
+        middle_matched_slice = self.config.matched_slice_index
+        proper_matched_slice_index, proper_matched_mi = self.get_best_slice_idx_from_ct(
+            middle_matched_slice, matched_bse_cropped_img, matched_rect_init
+        )
+        print(f"best cropped index: {proper_matched_slice_index}, best cropped mi: {proper_matched_mi}")
+
+        best_matched_slice_index, best_matched_mi = self.get_best_slice_idx_from_ct(
+            proper_matched_slice_index, matched_bse_img, matched_rect_bse
+        )
+        print(f"best cropped index: {best_matched_slice_index}, best cropped mi: {best_matched_mi}")
+        
+        file_path = f"{self.config.data_save_root}/sample{self.config.cement_sample_index}/ct/s{self.config.sample_bse_index}"
+        
+        interval = self.config.latent_slice_area * 2
+        start_id = best_matched_slice_index - self.config.latent_slice_area
+        self.process_and_save_ct(start_id, interval, file_path)
+
+        self.config.best_bse_slice = best_matched_slice_index.item()
+        self.config.best_start_id = start_id.item()
+        self.config.best_end_id = (start_id + interval - 1).item()
+        cfg_name = f"cement_{self.config.cement_sample_index}_s{self.config.sample_bse_index}.yaml"
+        Tools.save_obj_yaml(file_path, cfg_name, self.config)
+
+        return best_matched_slice_index

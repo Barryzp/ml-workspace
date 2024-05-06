@@ -9,4 +9,7 @@ import matplotlib.pyplot as plt
 
 import os, random
 
-print([1, 2] * 2)
+a = np.array(1)
+b = a.item()
+
+print(a.item())

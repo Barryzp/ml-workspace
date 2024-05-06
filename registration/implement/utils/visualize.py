@@ -16,14 +16,17 @@ class VisualizeData:
         self.fixed_height, self.fixed_width = fixed.shape
         self.mi_datas = None
 
-    def show_imgs(imgs, imgs_name):
+    def show_imgs(imgs, imgs_name, cols = 2):
         count = len(imgs)
-        cols = 2
         rows = count // cols + 1
         plt.figure(figsize=(12, 8))
         for i in range(count):
             plt.subplot(rows, cols, i + 1), plt.imshow(imgs[i], cmap='gray',vmin=0, vmax=255), plt.title(f'{imgs_name[i]}')
-
+        # 调整间距
+        plt.subplots_adjust(hspace=0.5, wspace=0.5)  # hspace控制垂直间距, wspace控制水平间距
+        # 使用tight_layout自动调整子图参数
+        plt.tight_layout()
+        plt.show()
 
     # delta代表在多大范围内进行的， interval代表的是步长
     def spawn_datas(self, delta, interval, csv_prefix = "visualize_data"):

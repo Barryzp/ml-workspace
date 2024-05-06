@@ -69,3 +69,21 @@ subsample_200 : 2.782
 subsample_400 : 5.59
 subsample_600 : 8.45
 # endregion
+
+# region 粗匹配时得到的结果的基本参数
+ground_ct_size : [1920, 1920]
+origin_ct_size : [1024, 1024]
+origin_matched_size : [256, 256]
+# 位于BSE图像中的剪切偏移量
+bse_cropped_offset : [401, 128]
+# BSE图像的兴趣域尺寸
+bse_roi_size : [624, 512]
+# 下采样倍数
+downsample_times : 1
+# 搜索的区域大小
+latent_slice_area : 25
+
+matched_slice_index : 585
+matched_translate : [423, 365]
+matched_rotation : 244
+# endregion
