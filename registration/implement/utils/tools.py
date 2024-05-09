@@ -108,6 +108,15 @@ class Tools:
         cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         return cropped_image
 
+    # 旋转并剪切图像, 图像是nparray类型，旋转中心为图像中心，此外，以图像左上角作为裁剪原点
+    def rotate_and_crop_img(image, angle, rect):
+        height, width = image.shape
+        rotation_matrix = cv2.getRotationMatrix2D((height/2, width/2), angle, 1.0)     
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (width, height))
+        pos_x, pos_y, w, h = int(rect[0]), int(rect[1]), int(rect[2]), int(rect[3])  # 裁剪位置和大小
+        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
+        return cropped_image
+
     # image是np对象，围绕着中心旋转
     def crop_rotate(image, center, size, angle):
         """
@@ -301,3 +310,19 @@ class Tools:
         count = np.sum(above_lower_bound & less_upper_bound)
         penalty = np.sum(above_upper_bound)
         return (count - penalty).item() / mask_num, diff_imgs, img1_after_masked, img2_after_masked
+
+    # 计算DICE分数，用来比较二值化的图像
+    def dice_coefficient(binary_image1, binary_image2):
+        # 确保输入是二值图像
+        binary_image1 = np.asarray(binary_image1).astype(np.bool_)
+        binary_image2 = np.asarray(binary_image2).astype(np.bool_)
+        
+        # 计算交集和各自的元素数
+        intersection = np.logical_and(binary_image1, binary_image2)
+        sum1 = binary_image1.sum()
+        sum2 = binary_image2.sum()
+        
+        # 计算Dice系数
+        dice = 2. * intersection.sum() / (sum1 + sum2)
+        
+        return dice

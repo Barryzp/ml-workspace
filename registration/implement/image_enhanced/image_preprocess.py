@@ -1,12 +1,7 @@
 import cv2, os
 import numpy as np
-import itk, yaml
-import pandas as pd
 import matplotlib.pyplot as plt
 
-from math import radians
-from munch import Munch
-from pathlib import Path
 from PIL import Image, ImageDraw
 from utils.tools import Tools
 from utils.segmentation_kms import SegmentationKMS
@@ -23,6 +18,8 @@ class ImageProcess:
         bse_save_path = f"{self.config.data_save_root}/sample{sample_id}/bse/s{self.config.sample_bse_index}/{zoom_times}"
         self.bse_save_path = bse_save_path
         self.bse_src_path = f"{self.config.bse_src_root}/{sample_id}/S{self.config.sample_bse_index}/{times}/{self.file_name_pref}.bmp"
+
+        self.clahe = cv2.createCLAHE(clipLimit=4, tileGridSize=(16, 16))
 
         self.segmentation = SegmentationKMS()
 
@@ -78,6 +75,17 @@ class ImageProcess:
         roi_result.save(roi_save_path, format='BMP')
         # Image对象
         return roi_result
+
+    # 增强CT图像, ct_img是np_array形式的
+    def enhanced_ct(self, ct_img):
+        enhanced_ct = self.clahe.apply(ct_img)
+        return enhanced_ct
+
+    def segment_ct(self, ct_img_enhanced, cls_num=4):
+        return self.segmentation.kmeans_image_segmentation(ct_img_enhanced, cls_num)
+
+    def filter_segment_img(self, img, cls_intensity, particle_size):
+        pass
 
     def crop_enhaned_bse(self, show_result = True):
         roi_enhanced_save_path = f'{self.bse_save_path}/{self.file_name_pref}-enhanced-roi.bmp'

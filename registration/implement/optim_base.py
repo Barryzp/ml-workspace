@@ -58,7 +58,7 @@ class OptimBase:
         self.parameters_num = 3
 
         init_translate = self.config.init_translate
-        init_rotation = 0.0
+        init_rotation = self.config.init_rotation[-1]
 
         # 位移限制的范围
         translate_delta = self.config.translate_delta

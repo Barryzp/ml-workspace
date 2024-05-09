@@ -12,6 +12,14 @@ class Registration:
         self.refered_img = None
         self.moving_image = None
         self.masked_img = None
+
+        # region 未经过下采样的原始图像
+        self.ref_img_ori = None
+        self.mov_img_ori = None
+        self.msk_img_ori = None
+        self.ref_mask_ori = None
+        # endregion
+
         self.optim_framework = None
         self.config = config
 
@@ -61,6 +69,8 @@ class Registration:
     def _load_moving_img(self):
         if self.config.debug:
             self.moving_image = cv2.imread(self.config.debug_ct_path, cv2.IMREAD_GRAYSCALE)
+            self.msk_img_ori = np.copy(self.moving_image)
+            self.mov_img_ori = cv2.imread(self.config.debug_ct_ori_path, cv2.IMREAD_GRAYSCALE)
             if self.config.downsampled: self.moving_image = Tools.downsample_image(self.moving_image, self.config.downsample_times)
             self.config.cropped_ct_size = self.moving_image.shape
             return
@@ -72,6 +82,7 @@ class Registration:
 
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/s{sample_bse_index}/enhanced"
         self.moving_image = cv2.imread(f"{ct_image_path}/slice_enhanced_{ct_2d_index}.bmp", cv2.IMREAD_GRAYSCALE)
+        self.mov_img_ori = np.copy(self.moving_image)
         if self.config.downsampled: self.moving_image = Tools.downsample_image(self.moving_image, self.config.downsample_times)
         self.config.cropped_ct_size = self.moving_img.shape
 
@@ -105,6 +116,8 @@ class Registration:
     def _load_ref_img(self):
         if self.config.debug:
             self.refered_img = cv2.imread(self.config.debug_bse_path, cv2.IMREAD_GRAYSCALE)
+            self.ref_img_ori = cv2.imread(self.config.debug_bse_ori_path, cv2.IMREAD_GRAYSCALE)
+            self.ref_mask_ori = np.copy(self.refered_img)
             if self.config.downsampled: self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
             return
 
@@ -115,6 +128,7 @@ class Registration:
         bse_file_name = f"{prefix}-{suffix}"
         bse_file_path = f'{src_path}/{bse_file_name}.bmp'
         self.refered_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
+        self.ref_img_ori = np.copy(self.refered_img)
         if self.config.downsampled: self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
         r_img_height, r_img_width = self.refered_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
@@ -292,6 +306,11 @@ class Registration:
         cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         mi_value = self.mutual_information(cropped_image, self.refered_img)
 
+        # 特殊处理得到的二值化图像，计算其DICE分数，DICE分数其实包含了一定程度上的空间信息
+        dice_value = Tools.dice_coefficient(cropped_image, self.refered_img)
+        return dice_value, cropped_image, 0, 0, 0
+
+        # HACK 暂时隐藏起来
         spation_info = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
         weighted_sp = lamda_mis * spation_info
         mis = mi_value + weighted_sp
@@ -322,5 +341,33 @@ class Registration:
         elif self.config.mode == "matched":
             return self.similarity_matched_mi(x, ct_matching_slice_index, sp_lambda)
 
+    def save_matched_result(self, position):
+        # 对于重采样的重新处理，旋转角度不需要操作的
+        crop_x, crop_y = position[0].item(), position[1].item()
+        rot = position[-1].item()
+
+        downsample_times = self.config.downsample_times
+        height, width = self.get_referred_img_shape()
+        rect = np.array([crop_x, crop_y, width, height]) * downsample_times
+        # 1. 获取在原始大小遮罩CT图像的mask结果
+        result_mask_ct_matched = Tools.rotate_and_crop_img(self.msk_img_ori, rot, rect)
+        # 2. 获取在原始大小下CT图像的结果
+        result_ct_matched = Tools.rotate_and_crop_img(self.mov_img_ori, rot, rect)
+        
+        file_path = Tools.get_save_path(self.config)
+        mask_file_name = f"1Aa-mask_ct.bmp"
+        bse_mask_name = f"1Aa-mask_bse.bmp"
+        ct_file_name = f"1Aa-ori_ct.bmp"
+        bse_file_name = f"1Aa-ori_bse.bmp"
+
+        Tools.save_img(file_path, ct_file_name, result_ct_matched)
+        Tools.save_img(file_path, mask_file_name, result_mask_ct_matched)
+        Tools.save_img(file_path, bse_file_name, self.ref_img_ori)
+        Tools.save_img(file_path, bse_mask_name, self.ref_mask_ori)
+
     def registrate(self):
-        return self.optim_framework.run()
+        fitness, best_reg, best_position = self.optim_framework.run()
+
+        if self.config.mode == "2d":
+            self.save_matched_result(best_position)
+        return fitness, best_reg, best_position

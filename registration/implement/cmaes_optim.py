@@ -25,9 +25,15 @@ class CMAES(OptimBase):
     def spawn_initial_guess(self):
         init_translate = self.config.init_translate
         translate_delta = self.config.translate_delta
-        init_solve = [init_translate[0]+translate_delta[0]/2, init_translate[1]+translate_delta[1]/2]
+        
+        init_rotation = self.config.init_rotation
+        rotation_delta = self.config.rotation_delta
 
-        initial_guess = np.array([init_solve[0], init_solve[1], self.maxV[-1] / 2])
+        init_solve = [init_translate[0]+translate_delta[0]/2, 
+                      init_translate[1]+translate_delta[1]/2, 
+                      init_rotation[-1] + rotation_delta[-1]/2]
+
+        initial_guess = np.array([init_solve[0], init_solve[1], init_solve[2]])
         return initial_guess
 
     def set_global_best_datas(self):
@@ -109,4 +115,4 @@ class CMAES(OptimBase):
             self.save_iteration_best_reg_img(self.best_match_img, self.config.max_iter)
 
         print("===================================divided line.=================================\n")
-        return best_val, self.best_match_img
+        return best_val, self.best_match_img, self.best_solution

@@ -100,7 +100,7 @@ class PSO_optim(OptimBase):
     # 采用环形边界的方式将点限制在一个范围内
     def constrain(self, t):
         # 这里只循环了一次，需要多次处理
-        # item_num = t.numel()
+        item_num = t.numel()
         def judge(i):
             return t[i] < self.minV[i] or t[i] > self.maxV[i]
         
@@ -108,8 +108,8 @@ class PSO_optim(OptimBase):
             if t[i] < self.minV[i] or t[i] > self.maxV[i]:
                 t[i] = self.minV[i] + t[i] % (self.maxV[i] - self.minV[i])
 
-        # 只限定x,y
-        for index in range(2):
+        # 只限定x,y,也要限定z旋转角度z
+        for index in range(item_num):
             while(judge(index)):
                 fixed(index)
 
@@ -222,4 +222,4 @@ class PSO_optim(OptimBase):
             # 保存相关数据(图像之类的)
             self.save_iteration_best_reg_img(best_regi_img, self.config.iteratons)
 
-        return val, best_regi_img
+        return val, best_regi_img, best_position

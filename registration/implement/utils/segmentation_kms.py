@@ -10,7 +10,7 @@ class SegmentationKMS:
     # 使用kmeans算法对图像进行分类, image是numpy对象
     def kmeans_image_segmentation(self, image, n_clusters=2):
         # 将图像转换为灰度图
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = image #cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # 将图像数据转换为二维数组
         h, w = gray.shape[:2]

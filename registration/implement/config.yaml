@@ -1,20 +1,23 @@
 
 
 
-record_id : "test-choose-match-8-4-100-100"
-remark : "测试-(100, 100)"
+record_id : "test-binary-match-compare-4(sample4-2-1)"
+remark : "测试-二值图像比较"
 # 正式配准把test改成normal
 data_save_path : "D:/workspace/ml-workspace/registration/result/test"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
-debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/ct/matched/cropped_ct_585_1024.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked-100-100.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-matched-masked-100-100.bmp"
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-ct-masked.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-bse-masked.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-bse-masked.bmp"
+debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-ct-enhanced.bmp"
+debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-enhanced-roi.bmp"
+
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
-cement_sample_index : 5
+cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
@@ -53,11 +56,11 @@ auto_lambda : False
 lamda_mis : 0.1
 
 # 剪切的ct尺寸
-cropped_ct_size : [1024, 1024]
+cropped_ct_size : [1920, 1920]
 # 间隔多少张来抽取一张图像进行匹配
 sample_interval : 20
 downsampled : True
-downsample_times : 2
+downsample_times : 4
 # 每张图片循环多少次进行查找
 match_loop_times : 7
 matched_threshold: 0.1
@@ -68,7 +71,10 @@ masked : True
 
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [512.0, 512.0]
-rotation_delta : [0.0, 0.0, 360.0]
+# 初始旋转角度
+init_rotation : [.0, .0, .0]
+# 基于初始旋转角度，允许的最大增量
+rotation_delta : [0.0, 0.0, 180.0]
 # 初始位移，以图像的左上角为原点
 init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
