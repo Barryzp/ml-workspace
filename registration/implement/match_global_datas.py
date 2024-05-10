@@ -30,7 +30,7 @@ class GlobalMatchDatas():
         if self.global_best_value > self.threshold:
             self.stop_loop = True
 
-    # 保存最佳图像
+    # HACK 保存最佳图像 并截取对应剪切的CT图像
     def save_best_match(self):
         file_path = Tools.get_save_path(self.config)
         file_name = f"{self.iteration_count}_best_match_{self.aim_slice_index}.bmp"

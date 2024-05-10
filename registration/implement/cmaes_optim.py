@@ -23,15 +23,9 @@ class CMAES(OptimBase):
 
     # 生成初始解
     def spawn_initial_guess(self):
-        init_translate = self.config.init_translate
-        translate_delta = self.config.translate_delta
-        
-        init_rotation = self.config.init_rotation
-        rotation_delta = self.config.rotation_delta
-
-        init_solve = [init_translate[0]+translate_delta[0]/2, 
-                      init_translate[1]+translate_delta[1]/2, 
-                      init_rotation[-1] + rotation_delta[-1]/2]
+        init_solve = [self.init_translate[0] + self.translate_delta[0]/2, 
+                      self.init_translate[1] + self.translate_delta[1]/2, 
+                      self.init_rotation[-1] + self.rotation_delta[-1]/2]
 
         initial_guess = np.array([init_solve[0], init_solve[1], init_solve[2]])
         return initial_guess

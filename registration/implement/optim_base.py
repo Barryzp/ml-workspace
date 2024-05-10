@@ -20,6 +20,13 @@ class OptimBase:
         self.best_match_img = None
         self.best_result_per_iter = None
 
+        # 设置初始位移以及旋转角度
+        self.init_translate = self.config.init_translate
+        self.translate_delta = self.config.translate_delta
+        
+        self.init_rotation = self.config.init_rotation
+        self.rotation_delta = self.config.rotation_delta
+
     def put_best_data_in_share(self, fit_res, position):
         if self.config.mode != "matched": return
         if self.global_share_obj == None: return
@@ -57,22 +64,18 @@ class OptimBase:
     def init_with_2d_params(self):
         self.parameters_num = 3
 
-        init_translate = self.config.init_translate
-        init_rotation = self.config.init_rotation[-1]
-
-        # 位移限制的范围
-        translate_delta = self.config.translate_delta
-        rotation_delta = self.config.rotation_delta[-1]
+        init_rotation = self.init_rotation[-1]
+        rotation_delta = self.rotation_delta[-1]
 
         # 生成初始参数规定范围，
         self.minV = [
-                init_translate[0],
-                init_translate[1],
+                self.init_translate[0],
+                self.init_translate[1],
                 init_rotation,
         ]
         self.maxV = [
-            init_translate[0] + translate_delta[0], 
-                init_translate[1] + translate_delta[1],
+                self.init_translate[0] + self.translate_delta[0], 
+                self.init_translate[1] + self.translate_delta[1],
                 init_rotation + rotation_delta, 
         ]
 
@@ -173,13 +176,27 @@ class OptimBase:
         if self.global_share_obj == None: return
         self.global_share_obj.set_best(best_val, best_position, best_img, self.ct_matching_slice_index)
 
+    # 在匹配过程中不太一样，我们将角度化成若干份，再进行优化，主要是减少搜索空间
+    def run_matched(self):
+        # 分成若干段
+        self.init_rotation[-1] = 0.0
+        rot_z_delta = self.rotation_delta[-1]
+        
+        loop_times = 360 // rot_z_delta
+        for i in range(loop_times):
+            self.init_rotation[-1] = rot_z_delta * i
+            if self.init_rotation[-1] >= 360.0 : self.init_rotation[-1] = 0
+            self.run()
+
     # 进行优化
     def run(self):
-        pass
+        # 将参数初始化一下
+        if self.config.mode == "matched":
+            self.init_with_2d_params()
 
     # 反复进行循环run函数，目的是寻找最优
-    def run_with_loops(self):
+    def run_matched_with_loops(self):
         loop_times = self.config.match_loop_times
         for i in range(loop_times):
             if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
-            self.run()
+            self.run_matched()

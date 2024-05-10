@@ -8,7 +8,7 @@ class SegmentationKMS:
         pass
 
     # 使用kmeans算法对图像进行分类, image是numpy对象
-    def kmeans_image_segmentation(self, image, n_clusters=2):
+    def kmeans_image_segmentation(self, image, n_clusters=2, random = None):
         # 将图像转换为灰度图
         gray = image #cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -16,8 +16,11 @@ class SegmentationKMS:
         h, w = gray.shape[:2]
         img_array = gray.reshape((-1, 1))
 
+        rand_seed = None
+        if random != None : rand_seed = random
+
         # 使用KMeans进行聚类
-        kmeans = KMeans(n_clusters=n_clusters)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=rand_seed)
         labels = kmeans.fit_predict(img_array)
 
         # 将聚类结果映射回原始图像尺寸

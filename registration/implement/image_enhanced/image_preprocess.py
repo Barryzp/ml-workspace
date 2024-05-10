@@ -81,8 +81,8 @@ class ImageProcess:
         enhanced_ct = self.clahe.apply(ct_img)
         return enhanced_ct
 
-    def segment_ct(self, ct_img_enhanced, cls_num=4):
-        return self.segmentation.kmeans_image_segmentation(ct_img_enhanced, cls_num)
+    def segment_ct(self, ct_img_enhanced, cls_num=4, random = None):
+        return self.segmentation.kmeans_image_segmentation(ct_img_enhanced, cls_num, random)
 
     def filter_segment_img(self, img, cls_intensity, particle_size):
         pass

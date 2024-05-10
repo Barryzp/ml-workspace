@@ -12,4 +12,4 @@ import os, random
 a = np.array(1)
 b = a.item()
 
-print(a.item())
+print(360 // 60)

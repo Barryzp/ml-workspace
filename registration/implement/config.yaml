@@ -1,18 +1,18 @@
 
 
 
-record_id : "test-binary-match-compare-4(sample4-2-1)"
+record_id : "test-binary-match-compare-3(sample3-1-1)"
 remark : "测试-二值图像比较"
 # 正式配准把test改成normal
 data_save_path : "D:/workspace/ml-workspace/registration/result/test"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
-debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-ct-masked.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-bse-masked.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-bse-masked.bmp"
-debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-ct-enhanced.bmp"
-debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s2/100/4-1-1-enhanced-roi.bmp"
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-masked.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-bse-masked.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-bse-masked.bmp"
+debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-enhanced.bmp"
+debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-enhanced-roi.bmp"
 
 
 # region 水泥样品相关信息
@@ -60,10 +60,10 @@ cropped_ct_size : [1920, 1920]
 # 间隔多少张来抽取一张图像进行匹配
 sample_interval : 20
 downsampled : True
-downsample_times : 4
+downsample_times : 8
 # 每张图片循环多少次进行查找
 match_loop_times : 7
-matched_threshold: 0.1
+matched_threshold: 0.5
 
 # 是否有遮罩
 masked : True
@@ -72,9 +72,9 @@ masked : True
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [512.0, 512.0]
 # 初始旋转角度
-init_rotation : [.0, .0, .0]
+init_rotation : [.0, .0, 0.0]
 # 基于初始旋转角度，允许的最大增量
-rotation_delta : [0.0, 0.0, 180.0]
+rotation_delta : [0.0, 0.0, 90.0]
 # 初始位移，以图像的左上角为原点
 init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
@@ -91,8 +91,8 @@ end_index : 49
 ct_2d_index : 32
 
 # PSO 参数
-# 粒子个数
-particle_num : 256
+# 粒子个数，3*d，测试之后128较为合适
+particle_num : 128
 # 迭代次数
 iteratons : 50
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强

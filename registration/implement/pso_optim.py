@@ -207,6 +207,8 @@ class PSO_optim(OptimBase):
 
         # 进行优化
     def run(self):
+        super(PSO_optim, self).run()
+
         poses = self.spawn_uniform_particles()#[torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
 
         # Running PSO
