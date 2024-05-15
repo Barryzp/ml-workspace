@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 from utils.tools import Tools
 from utils.segmentation_kms import SegmentationKMS
+from utils.common_config import CommonConfig
 
 class ImageProcess:
     def __init__(self, config) -> None:
@@ -16,14 +17,23 @@ class ImageProcess:
 
         self.file_name_pref = f"{sample_id}-{times}-{suffix}"
         bse_save_path = f"{self.config.data_save_root}/sample{sample_id}/bse/s{self.config.sample_bse_index}/{zoom_times}"
+        self.ct_processed_save_path = f"{self.config.ct_src_root}/sample{sample_id}/ct/matched"
         self.bse_save_path = bse_save_path
-        self.bse_src_path = f"{self.config.bse_src_root}/{sample_id}/S{self.config.sample_bse_index}/{times}/{self.file_name_pref}.bmp"
+        self.bse_src_path = f"{self.config.bse_src_root}/{sample_id}/S{self.config.sample_bse_index}/{zoom_times}/{self.file_name_pref}.bmp"
 
-        self.clahe = cv2.createCLAHE(clipLimit=4, tileGridSize=(16, 16))
+        self.bse_clahe = cv2.createCLAHE(clipLimit=self.config.bse_clipLimit, 
+                                         tileGridSize=(self.config.bse_tileGridSize[0], self.config.bse_tileGridSize[1]))
+
+        self.ct_clahe = cv2.createCLAHE(clipLimit=self.config.ct_clipLimit, 
+                                         tileGridSize=(self.config.ct_tileGridSize[0], self.config.ct_tileGridSize[1]))
 
         self.segmentation = SegmentationKMS()
 
+    def save_cfg(self):
+        save_file_name = f"{self.file_name_pref}-config.yaml"
+        Tools.save_obj_yaml(self.bse_save_path, save_file_name, self.config)
 
+    # 裁减出BSE的ROI，并且进行下采样
     def crop_circle_with_bar(self, center_offset, rect, crop_radius, bar_height):
         # 加载图像（替换为您的图像路径）
         image_path = self.bse_src_path  # 替换为您的图像路径
@@ -37,6 +47,7 @@ class ImageProcess:
         image = Image.open(image_path).convert('L')  # 确保图像是灰度的
         width, height = image.size
         center = ((width // 2) + center_offset[0] , (height // 2) + center_offset[1])
+        # 将无效的成像去除掉
         result_image = Tools.crop_circle(image, radius = crop_radius, center=center)
 
         # 再对底部区域进行裁剪
@@ -78,7 +89,7 @@ class ImageProcess:
 
     # 增强CT图像, ct_img是np_array形式的
     def enhanced_ct(self, ct_img):
-        enhanced_ct = self.clahe.apply(ct_img)
+        enhanced_ct = self.ct_clahe.apply(ct_img)
         return enhanced_ct
 
     def segment_ct(self, ct_img_enhanced, cls_num=4, random = None):
@@ -86,23 +97,18 @@ class ImageProcess:
 
     def filter_segment_img(self, img, cls_intensity, particle_size):
         pass
-
-    def crop_enhaned_bse(self, show_result = True):
+    
+    # 增强BSE区域，这是只裁剪了原型区域的，并没有剪切为矩形区域
+    def enhanced_unrect_bse(self, show_result = True):
         roi_enhanced_save_path = f'{self.bse_save_path}/{self.file_name_pref}-enhanced-roi.bmp'
         
         center_offset = (self.config.center_offset_x, self.config.center_offset_y)
         rect = (self.config.rect_left, self.config.rect_right)
         bar_height = self.config.scale_bar_height
         crop_radius = self.config.crop_radius
-        downsample_img = self.crop_circle_with_bar(center_offset, rect, crop_radius, bar_height)
+        roi_result = self.crop_circle_with_bar(center_offset, rect, crop_radius, bar_height)
        
-        roi_result = self.crop_roi_rect(downsample_img, 
-                                        [self.config.rect_roi_width, self.config.rect_roi_height],
-                                        self.config.roi_cropped_offset)
-        clipLimit = self.config.clipLimit
-        tileGridSize = (self.config.tileGridSize[0], self.config.tileGridSize[1])
-        clahe = cv2.createCLAHE(clipLimit, tileGridSize)
-        clahe_image = clahe.apply(roi_result)
+        clahe_image = self.bse_clahe.apply(roi_result)
 
         roi_enhanced = Image.fromarray(clahe_image.astype('uint8'), 'L')  # 'RGB' for color images
         roi_enhanced.save(roi_enhanced_save_path, format="BMP")
@@ -118,19 +124,58 @@ class ImageProcess:
             plt.subplot(2, 2, 4), plt.bar(range(256), clahe_hist.ravel(), width=1), plt.xlim([0, 256])
 
         return roi_enhanced
+
+    # 增强ROI区域，注意，是裁剪为矩形后的图像
+    def crop_enhaned_bse(self, show_result = True):
+        roi_enhanced_save_path = f'{self.bse_save_path}/{self.file_name_pref}-enhanced-roi.bmp'
+        roi_complete_enhanced_save_path = f'{self.bse_save_path}/{self.file_name_pref}-enhanced-complete-roi.bmp'
+
+        center_offset = (self.config.center_offset_x, self.config.center_offset_y)
+        rect = (self.config.rect_left, self.config.rect_right)
+        bar_height = self.config.scale_bar_height
+        crop_radius = self.config.crop_radius
+        downsample_img = self.crop_circle_with_bar(center_offset, rect, crop_radius, bar_height)
+       
+        roi_result = self.crop_roi_rect(downsample_img, 
+                                        [self.config.rect_roi_width, self.config.rect_roi_height],
+                                        self.config.roi_cropped_offset)
+        
+        roi_result = np.array(roi_result)
+        downsample_img = np.array(downsample_img)
+
+        clahe_image = self.bse_clahe.apply(roi_result)
+        clahe_img_complete = self.bse_clahe.apply(downsample_img)
+
+        roi_enhanced = Image.fromarray(clahe_image.astype('uint8'), 'L')  # 'RGB' for color images
+        roi_enhanced.save(roi_enhanced_save_path, format="BMP")
+
+        roi_enhanced_comp = Image.fromarray(clahe_img_complete.astype('uint8'), 'L')  # 'RGB' for color images
+        roi_enhanced_comp.save(roi_complete_enhanced_save_path, format="BMP")
+
+        if show_result:
+            roi_hist = cv2.calcHist([roi_result], [0], None, [256], [0, 256])
+            clahe_hist = cv2.calcHist([clahe_image], [0], None, [256], [0, 256])
+
+            plt.figure(figsize=(12, 12))
+            plt.subplot(2, 2, 1), plt.imshow(roi_result, cmap='gray', vmin=0, vmax=255), plt.title('roi_result')
+            plt.subplot(2, 2, 3), plt.imshow(clahe_image, cmap='gray', vmin=0, vmax=255), plt.title('clahe_image')
+            plt.subplot(2, 2, 2), plt.bar(range(256), roi_hist.ravel(), width=1), plt.xlim([0, 256])
+            plt.subplot(2, 2, 4), plt.bar(range(256), clahe_hist.ravel(), width=1), plt.xlim([0, 256])
+
+        return roi_enhanced, roi_enhanced_comp
     
     # image是cv2读取的numpy对象
-    def kms_segmentation(self, image):
+    def kms_segmentation(self, image, id="", random=None):
         cls_num = self.config.class_num
         save_path = self.bse_save_path
         file_pref = self.file_name_pref
 
         for i in range(cls_num):
             classified_num = i + 2
-            seg_result = self.segmentation.kmeans_image_segmentation(image, classified_num)
-            classified_path = f"{save_path}/{file_pref}-enhanced-roi-kms{classified_num}.bmp"
+            seg_result = self.segmentation.kmeans_image_segmentation(image, classified_num, random)
+            classified_path = f"{save_path}/{file_pref}-{id}-kms{classified_num}.bmp"
             cv2.imwrite(classified_path, seg_result)
-    
+
     # bse_img_enhanced, bin_img 都是numpy
     def crop_processed_bse_bin_images(self, bse_img_enhanced, bin_img, left_top, cropped_size, offset, suffix=""):
         save_path = self.bse_save_path
@@ -163,18 +208,22 @@ class ImageProcess:
 
         return cropped_bse_img, cropped_masked_img, masked_white_region
 
-    def seg_and_crop_masked(self, image, final_res_suffix):
+    def seg_and_crop_masked(self, image, random=None, id = "enhanced-roi", final_res_suffix = ""):
         # 1. 对图像进行分割
-        self.kms_segmentation(image)
+        self.kms_segmentation(image, id, random)
         path_pref = f"{self.bse_save_path}/{self.file_name_pref}"
-        classfied_img_path = f"{path_pref}-enhanced-roi-kms{self.config.mask_classfied_num}.bmp"
+        classfied_img_path = f"{path_pref}-{id}-kms{self.config.mask_classfied_num}.bmp"
         kms = cv2.imread(classfied_img_path, cv2.IMREAD_GRAYSCALE)
-        # 2. 经过一些腐蚀操作去除掉一些细微的颗粒
-        processed_img = self.segmentation.morphy_process_kms_image(kms, self.config.gray_cls, self.config.kernel_size)
-        cv2.imwrite(f'{path_pref}-enhanced-roi-kms3-filter.bmp', processed_img)
-        # 3. 计算联通区域筛选出较大的颗粒
-        filterred_image = self.segmentation.filter_small_size_out(processed_img, self.config.size_threshold)
-        cv2.imwrite(f"{path_pref}-masked.bmp", filterred_image)
+
+        # 2. 计算联通区域筛选出较大的颗粒
+        filterred_image = self.segmentation.filter_small_size_out(kms, self.config.size_threshold)
+        cv2.imwrite(f"{path_pref}-{id}-masked.bmp", filterred_image)
+
+        kms_cls = self.config.mask_classfied_num
+
+        # 3. 经过一些腐蚀操作去除掉一些细微的颗粒
+        processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.gray_cls, self.config.kernel_size)
+        cv2.imwrite(f'{path_pref}-{id}-kms{kms_cls}-filter.bmp', processed_img)
 
         return self.crop_processed_bse_bin_images(
             image, filterred_image, 
@@ -183,11 +232,102 @@ class ImageProcess:
             [self.config.offset_x, self.config.offset_y],
             final_res_suffix)
     
-    def total_matched_img_processed(self):
+    # 二值化图像, gray_cls代表为白色的灰度值
+    def binarized_img(self, image, gray_cls):
+        neg_cls = image != gray_cls
+        positive_cls = image == gray_cls
+        image[neg_cls] = 0
+        image[positive_cls] = 255
+        return image
+
+
+    # 不裁剪小区域
+    def seg_mask(self, image, kms_cls, gray_cls, random=None, id = "roi"):
+        # 1. 对图像进行分割
+        self.kms_segmentation(image, id, random)
+        path_pref = f"{self.bse_save_path}/{self.file_name_pref}"
+        classfied_img_path = f"{path_pref}-{id}-kms{kms_cls}.bmp"
+        kms_image = cv2.imread(classfied_img_path, cv2.IMREAD_GRAYSCALE)
+
+        # 对图像进行二值化处理
+        kms_image = self.binarized_img(kms_image, gray_cls)
+
+        # 2. 计算联通区域筛选出较大的颗粒
+        filterred_image = self.segmentation.filter_small_size_out(kms_image, self.config.size_threshold)
+        cv2.imwrite(f"{path_pref}-{id}-filter.bmp", filterred_image)
+
+        # 3. 经过一些腐蚀操作去除掉一些细微的颗粒
+        processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
+        cv2.imwrite(f'{path_pref}-{id}-kms{kms_cls}-mask.bmp', processed_img)
+
+    # bse图像匹配前预处理
+    def matched_bse_img_processed(self):
+        self.save_cfg()
         # 裁剪并增强
-        roi_enhanced = self.crop_enhaned_bse()
+        roi_enhanced, roi_enhanced_comp = self.crop_enhaned_bse()
+
+        random_state = self.config.kmeans_random_status
+        rect_gray_cls = self.config.rect_gray_cls
+        comp_gray_cls = self.config.comp_gray_cls
+        rect_kms_cls = self.config.mask_rect_classfied_num
+        comp_kms_cls = self.config.mask_comp_classfied_num
+        
         # 分割并保存
-        self.seg_and_crop_masked(roi_enhanced)
+        self.seg_mask(np.array(roi_enhanced), rect_kms_cls, rect_gray_cls, random_state)
+        self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, comp_gray_cls, random_state, "comp")
+
+    # ct图像匹配前预处理
+    def matched_ct_img_processed(self):
+        cement_id = self.config.cement_sample_index
+        sample_range = CommonConfig.get_range(cement_id)
+        total_image_num = sample_range[1] - sample_range[0]
+        sample_interval = self.config.sample_interval
+        # 先进行基操，看能够到达什么水平
+        loop_times = total_image_num // sample_interval
+
+        # 删除掉前面的几张图像
+        init_interval_index = 0
+        # 删除后面几张图片
+        end_interval_index = 0
+        start_index = sample_range[0] + sample_interval * init_interval_index
+        loop_times = loop_times - init_interval_index - end_interval_index
+
+        kmeans_random = self.config.kmeans_random_status
+        ct_seg_cls = self.config.mask_comp_classfied_num
+        ct_gray_cls = self.config.ct_gray_cls
+
+        temp_mask_img = None
+        # 记录所有的编号
+        for i in range(loop_times):
+            slice_index = start_index + i * sample_interval
+            ori_ct_img = CommonConfig.get_cement_ct_slice(cement_id, slice_index)
+            
+            save_enhanced_img_name = f"{slice_index}_enhanced_ct.bmp"
+            save_bin_img_name = f"{slice_index}_mask_ct.bmp"
+            save_test_seg_img_name = f"{slice_index}_segment_ct.bmp"
+            save_test_temp_img_name = f"{slice_index}_temp_ct.bmp"
+
+            # 对比度增强
+            enhanced_ct = self.enhanced_ct(ori_ct_img)
+            Tools.save_img(self.ct_processed_save_path, save_enhanced_img_name, enhanced_ct)
+            # 分割图像
+            cls_ct = self.segment_ct(enhanced_ct, ct_seg_cls, kmeans_random)
+            Tools.save_img(self.ct_processed_save_path, save_test_seg_img_name, cls_ct)
+            
+            if temp_mask_img is not None:
+                and_img = temp_mask_img & cls_ct
+                Tools.save_img(self.ct_processed_save_path, save_test_temp_img_name, and_img)
+                ct_gray_cls,_ = Tools.find_ith_frequent_element(and_img, 2)
+            
+            # 二值化图像
+            ct_bin_img = self.binarized_img(cls_ct, ct_gray_cls)
+            # 2. 计算联通区域筛选出较大的颗粒
+            filterred_image = self.segmentation.filter_small_size_out(ct_bin_img, self.config.size_threshold)
+            # 3. 经过一些腐蚀操作去除掉一些细微的颗粒
+            processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
+            Tools.save_img(self.ct_processed_save_path, save_bin_img_name, processed_img)
+            temp_mask_img = processed_img
+
 
     # 计算在剪切后的CT图像中的mi值
     def compute_mi_in_cropped(self, ct_img, bse_img, crop_rect, rot):
@@ -292,8 +432,6 @@ class ImageProcess:
         angle = self.config.matched_rotation
         center = [ct_size[0] * 0.5, ct_size[0] * 0.5]
 
-        clahe = cv2.createCLAHE(clipLimit=4, tileGridSize=(16, 16))
-
         for i in range(interval):
             index = slice_index + i
             ct_img = Tools.get_ct_img(self.config.cement_sample_index, index)
@@ -302,7 +440,7 @@ class ImageProcess:
             rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)     
             rotated_image = cv2.warpAffine(ct_img, rotation_matrix, (ct_size[0], ct_size[1]))
             # 进行对比度增强
-            enhanced_img = clahe.apply(rotated_image)
+            enhanced_img = self.ct_clahe.apply(rotated_image)
             # 进行保存
             Tools.save_img(file_path, file_name, enhanced_img)
 

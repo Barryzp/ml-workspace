@@ -77,14 +77,12 @@ def fill_digit(num, len=8):
     return str(num).zfill(len)
 
 class CommonConfig:
-    def __init__(self) -> None:
-        self.config = AVALIABLE_RANGE
-
-    def set_crop_imgs_range(self, start_id, range):
+    
+    def set_crop_imgs_range(start_id, range):
         pass
 
-    def get_range(self, sample_id):
-        return self.config[sample_id]
+    def get_range(sample_id):
+        return AVALIABLE_RANGE[sample_id]
     
     def get_file_ex_name(sample_id):
         file_extend_name = BMP

@@ -326,3 +326,25 @@ class Tools:
         dice = 2. * intersection.sum() / (sum1 + sum2)
         
         return dice
+
+    def num_many_occurence_times(arr):
+        ele, count = Tools.find_ith_frequent_element(arr, 1)
+        return ele
+
+    def find_ith_frequent_element(arr, i):
+        # 获取元素及其出现次数
+        elements, counts = np.unique(arr, return_counts=True)
+
+        # 获取按频率排序的索引（从高到低）
+        sorted_indices = np.argsort(-counts)
+
+        # 检查i是否在合理范围内
+        if i <= 0 or i > len(counts):
+            raise ValueError("i is out of the valid range")
+
+        # 获取第i多的元素，i-1因为索引是从0开始
+        ith_element = elements[sorted_indices[i-1]]
+        ith_count = counts[sorted_indices[i-1]]
+
+        return ith_element, ith_count
+

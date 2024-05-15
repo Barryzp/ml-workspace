@@ -31,12 +31,7 @@ class SegmentationKMS:
         return segmented_image
     
     # 对kms的结果进行形态学处理, kms_image是numpy对象
-    def morphy_process_kms_image(self, kms_image, class_value=127, kernel_size=3):
-        # 首先对图像进行二值化处理
-        neg_cls = kms_image != class_value
-        positive_cls = kms_image == class_value
-        kms_image[neg_cls] = 0
-        kms_image[positive_cls] = 255
+    def morphy_process_kms_image(self, kms_image, kernel_size=3):
 
         # 进行形态学的膨胀腐蚀等的操作
         kernel = np.ones((kernel_size, kernel_size), np.uint8)
@@ -60,4 +55,4 @@ class SegmentationKMS:
                 # 如果连通区域的大小大于阈值，则将其添加到新图像中
                 new_image[labels == i] = 255
 
-        return morphy_image
+        return new_image
