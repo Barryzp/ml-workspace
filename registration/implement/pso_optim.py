@@ -125,7 +125,7 @@ class PSO_optim(OptimBase):
         particles = [Particle(particle_vals[i], self, i) for i in range(len(particle_vals))]
         global_best_position = max(particles, key=lambda p: p.best_value).position.clone()
         
-        self.save_psos_parameters(particles, "start")
+        # self.save_psos_parameters(particles, "start")
 
         matched_suffix = ""
         if self.config.mode == "matched":
@@ -136,7 +136,6 @@ class PSO_optim(OptimBase):
             check = self.check_match_finished()
             if check : return global_best_position
 
-
             self.current_iterations = _
 
             fit_res = self.fitness(global_best_position)
@@ -146,16 +145,20 @@ class PSO_optim(OptimBase):
             mi_value = fit_res[-3]
             sp = fit_res[-2]
 
+            # HACK 调试专用
+            # if self.ct_matching_slice_index == 605 and _ % 5 == 0:
+            #     print("debug here...")
+
             data_item = global_best_position.numpy()
             data_item = np.insert(data_item, 0, _)
             data_item = np.insert(data_item, data_item.size, global_best_val)
             data_item = np.append(data_item, [weighted_sp, mi_value, sp])
             self.records.append(data_item.tolist())
-            if self.config.mode != "matched": self.save_iteration_best_reg_img(__, _)
+            if self.config.mode != "matched": 
+                self.save_iteration_best_reg_img(__, _)
+                print(f"iterations: {_}, fitness: {global_best_val}, weighted_sp: {weighted_sp},{matched_suffix} params: {global_best_position}")
 
-            print(f"iterations: {_}, fitness: {global_best_val}, weighted_sp: {weighted_sp},{matched_suffix} params: {global_best_position}")
             local_best = global_best_val
-
             self.set_global_best_datas(global_best_val, global_best_position, __)
 
             for particle in particles:
@@ -164,14 +167,16 @@ class PSO_optim(OptimBase):
                 if particle.best_value > local_best:
                     local_best = particle.best_value
                     global_best_position = particle.best_position.clone()
+                    self.set_best(local_best, global_best_position)
 
-        self.save_psos_parameters(particles, "end")
+        # self.save_psos_parameters(particles, "end")
         return global_best_position
 
     # 保存pso的所有参数
     def save_psos_parameters(self, psos, prefix = ""):
         if self.config.mode != "matched": return
 
+        records = []
         file_path = Tools.get_save_path(self.config)
         file_name = f"{self.ct_matching_slice_index}_{prefix}_particle_pos.csv"
         columns = ["x", "y", "rotation", "v1", "v2", "v3"]
@@ -179,9 +184,9 @@ class PSO_optim(OptimBase):
             position = particle.position
             velocity = particle.velocity
             data_item = torch.concat((position, velocity), dim=0)
-            self.records.append(data_item.tolist())
+            records.append(data_item.tolist())
             
-        Tools.save_params2df(self.records, columns, file_path, file_name)
+        Tools.save_params2df(records, columns, file_path, file_name)
 
     # 使用此方法粒子数的数量必须是2^n
     def spawn_uniform_particles(self):
@@ -209,19 +214,20 @@ class PSO_optim(OptimBase):
     def run(self):
         super(PSO_optim, self).run()
 
-        poses = self.spawn_uniform_particles()#[torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
-
+        poses = self.spawn_random_particles()#[torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
         # Running PSO
-        best_position = self._algorithm(poses, self.iteratons)
-        print(f"The best position found is: {best_position}")
-        fit_res = self.fitness(best_position)
+        iter_best_position = self._algorithm(poses, self.iteratons)
+        print(f"The current iteration best position found is: {iter_best_position}")
+        fit_res = self.fitness(iter_best_position)
         self.best_result_per_iter = fit_res
         val, best_regi_img = fit_res[0], fit_res[1]
-        print(f"The maximum value of the function is: {val}")
-        self.put_best_data_in_share(fit_res, best_position)
-        self.save_iteration_params()
+        print(f"The cur iteration maximum value of the function is: {val}")
+        self.put_best_data_in_share(fit_res, iter_best_position)
+
         if self.config.mode == "matched":
             # 保存相关数据(图像之类的)
             self.save_iteration_best_reg_img(best_regi_img, self.config.iteratons)
+        else:
+            self.save_iteration_params()
 
-        return val, best_regi_img, best_position
+        return val, best_regi_img, iter_best_position

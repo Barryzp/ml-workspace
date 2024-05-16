@@ -16,7 +16,7 @@ class OptimBase:
 
         # 最优解
         self.best_solution = None
-        self.best_value = None
+        self.best_value = -10000
         self.best_match_img = None
         self.best_result_per_iter = None
 
@@ -26,6 +26,14 @@ class OptimBase:
         
         self.init_rotation = self.config.init_rotation
         self.rotation_delta = self.config.rotation_delta
+
+    def clear_datas(self):
+        self.records = []
+
+    def set_best(self, value, solution):
+        if value > self.best_value:
+            self.best_value = value
+            self.best_solution = solution
 
     def put_best_data_in_share(self, fit_res, position):
         if self.config.mode != "matched": return
@@ -177,26 +185,42 @@ class OptimBase:
         self.global_share_obj.set_best(best_val, best_position, best_img, self.ct_matching_slice_index)
 
     # 在匹配过程中不太一样，我们将角度化成若干份，再进行优化，主要是减少搜索空间
-    def run_matched(self):
+    def run_matched(self, total_runtimes):
         # 分成若干段
         self.init_rotation[-1] = 0.0
         rot_z_delta = self.rotation_delta[-1]
         
-        loop_times = 360 // rot_z_delta
+        loop_times = int(360 // rot_z_delta)
+
+        total_iterations = total_runtimes * loop_times
+        g_iter = 1
+
+
         for i in range(loop_times):
+            self.clear_datas()
             self.init_rotation[-1] = rot_z_delta * i
             if self.init_rotation[-1] >= 360.0 : self.init_rotation[-1] = 0
-            self.run()
+
+            print(f"================================{rot_z_delta * i}=====================================\n")
+
+            for j in range(total_runtimes):
+                print(f"================================{(g_iter/total_iterations) * 100}%================================")
+                self.run()
+                g_iter+=1
+                if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
+            self.save_iteration_params()
+
+        print(f"The maximum value of the function is: {self.best_value}")
+        print(f"The best position found is: {self.best_solution}")
 
     # 进行优化
     def run(self):
         # 将参数初始化一下
-        if self.config.mode == "matched":
+        mode = self.config.mode
+        if mode == "matched" or mode == "2d":
             self.init_with_2d_params()
 
     # 反复进行循环run函数，目的是寻找最优
     def run_matched_with_loops(self):
         loop_times = self.config.match_loop_times
-        for i in range(loop_times):
-            if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
-            self.run_matched()
+        self.run_matched(loop_times)

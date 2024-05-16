@@ -258,7 +258,7 @@ class ImageProcess:
 
         # 3. 经过一些腐蚀操作去除掉一些细微的颗粒
         processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
-        cv2.imwrite(f'{path_pref}-{id}-kms{kms_cls}-mask.bmp', processed_img)
+        cv2.imwrite(f'{path_pref}-{id}-mask.bmp', processed_img)
 
     # bse图像匹配前预处理
     def matched_bse_img_processed(self):

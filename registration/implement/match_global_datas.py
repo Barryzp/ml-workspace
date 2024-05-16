@@ -1,9 +1,10 @@
-import torch
+import torch, cv2
+import numpy as np
 from utils.tools import Tools
 
 class GlobalMatchDatas():
 
-    def __init__(self, config) -> None:
+    def __init__(self, config, reg) -> None:
         self.aim_slice_index = -1
         self.global_best_value = -1000
         self.iteration_count = 0
@@ -14,6 +15,7 @@ class GlobalMatchDatas():
         
         self.stop_loop = False
         self.config = config
+        self.reg_obj = reg
 
     # 这个best_val都是正值
     def set_best(self, best_val, best_position, best_img, ct_slice_index):
@@ -30,11 +32,49 @@ class GlobalMatchDatas():
         if self.global_best_value > self.threshold:
             self.stop_loop = True
 
-    # HACK 保存最佳图像 并截取对应剪切的CT图像
     def save_best_match(self):
         file_path = Tools.get_save_path(self.config)
         file_name = f"{self.iteration_count}_best_match_{self.aim_slice_index}.bmp"
         Tools.save_img(file_path, file_name, self.global_best_img)
+
+    # 保存最佳图像 并截取对应剪切的CT图像
+    def save_all_best_match_imgs(self):
+        file_path = Tools.get_save_path(self.config)
+        best_slice = self.aim_slice_index
+
+        mask_file_name = f"1A-{best_slice}-a-mask_ct.bmp"
+        bse_mask_name = f"1A-{best_slice}-a-mask_bse.bmp"
+        ct_file_name = f"1A-{best_slice}-b-ori_ct.bmp"
+        bse_file_name = f"1A-{best_slice}-b-ori_bse.bmp"
+
+        position = self.global_best_position
+        crop_x, crop_y = position[0].item(), position[1].item()
+        rot = position[-1].item()
+
+        downsample_times = self.config.downsample_times
+        height, width = self.reg_obj.get_referred_img_shape()
+        rect = np.array([crop_x, crop_y, width, height]) * downsample_times
+
+        # 1. 原本的bse图像
+        ref_img_ori = self.reg_obj.ref_img_ori
+        ref_mask_ori = self.reg_obj.ref_mask_ori
+        # 2. 原本的bse遮罩图像
+        # 加载ct图像和ct遮罩图像
+        ct_src = f"{self.config.data_path}/sample{self.config.cement_sample_index}/ct/matched"
+        ct_ori_name = f"{self.aim_slice_index}_enhanced_ct.bmp"
+        ct_mask_name = f"{self.aim_slice_index}_mask_ct.bmp"
+        ct_ori = cv2.imread(f"{ct_src}/{ct_ori_name}", cv2.IMREAD_GRAYSCALE)
+        ct_mask = cv2.imread(f"{ct_src}/{ct_mask_name}", cv2.IMREAD_GRAYSCALE)
+        # 1. 获取在原始大小遮罩CT图像的mask结果
+        result_mask_ct_matched = Tools.rotate_and_crop_img(ct_mask, rot, rect)
+        # 2. 获取在原始大小下CT图像的结果
+        result_ct_matched = Tools.rotate_and_crop_img(ct_ori, rot, rect)
+        # 3. 原本的CT最优匹配裁剪区域图像
+        # 4. CT最优匹配裁剪区域mask图像
+        Tools.save_img(file_path, ct_file_name, result_ct_matched)
+        Tools.save_img(file_path, mask_file_name, result_mask_ct_matched)
+        Tools.save_img(file_path, bse_file_name, ref_img_ori)
+        Tools.save_img(file_path, bse_mask_name, ref_mask_ori)
 
     def get_loop_state(self):
         return self.stop_loop

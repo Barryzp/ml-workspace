@@ -14,10 +14,12 @@ class Registration:
         self.masked_img = None
 
         # region 未经过下采样的原始图像
+        # 这两个是bse图像中的
         self.ref_img_ori = None
+        self.ref_mask_ori = None
+        # 这两个是ct图像中的，在匹配的时候是为空的
         self.mov_img_ori = None
         self.msk_img_ori = None
-        self.ref_mask_ori = None
         # endregion
 
         self.optim_framework = None
@@ -56,10 +58,9 @@ class Registration:
         data_path = self.config.data_path
         cement_sample_index = self.config.cement_sample_index
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
-        suffix = f"{self.config.cropped_ct_size[0]}"
 
         for index in ct_index_array:
-            file_path = f"{ct_image_path}/cropped_ct_{index}_{suffix}.bmp"
+            file_path = f"{ct_image_path}/{index}_mask_ct.bmp"
             moving_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
             if self.config.downsampled: moving_img = Tools.downsample_image(moving_img, self.config.downsample_times)
             self.matched_moving_imgs[index] = moving_img
@@ -129,6 +130,12 @@ class Registration:
         bse_file_path = f'{src_path}/{bse_file_name}.bmp'
         self.refered_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
         self.ref_img_ori = np.copy(self.refered_img)
+
+        # HACK 暂时先这么处理吧
+        if self.config.mode == "matched":
+            bse_mask_path = f"{src_path}/{prefix}-{self.config.mask_suffix}.bmp"
+            self.refered_img = cv2.imread(bse_mask_path, cv2.IMREAD_GRAYSCALE)
+
         if self.config.downsampled: self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
         r_img_height, r_img_width = self.refered_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
@@ -150,6 +157,7 @@ class Registration:
             file_name = f"{prefix}-{self.config.mask_suffix}.bmp"
             masked_path = f"{src_path}/{file_name}"
             self.masked_img = cv2.imread(masked_path, cv2.IMREAD_GRAYSCALE)
+            self.ref_mask_ori = np.copy(self.masked_img)
             if self.config.downsampled: self.masked_img = Tools.downsample_image(self.masked_img, self.config.downsample_times)
 
     # 加载图像
@@ -283,6 +291,50 @@ class Registration:
         # print(f"sp: {sp}, mi: {mi}, similar: {similar}")
         return similar, cropped_image, mi, sp, weightd_sp 
 
+    def similarity_matched_dice(self, x, ct_matching_slice_index):
+        rotation_center_xy = self.config.rotation_center_xy
+
+        image = self.matched_moving_imgs[ct_matching_slice_index]
+        r_height, r_width = self.get_referred_img_shape()
+        f_height = self.config.cropped_ct_size[0]
+        f_width = self.config.cropped_ct_size[1]
+
+        angle = x[2].item()
+        scale = 1.0
+        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
+
+        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
+        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
+        
+        dice = Tools.dice_coefficient(cropped_image, self.refered_img)
+        return dice, cropped_image, 0, 0, 0 
+
+    # 用于匹配的dice系数比较相似度
+    def similarity_dice(self, x):
+        rotation_center_xy = self.config.rotation_center_xy
+
+        image = self.moving_image
+        r_height, r_width = self.get_referred_img_shape()
+        f_height, f_width = self.get_moving_img_shape()
+
+        # 步骤 2: 旋转图像
+        # 设置旋转中心为图像中心，旋转45度，缩放因子为1
+        angle = x[2].item()
+        scale = 1.0
+        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
+        # 应用旋转
+        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
+
+        # 步骤 4: 裁剪图像
+        # 设置裁剪区域
+        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
+        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
+
+        # 特殊处理得到的二值化图像，计算其DICE分数，DICE分数其实包含了一定程度上的空间信息
+        dice_value = Tools.dice_coefficient(cropped_image, self.refered_img)
+        return dice_value, cropped_image, 0, 0, 0
+
 
     def similarity_2d(self, x):
         rotation_center_xy = self.config.rotation_center_xy
@@ -306,16 +358,10 @@ class Registration:
         cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         mi_value = self.mutual_information(cropped_image, self.refered_img)
 
-        # 特殊处理得到的二值化图像，计算其DICE分数，DICE分数其实包含了一定程度上的空间信息
-        dice_value = Tools.dice_coefficient(cropped_image, self.refered_img)
-        return dice_value, cropped_image, 0, 0, 0
-
-        # HACK 暂时隐藏起来
         spation_info = self.spatial_correlation_with_mask(cropped_image, self.refered_img)
         weighted_sp = lamda_mis * spation_info
         mis = mi_value + weighted_sp
         return mis, cropped_image, mi_value, spation_info, weighted_sp
-
 
     def similarity_3d(self, x):
         rotation_center_xy = self.config.rotation_center_xy
@@ -334,12 +380,18 @@ class Registration:
         return mis, slice_img.reshape((width, height))
 
     def similarity(self, x, ct_matching_slice_index=None, sp_lambda=0):
+        if self.config.debug :
+            # 反射机制：通过函数名字符串调用对象的成员方法
+            return getattr(self, self.config.debug_simiarity)(x)
+            # if self.config.debug_simiarity == "similarity_dice":
+            #     return self.similarity_dice(x)
+
         if self.config.mode == "2d":
             return self.similarity_2d(x)
         elif self.config.mode == "3d":
             return self.similarity_3d(x)
         elif self.config.mode == "matched":
-            return self.similarity_matched_mi(x, ct_matching_slice_index, sp_lambda)
+            return self.similarity_matched_dice(x, ct_matching_slice_index)
 
     def save_matched_result(self, position):
         # 对于重采样的重新处理，旋转角度不需要操作的
@@ -368,6 +420,6 @@ class Registration:
     def registrate(self):
         fitness, best_reg, best_position = self.optim_framework.run()
 
-        if self.config.mode == "2d":
+        if self.config.mode == "2d" and self.config.debug:
             self.save_matched_result(best_position)
         return fitness, best_reg, best_position

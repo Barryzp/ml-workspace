@@ -9,11 +9,17 @@ data_save_path : "D:/workspace/ml-workspace/registration/result/test"
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
 debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-masked.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-bse-masked.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-bse-masked.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-roi-mask.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-roi-mask.bmp"
 debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-enhanced.bmp"
 debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-enhanced-roi.bmp"
+debug_simiarity: "similarity_dice"
 
+# debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-masked.bmp"
+# debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-comp-kms5-mask.bmp"
+# debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-comp-kms5-mask.bmp"
+# debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-enhanced.bmp"
+# debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-enhanced-complete-roi.bmp"
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
@@ -31,9 +37,9 @@ zoom_bse_index : 1
 data_path : "D:/workspace/ml-workspace/registration/datasets"
 # 图像后缀
 # bse图像后缀，编号外的
-bse_suffix : "matched-masked"
+bse_suffix : "enhanced-roi"
 # mask图像后缀
-mask_suffix : "matched-masked"
+mask_suffix : "roi-mask"
 # 模式：
 # 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，进行目标配准，流程的最后一步
@@ -62,7 +68,7 @@ sample_interval : 20
 downsampled : True
 downsample_times : 8
 # 每张图片循环多少次进行查找
-match_loop_times : 7
+match_loop_times : 1
 matched_threshold: 0.5
 
 # 是否有遮罩
@@ -74,7 +80,7 @@ rotation_center_xy : [512.0, 512.0]
 # 初始旋转角度
 init_rotation : [.0, .0, 0.0]
 # 基于初始旋转角度，允许的最大增量
-rotation_delta : [0.0, 0.0, 90.0]
+rotation_delta : [0.0, 0.0, 60.0]
 # 初始位移，以图像的左上角为原点
 init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
