@@ -308,15 +308,16 @@ class ImageProcess:
             save_test_temp_img_name = f"{slice_index}_temp_ct.bmp"
 
             # 对比度增强
-            enhanced_ct = self.enhanced_ct(ori_ct_img)
+            if self.config.enhanced : enhanced_ct = self.enhanced_ct(ori_ct_img)
+            enhanced_ct = ori_ct_img
             Tools.save_img(self.ct_processed_save_path, save_enhanced_img_name, enhanced_ct)
             # 分割图像
             cls_ct = self.segment_ct(enhanced_ct, ct_seg_cls, kmeans_random)
-            Tools.save_img(self.ct_processed_save_path, save_test_seg_img_name, cls_ct)
+            if self.config.save_temp_res : Tools.save_img(self.ct_processed_save_path, save_test_seg_img_name, cls_ct)
             
             if temp_mask_img is not None:
                 and_img = temp_mask_img & cls_ct
-                Tools.save_img(self.ct_processed_save_path, save_test_temp_img_name, and_img)
+                if self.config.save_temp_res : Tools.save_img(self.ct_processed_save_path, save_test_temp_img_name, and_img)
                 ct_gray_cls,_ = Tools.find_ith_frequent_element(and_img, 2)
             
             # 二值化图像

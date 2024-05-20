@@ -195,19 +195,18 @@ class OptimBase:
         total_iterations = total_runtimes * loop_times
         g_iter = 1
 
-
         for i in range(loop_times):
-            self.clear_datas()
             self.init_rotation[-1] = rot_z_delta * i
             if self.init_rotation[-1] >= 360.0 : self.init_rotation[-1] = 0
 
-            print(f"================================{rot_z_delta * i}=====================================\n")
+            print(f"================================rotation: {rot_z_delta * i}=====================================\n")
 
             for j in range(total_runtimes):
-                print(f"================================{(g_iter/total_iterations) * 100}%================================")
                 self.run()
                 g_iter+=1
                 if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
+                print(f"================================{(g_iter/total_iterations) * 100}%================================")
+
             self.save_iteration_params()
 
         print(f"The maximum value of the function is: {self.best_value}")

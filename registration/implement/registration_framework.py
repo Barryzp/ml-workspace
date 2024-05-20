@@ -310,31 +310,47 @@ class Registration:
         dice = Tools.dice_coefficient(cropped_image, self.refered_img)
         return dice, cropped_image, 0, 0, 0 
 
-    # 用于匹配的dice系数比较相似度
-    def similarity_dice(self, x):
+    def similarity_jaccard(self, x):
         rotation_center_xy = self.config.rotation_center_xy
-
         image = self.moving_image
         r_height, r_width = self.get_referred_img_shape()
         f_height, f_width = self.get_moving_img_shape()
 
-        # 步骤 2: 旋转图像
-        # 设置旋转中心为图像中心，旋转45度，缩放因子为1
+        # 步骤 2: 旋转图像、裁剪图像
         angle = x[2].item()
-        scale = 1.0
-        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
-        # 应用旋转
-        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
 
-        # 步骤 4: 裁剪图像
-        # 设置裁剪区域
         pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
-        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
+        cropped_image = Tools.crop_rotate_mi(image, 
+                                          rotation_center_xy, 
+                                          (f_width, f_height), 
+                                          angle, 
+                                          [pos_x, pos_y, w, h])
+
+        # 特殊处理得到的二值化图像，计算jaccard系数
+        jaccard_value = Tools.jaccard_index(cropped_image, self.refered_img)
+        return jaccard_value, cropped_image, 0, 0, 0
+
+    # 用于匹配的dice系数比较相似度
+    def similarity_dice(self, x):
+        rotation_center_xy = self.config.rotation_center_xy
+        image = self.moving_image
+        r_height, r_width = self.get_referred_img_shape()
+        f_height, f_width = self.get_moving_img_shape()
+
+        # 步骤 2: 旋转图像、裁剪图像
+        angle = x[2].item()
+
+        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
+        cropped_image = Tools.crop_rotate_mi(image, 
+                                             rotation_center_xy, 
+                                          (f_width, f_height), 
+                                          angle, 
+                                          [pos_x, pos_y, w, h])
+        # rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
 
         # 特殊处理得到的二值化图像，计算其DICE分数，DICE分数其实包含了一定程度上的空间信息
         dice_value = Tools.dice_coefficient(cropped_image, self.refered_img)
         return dice_value, cropped_image, 0, 0, 0
-
 
     def similarity_2d(self, x):
         rotation_center_xy = self.config.rotation_center_xy

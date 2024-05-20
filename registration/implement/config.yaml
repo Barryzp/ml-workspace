@@ -1,19 +1,19 @@
 
 
 
-record_id : "test-binary-match-compare-3(sample3-1-1)"
-remark : "测试-二值图像比较"
+record_id : "test-binary-match-compare-4(sample4-1-5)2"
+remark : "测试-二值图像比较-similarity_jaccard"
 # 正式配准把test改成normal
 data_save_path : "D:/workspace/ml-workspace/registration/result/test"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
-debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-masked.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-roi-mask.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-roi-mask.bmp"
-debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-enhanced.bmp"
-debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-enhanced-roi.bmp"
-debug_simiarity: "similarity_dice"
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-ct-masked.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-5-roi-mask.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-5-roi-mask.bmp"
+debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-ct-enhanced.bmp"
+debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-5-enhanced-roi.bmp"
+debug_simiarity: "similarity_jaccard" #"similarity_dice" # similarity_jaccard
 
 # debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-masked.bmp"
 # debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-comp-kms5-mask.bmp"
@@ -27,9 +27,9 @@ cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 1
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
-zoom_bse_index : 1
+zoom_bse_index : 4
 # endregion
 
 # region 相关路径
@@ -64,7 +64,7 @@ lamda_mis : 0.1
 # 剪切的ct尺寸
 cropped_ct_size : [1920, 1920]
 # 间隔多少张来抽取一张图像进行匹配
-sample_interval : 20
+sample_interval : 820
 downsampled : True
 downsample_times : 8
 # 每张图片循环多少次进行查找
@@ -98,7 +98,7 @@ ct_2d_index : 32
 
 # PSO 参数
 # 粒子个数，3*d，测试之后128较为合适
-particle_num : 128
+particle_num : 256
 # 迭代次数
 iteratons : 50
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强

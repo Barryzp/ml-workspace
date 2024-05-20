@@ -217,17 +217,20 @@ class PSO_optim(OptimBase):
         poses = self.spawn_random_particles()#[torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
         # Running PSO
         iter_best_position = self._algorithm(poses, self.iteratons)
-        print(f"The current iteration best position found is: {iter_best_position}")
         fit_res = self.fitness(iter_best_position)
         self.best_result_per_iter = fit_res
         val, best_regi_img = fit_res[0], fit_res[1]
-        print(f"The cur iteration maximum value of the function is: {val}")
         self.put_best_data_in_share(fit_res, iter_best_position)
 
         if self.config.mode == "matched":
+            print(f"The current slice index found is: {self.ct_matching_slice_index}")
+            print(f"The current iteration best position found is: {iter_best_position}")
+            print(f"The cur iteration maximum value of the function is: {val}")
             # 保存相关数据(图像之类的)
             self.save_iteration_best_reg_img(best_regi_img, self.config.iteratons)
         else:
+            print(f"The current iteration best position found is: {iter_best_position}")
+            print(f"The cur iteration maximum value of the function is: {val}")
             self.save_iteration_params()
 
         return val, best_regi_img, iter_best_position

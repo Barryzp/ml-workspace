@@ -324,8 +324,14 @@ class Tools:
         
         # 计算Dice系数
         dice = 2. * intersection.sum() / (sum1 + sum2)
-        
         return dice
+    
+    def jaccard_index(binary_image1, binary_image2):
+        binary_image1 = np.asarray(binary_image1).astype(np.bool_)
+        binary_image2 = np.asarray(binary_image2).astype(np.bool_)
+        intersection = np.logical_and(binary_image1, binary_image2)
+        union = np.logical_or(binary_image1, binary_image2)
+        return intersection.sum() / union.sum()
 
     def num_many_occurence_times(arr):
         ele, count = Tools.find_ith_frequent_element(arr, 1)

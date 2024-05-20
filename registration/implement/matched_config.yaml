@@ -1,6 +1,6 @@
 
-record_id : "matched-sample3-S1-pso-1"
-remark : "测试：PSO进行样本3，第1个匹配"
+record_id : "matched-sample3-S2-1-pso-interval-8"
+remark : "测试：PSO进行样本3，第2个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -16,7 +16,7 @@ cement_sample_index : 3
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 1
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # endregion
@@ -53,11 +53,11 @@ lamda_mis : 0.1
 # 剪切的ct尺寸
 cropped_ct_size : [1024, 1024]
 # 间隔多少张来抽取一张图像进行匹配
-sample_interval : 20
+sample_interval : 8
 downsampled : True
 downsample_times : 8
 # 每张图片循环多少次进行查找
-match_loop_times : 2
+match_loop_times : 4
 matched_threshold: 0.8
 
 # 是否有遮罩
@@ -74,6 +74,9 @@ rotation_delta : [0.0, 0.0, 60.0]
 init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
 translate_delta : [368.0, 368.0, 0.0]
+# 限制搜索范围，特别是对于位于中央区域的样本来说，中央区域的BSE图像显然就是1
+center_search_border : [1024.0, 1024.0, 0.0]
+
 
 # 2d/3d配准相关
 # ct图像开始索引
