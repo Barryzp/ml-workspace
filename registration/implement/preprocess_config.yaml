@@ -71,7 +71,7 @@ kernel_size : 3
 size_threshold : 624
 
 # ct二值化的图像灰度值
-ct_gray_cls : 126
+ct_gray_cls : 189
 enhanced : False
 # endregion
 

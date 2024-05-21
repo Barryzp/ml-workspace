@@ -1,5 +1,5 @@
 
-record_id : "matched-sample3-S2-1-pso-interval-8"
+record_id : "matched-sample3-S2-3-pso-interval-4"
 remark : "测试：PSO进行样本3，第2个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
@@ -18,7 +18,7 @@ bse_zoom_times : 100
 # 样品第几个SEM成像
 sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
-zoom_bse_index : 1
+zoom_bse_index : 3
 # endregion
 
 # region 相关路径
@@ -53,12 +53,14 @@ lamda_mis : 0.1
 # 剪切的ct尺寸
 cropped_ct_size : [1024, 1024]
 # 间隔多少张来抽取一张图像进行匹配
-sample_interval : 8
+sample_interval : 4
 downsampled : True
 downsample_times : 8
 # 每张图片循环多少次进行查找
-match_loop_times : 4
+match_loop_times : 2
 matched_threshold: 0.8
+# 大于这个值的就保存一下
+matched_save_lower_threshold: 0.4
 
 # 是否有遮罩
 masked : True

@@ -8,6 +8,7 @@ class GlobalMatchDatas():
         self.aim_slice_index = -1
         self.global_best_value = -1000
         self.iteration_count = 0
+        self.lower_save_count = 0
         self.global_best_position = torch.tensor([.0, .0, .0])
         self.global_best_img = None
         self.share_records_out = []
@@ -28,14 +29,22 @@ class GlobalMatchDatas():
             print(f"id: {self.iteration_count}; best val: {best_val}; ct_slice_index: {ct_slice_index}")
             # 把这张图片保存一下
             self.save_best_match(ct_slice_index, best_position)
-        
+        if best_val > self.config.matched_save_lower_threshold:
+            # 临时保存一下
+            self.lower_save_count += 1
+            self.save_above_crop_ct(ct_slice_index, best_position)
+
         if self.global_best_value > self.threshold:
             self.stop_loop = True
 
-    def save_best_match(self, slice_index, position):
+    def save_above_crop_ct(self, slice_index, position):
+        ct_ori_file_name = f"{self.lower_save_count}_{slice_index}_match_ori_ct.bmp"
+        ct_mask_file_name = f"{self.lower_save_count}_{slice_index}_match_mask_ct.bmp"
+        self.save_match_ct(slice_index, position, ct_ori_file_name, ct_mask_file_name)
+
+
+    def save_match_ct(self, slice_index, position, ct_ori_file_name, ct_mask_file_name):
         file_path = Tools.get_save_path(self.config)
-        ct_ori_file_name = f"{self.iteration_count}_best_match_ori_ct_{slice_index}.bmp"
-        ct_mask_file_name = f"{self.iteration_count}_best_match_mask_ct_{slice_index}.bmp"
 
         # 另外，并保存原始CT图像和maskCT
         crop_x, crop_y = position[0].item(), position[1].item()
@@ -54,6 +63,11 @@ class GlobalMatchDatas():
         result_ct_matched = Tools.rotate_and_crop_img(ct_ori, rot, rect)
         Tools.save_img(file_path, ct_ori_file_name, result_ct_matched)
         Tools.save_img(file_path, ct_mask_file_name, result_mask_ct_matched)
+
+    def save_best_match(self, slice_index, position, random_id = ""):
+        ct_ori_file_name = f"{self.iteration_count}_best_match_ori_ct_{slice_index}.bmp"
+        ct_mask_file_name = f"{self.iteration_count}_best_match_mask_ct_{slice_index}.bmp"
+        self.save_match_ct(slice_index, position, ct_ori_file_name, ct_mask_file_name)
 
     # 保存最佳图像 并截取对应剪切的CT图像
     def save_all_best_match_imgs(self):
