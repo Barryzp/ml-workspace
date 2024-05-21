@@ -2,7 +2,7 @@
 # 图像预处理配置文件
 record_id : "记录的防伪标签"
 # 对应第几个水泥样本
-cement_sample_index : 2
+cement_sample_index : 8
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
