@@ -391,6 +391,10 @@ class Tools:
         # 计算连通区域的大小
         num_labels_m, labels_m, stats_m, centroids_m = cv2.connectedComponentsWithStats(m_img, 4, cv2.CV_32S)
 
+        # 检查数组是否为空
+        if stats_m.size == 0:
+            return 0
+
         # 背景的标签是0，因此在浮动图像中选择数量最多的那个标签
         max_particle_m = Tools.max_index_besides_bg(stats_m)
         max_m_x, max_m_y, particle_num_m = max_particle_m[0], max_particle_m[1], max_particle_m[4]

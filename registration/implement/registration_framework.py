@@ -315,7 +315,7 @@ class Registration:
         dice = Tools.dice_coefficient(cropped_image, self.refered_img)
         if self.config.filter_big_particle : 
             penalty = Tools.big_particle_penalty(self.stats_r, cropped_image)
-            dice_value = dice_value - self.config.big_particle_lambda * penalty
+            dice = dice - self.config.big_particle_lambda * penalty
         return dice, cropped_image, 0, 0, 0 
 
     def similarity_jaccard(self, x):
