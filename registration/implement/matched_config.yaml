@@ -35,7 +35,7 @@ mask_suffix : "roi-mask"
 # matched代表匹配
 mode : "matched"
 # 是否开启筛选大的水泥颗粒正则化方法
-filter_big_particle : True
+filter_big_particle : False
 big_particle_lambda : 0.01
 # endregion
 

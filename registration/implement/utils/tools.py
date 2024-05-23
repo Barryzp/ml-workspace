@@ -358,6 +358,10 @@ class Tools:
     def max_index_besides_bg(stats):
         # 排除第一行
         subset_arr = stats[1:, 4]
+
+        if subset_arr is None or subset_arr.size == 0:
+            return None
+
         # 找到第 5 列（索引 4）的最大元素的索引
         max_index = np.argmax(subset_arr)
         # 由于我们排除了第一行，索引需要加 1
@@ -391,12 +395,9 @@ class Tools:
         # 计算连通区域的大小
         num_labels_m, labels_m, stats_m, centroids_m = cv2.connectedComponentsWithStats(m_img, 4, cv2.CV_32S)
 
-        # 检查数组是否为空
-        if stats_m.size == 0:
-            return 0
-
         # 背景的标签是0，因此在浮动图像中选择数量最多的那个标签
         max_particle_m = Tools.max_index_besides_bg(stats_m)
+        if max_particle_m is None or max_particle_m.size == 0: return 0
         max_m_x, max_m_y, particle_num_m = max_particle_m[0], max_particle_m[1], max_particle_m[4]
 
         max_particle_r = Tools.max_index_besides_bg(stats_r)
