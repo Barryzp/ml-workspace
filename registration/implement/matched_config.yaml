@@ -1,6 +1,6 @@
 
-record_id : "matched-sample3-S2-4-pso-interval-4"
-remark : "测试：PSO进行样本3，第2个匹配"
+record_id : "matched-sample5-S1-1-pso-interval-4"
+remark : "测试：PSO进行样本5，第1个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -12,13 +12,13 @@ debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
-cement_sample_index : 3
+cement_sample_index : 5
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 2
+sample_bse_index : 1
 # 对应bse放大某个倍数下，第几个BSE成像图像
-zoom_bse_index : 4
+zoom_bse_index : 1
 # endregion
 
 # region 相关路径
@@ -34,6 +34,9 @@ mask_suffix : "roi-mask"
 # 3d代表2d/3d配准，进行目标配准，流程的最后一步
 # matched代表匹配
 mode : "matched"
+# 是否开启筛选大的水泥颗粒正则化方法
+filter_big_particle : False
+big_particle_lambda : 0.01
 # endregion
 
 # 用来记录第几次覆盖

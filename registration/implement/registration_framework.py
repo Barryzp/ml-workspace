@@ -119,7 +119,9 @@ class Registration:
             self.refered_img = cv2.imread(self.config.debug_bse_path, cv2.IMREAD_GRAYSCALE)
             self.ref_img_ori = cv2.imread(self.config.debug_bse_ori_path, cv2.IMREAD_GRAYSCALE)
             self.ref_mask_ori = np.copy(self.refered_img)
-            if self.config.downsampled: self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
+            if self.config.downsampled: 
+                self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
+                num_labels_m, labels_m, self.stats_r, centroids_m = cv2.connectedComponentsWithStats(self.refered_img, 4, cv2.CV_32S)
             return
 
         src_path, file_name = Tools.get_processed_referred_path(self.config)
@@ -139,6 +141,9 @@ class Registration:
         if self.config.downsampled: self.refered_img = Tools.downsample_image(self.refered_img, self.config.downsample_times)
         r_img_height, r_img_width = self.refered_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
+
+        if self.config.filter_big_particle:
+            num_labels_m, labels_m, self.stats_r, centroids_m = cv2.connectedComponentsWithStats(self.refered_img, 4, cv2.CV_32S)
 
     def get_referred_img_shape(self):
         # (height, width)(rows, column)
@@ -308,6 +313,9 @@ class Registration:
         cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
         
         dice = Tools.dice_coefficient(cropped_image, self.refered_img)
+        if self.config.filter_big_particle : 
+            penalty = Tools.big_particle_penalty(self.stats_r, cropped_image)
+            dice_value = dice_value - self.config.big_particle_lambda * penalty
         return dice, cropped_image, 0, 0, 0 
 
     def similarity_jaccard(self, x):
@@ -350,6 +358,10 @@ class Registration:
 
         # 特殊处理得到的二值化图像，计算其DICE分数，DICE分数其实包含了一定程度上的空间信息
         dice_value = Tools.dice_coefficient(cropped_image, self.refered_img)
+        if self.config.filter_big_particle : 
+            penalty = Tools.big_particle_penalty(self.stats_r, cropped_image)
+            dice_value = dice_value - self.config.big_particle_lambda * penalty
+
         return dice_value, cropped_image, 0, 0, 0
 
     def similarity_2d(self, x):

@@ -354,3 +354,65 @@ class Tools:
 
         return ith_element, ith_count
 
+    # 去寻找除了背景意外的区域, stats的shape为[n, 5]，代表有n-1个联通区域
+    def max_index_besides_bg(stats):
+        # 排除第一行
+        subset_arr = stats[1:, 4]
+        # 找到第 5 列（索引 4）的最大元素的索引
+        max_index = np.argmax(subset_arr)
+        # 由于我们排除了第一行，索引需要加 1
+        adjusted_index = max_index + 1
+        return stats[adjusted_index]
+
+    def find_neigbor_pos(fixed_pos, stats):
+        x, y = fixed_pos[0], fixed_pos[1]
+        # 仍然是排除第一行，因为它是背景元素
+        coordinates = stats[1:, 0:2]
+        # 计算每个坐标点与 (x, y) 的欧氏距离
+        distances = np.sqrt((coordinates[:, 0] - x)**2 + (coordinates[:, 1] - y)**2)
+        # 找到最小距离的索引
+        closest_index = np.argmin(distances)
+        return closest_index+1
+
+    def draw_region(img, num_labels, stats, centroids):
+        # 创建彩色输出图像
+        output = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+        # 绘制每个连通组件的边界框和质心
+        for i in range(1, num_labels):  # 从1开始，跳过背景
+            x, y, w, h, area = stats[i]
+            cx, cy = centroids[i]
+            cv2.rectangle(output, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.circle(output, (int(cx), int(cy)), 5, (0, 0, 255), -1)
+
+        return output
+
+    def big_particle_penalty(stats_r, m_img, ratio_threshold = 2):
+        # 计算连通区域的大小
+        num_labels_m, labels_m, stats_m, centroids_m = cv2.connectedComponentsWithStats(m_img, 4, cv2.CV_32S)
+
+        # 背景的标签是0，因此在浮动图像中选择数量最多的那个标签
+        max_particle_m = Tools.max_index_besides_bg(stats_m)
+        max_m_x, max_m_y, particle_num_m = max_particle_m[0], max_particle_m[1], max_particle_m[4]
+
+        max_particle_r = Tools.max_index_besides_bg(stats_r)
+        max_r_x, max_r_y, max_particle_num_r = max_particle_r[0], max_particle_r[1], max_particle_r[4]
+
+        # 找到离其最近的那几个质心区域
+        closest_pos_r_index = Tools.find_neigbor_pos([max_m_x, max_m_y] ,stats_r)
+        closest_particle_r = stats_r[closest_pos_r_index]
+
+        # 比较两者的大小，如果差别太大就属于是高攀了
+        particle_num_r = closest_particle_r[-1]
+
+        ratio_m_r = particle_num_m / particle_num_r
+
+        # 以防已经找到大的颗粒，只是没有对上的情况
+        ratio_big_m_r = particle_num_m / max_particle_num_r
+
+        if ratio_big_m_r <= ratio_threshold:
+            return 0
+
+        if ratio_m_r < ratio_threshold :
+            return 0
+        return ratio_m_r

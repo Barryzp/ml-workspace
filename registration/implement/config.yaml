@@ -1,21 +1,23 @@
 
 
 
-record_id : "test-binary-match-compare-4(sample4-1-5)2"
-remark : "测试-二值图像比较-similarity_jaccard"
+record_id : "test-binary-match-compare-4(filter-big-particle)-1-2"
+remark : "测试-二值图像比较-similarity_dice-测试大水泥颗粒的筛出-n"
 # 正式配准把test改成normal
 data_save_path : "D:/workspace/ml-workspace/registration/result/test"
 
 # 用于直接测试配准图像，直接从路径中加载，免得麻烦
 debug: True
-debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-ct-masked.bmp"
-debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-5-roi-mask.bmp"
-debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-5-roi-mask.bmp"
-debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-ct-enhanced.bmp"
-debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-5-enhanced-roi.bmp"
-debug_simiarity: "similarity_jaccard" #"similarity_dice" # similarity_jaccard
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/445_mask_ct.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-roi-mask.bmp"
+debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-roi-mask.bmp"
+debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/445_enhanced_ct.bmp"
+debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1/100/4-1-1-enhanced-roi.bmp"
+# 对照组 445_enhanced_ct.bmp # 4-1-1-ct-enhanced
+# 445_mask_ct 4-1-1-ct-masked
+debug_simiarity: "similarity_dice" #"similarity_dice" # similarity_jaccard
 
-# debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-masked.bmp"
+# debug_ct_path: "D:/workspace/ml-workspace/registration/datas ets/sample3/bse/s1/100/3-1-1-ct-masked.bmp"
 # debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-comp-kms5-mask.bmp"
 # debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-comp-kms5-mask.bmp"
 # debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample3/bse/s1/100/3-1-1-ct-enhanced.bmp"
@@ -30,6 +32,8 @@ bse_zoom_times : 100
 sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 4
+filter_big_particle : False
+big_particle_lambda : 0.01
 # endregion
 
 # region 相关路径
