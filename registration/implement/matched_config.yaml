@@ -1,6 +1,6 @@
 
-record_id : "matched-sample5-S1-1-pso-interval-4"
-remark : "测试：PSO进行样本5，第1个匹配"
+record_id : "matched-sample12-S2-1-pso-interval-4" # -fiter_bigsize
+remark : "测试：PSO进行样本12，第1个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -12,11 +12,11 @@ debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
-cement_sample_index : 5
+cement_sample_index : 12
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 1
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # endregion
@@ -29,6 +29,8 @@ data_path : "D:/workspace/ml-workspace/registration/datasets"
 bse_suffix : "enhanced-roi"
 # mask图像后缀
 mask_suffix : "roi-mask"
+# ct mask, 普通的是mask_ct，筛出大颗粒的是mask_filterred_ct
+ct_mask_suffix : "mask_filterred_1.2_ct"
 # 模式：
 # 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，进行目标配准，流程的最后一步
@@ -63,7 +65,7 @@ downsample_times : 8
 match_loop_times : 2
 matched_threshold: 0.8
 # 大于这个值的就保存一下
-matched_save_lower_threshold: 0.42
+matched_save_lower_threshold: 0.52
 
 # 是否有遮罩
 masked : True

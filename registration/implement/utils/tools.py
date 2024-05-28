@@ -354,7 +354,7 @@ class Tools:
 
         return ith_element, ith_count
 
-    # 去寻找除了背景意外的区域, stats的shape为[n, 5]，代表有n-1个联通区域
+    # 去寻找除了背景以外的区域, stats的shape为[n, 5]，代表有n-1个联通区域
     def max_index_besides_bg(stats):
         # 排除第一行
         subset_arr = stats[1:, 4]
@@ -421,3 +421,30 @@ class Tools:
         if ratio_m_r < ratio_threshold :
             return 0
         return ratio_m_r
+    
+    # 计算二值图像中连通区域的最大和最小区域, bin_img是np数组
+    def count_max_and_min_connected_area(bin_img):
+        min_area = 10000000000
+        max_area = -1
+
+        contours, _ = cv2.findContours(bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # 遍历每个联通区域
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > max_area : max_area = area
+            if area < min_area : min_area = area
+        
+        return max_area, min_area
+
+    # 将二值连通图像进行筛选，将颗粒大小维持在一个范围内，其它则填充背景色
+    def filter_connected_bin_img(bin_img, min_area, max_area):
+        contours, _ = cv2.findContours(bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # 遍历每个联通区域
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < min_area or area > max_area:
+                # 如果面积不在指定范围内，将该区域填充为背景色
+                cv2.drawContours(bin_img, [contour], -1, (0, 0, 0), thickness=cv2.FILLED)
+
+        return bin_img

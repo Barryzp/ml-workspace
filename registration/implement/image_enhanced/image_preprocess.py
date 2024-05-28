@@ -37,7 +37,8 @@ class ImageProcess:
     def crop_circle_with_bar(self, center_offset, rect, crop_radius, bar_height):
         # 加载图像（替换为您的图像路径）
         image_path = self.bse_src_path  # 替换为您的图像路径
-        downsamp_save_path = f'{self.bse_save_path}/{self.file_name_pref}-downsamp.bmp'  # 单单裁剪的图像路径，只是把底下的那个比例尺条裁剪去，以及下采样
+        downsamp_save_path = f'{self.bse_save_path}'  # 单单裁剪的图像路径，只是把底下的那个比例尺条裁剪去，以及下采样
+        downsamp_save_filename = f'{self.file_name_pref}-downsamp.bmp'
 
         scale_bar_height = bar_height
         rect_left = rect[0]
@@ -62,7 +63,8 @@ class ImageProcess:
         # 使用双三次插值下采样图像
         resized_image = result_image.resize(new_size, Image.BICUBIC)
         # 保存图像为BMP格式
-        resized_image.save(downsamp_save_path, format='BMP')
+        Tools.check_file(downsamp_save_path, downsamp_save_filename)
+        resized_image.save(f'{downsamp_save_path}/{downsamp_save_filename}', format='BMP')
         # Image对象
         return resized_image
     
@@ -256,13 +258,18 @@ class ImageProcess:
         filterred_image = self.segmentation.filter_small_size_out(kms_image, self.config.size_threshold)
         cv2.imwrite(f"{path_pref}-{id}-filter.bmp", filterred_image)
 
-        # 3. 经过一些腐蚀操作去除掉一些细微的颗粒
+        # 3. 经过一些腐蚀扩张操作去除掉一些细微的颗粒
         processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
+
+        # 4. 腐蚀扩张操作会留下一些离散的孔隙，在把这些个孔隙去掉
+        processed_img = self.segmentation.filter_small_size_out(processed_img, self.config.size_threshold)
         cv2.imwrite(f'{path_pref}-{id}-mask.bmp', processed_img)
+
+        return processed_img
+
 
     # bse图像匹配前预处理
     def matched_bse_img_processed(self):
-        self.save_cfg()
         # 裁剪并增强
         roi_enhanced, roi_enhanced_comp = self.crop_enhaned_bse()
 
@@ -274,10 +281,26 @@ class ImageProcess:
         
         # 分割并保存
         self.seg_mask(np.array(roi_enhanced), rect_kms_cls, rect_gray_cls, random_state)
-        self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, comp_gray_cls, random_state, "comp")
+        roi_comp_img = self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, comp_gray_cls, random_state, "comp")
+
+        max_area, min_area = Tools.count_max_and_min_connected_area(roi_comp_img)
+        self.config.size_threshold_bse_min = min_area
+        self.config.size_threshold_bse_max = max_area
+        self.save_cfg()
+
+    def load_bse_preprocessd_cfg(self):
+        bse_save_path = self.bse_save_path
+        config_name = f"{self.file_name_pref}-config.yaml"
+        bse_config = Tools.load_yaml_config(f"{bse_save_path}/{config_name}")
+        return bse_config
 
     # ct图像匹配前预处理
     def matched_ct_img_processed(self):
+
+        # 读取BSE配置，获取标准BSE图像中的水泥颗粒的大小范围
+        bse_config = self.load_bse_preprocessd_cfg()
+        max_area, min_area = bse_config.size_threshold_bse_max, bse_config.size_threshold_bse_min
+
         cement_id = self.config.cement_sample_index
         sample_range = CommonConfig.get_range(cement_id)
         total_image_num = sample_range[1] - sample_range[0]
@@ -286,9 +309,9 @@ class ImageProcess:
         loop_times = total_image_num // sample_interval
 
         # 删除掉前面的几张图像
-        init_interval_index = 0
+        init_interval_index = self.config.init_interval_index
         # 删除后面几张图片
-        end_interval_index = 0
+        end_interval_index = self.config.end_interval_index
         start_index = sample_range[0] + sample_interval * init_interval_index
         loop_times = loop_times - init_interval_index - end_interval_index
 
@@ -327,8 +350,34 @@ class ImageProcess:
             # 3. 经过一些腐蚀操作去除掉一些细微的颗粒
             processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
             Tools.save_img(self.ct_processed_save_path, save_bin_img_name, processed_img)
+            
+            # 筛选掉不同倍数以上的颗粒
+            self.save_filterred_diff_size(processed_img, slice_index, min_area, max_area)
+
             temp_mask_img = processed_img
 
+    # 保存筛除掉对应大小的水泥颗粒图像
+    def save_filterred_diff_size(self, ori_bin_img, slice_id, std_min, std_max):
+        ratios = self.config.size_threshold_ratio
+
+        contours, _ = cv2.findContours(ori_bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        def filter_img(img, min, max):
+            # 遍历每个联通区域
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area < min or area > max:
+                    # 如果面积不在指定范围内，将该区域填充为背景色
+                    cv2.drawContours(img, [contour], -1, (0, 0, 0), thickness=cv2.FILLED)
+
+            return img
+
+        for ratio in ratios:
+            max_area = std_max * ratio
+            min_area = std_min
+            save_bin_img_filterred_name = f"{slice_id}_mask_filterred_{ratio}_ct.bmp"
+            processed_img = filter_img(np.copy(ori_bin_img), min_area, max_area)
+            Tools.save_img(self.ct_processed_save_path, save_bin_img_filterred_name, processed_img)
 
     # 计算在剪切后的CT图像中的mi值
     def compute_mi_in_cropped(self, ct_img, bse_img, crop_rect, rot):

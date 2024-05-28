@@ -20,16 +20,7 @@ coordinates = np.array([
     [9, 10]
 ])
 
-# 给定点 (x, y)
-x, y = 6, 5
+a = [3, 7, 9]
 
-# 计算每个坐标点与 (x, y) 的欧氏距离
-distances = np.sqrt((coordinates[:, 0] - x)**2 + (coordinates[:, 1] - y)**2)
-
-# 找到最小距离的索引
-closest_index = np.argmin(distances)
-
-# 最近点的坐标
-closest_point = coordinates[closest_index]
-
-print(f"The closest point to ({x}, {y}) is {closest_point} with index {closest_index}.")
+for item in a:
+    print(item)

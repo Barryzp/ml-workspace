@@ -60,7 +60,7 @@ class Registration:
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
 
         for index in ct_index_array:
-            file_path = f"{ct_image_path}/{index}_mask_ct.bmp"
+            file_path = f"{ct_image_path}/{index}_{self.config.ct_mask_suffix}.bmp"
             moving_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
             if self.config.downsampled: moving_img = Tools.downsample_image(moving_img, self.config.downsample_times)
             self.matched_moving_imgs[index] = moving_img

@@ -94,7 +94,7 @@ class GlobalMatchDatas():
         # 加载ct图像和ct遮罩图像
         ct_src = f"{self.config.data_path}/sample{self.config.cement_sample_index}/ct/matched"
         ct_ori_name = f"{self.aim_slice_index}_enhanced_ct.bmp"
-        ct_mask_name = f"{self.aim_slice_index}_mask_ct.bmp"
+        ct_mask_name = f"{self.aim_slice_index}_{self.config.ct_mask_suffix}.bmp"
         ct_ori = cv2.imread(f"{ct_src}/{ct_ori_name}", cv2.IMREAD_GRAYSCALE)
         ct_mask = cv2.imread(f"{ct_src}/{ct_mask_name}", cv2.IMREAD_GRAYSCALE)
         # 1. 获取在原始大小遮罩CT图像的mask结果
