@@ -42,7 +42,6 @@ class GlobalMatchDatas():
         ct_mask_file_name = f"{self.lower_save_count}_{slice_index}_match_mask_ct.bmp"
         self.save_match_ct(slice_index, position, ct_ori_file_name, ct_mask_file_name)
 
-
     def save_match_ct(self, slice_index, position, ct_ori_file_name, ct_mask_file_name):
         file_path = Tools.get_save_path(self.config)
 

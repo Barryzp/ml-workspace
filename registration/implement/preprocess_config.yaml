@@ -2,18 +2,18 @@
 # 图像预处理配置文件
 record_id : "记录的防伪标签"
 # 对应第几个水泥样本
-cement_sample_index : 12
+cement_sample_index : 3
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 2
+sample_bse_index : 1
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # ct图像采样间隔区间
 sample_interval : 4
 save_temp_res : False
 # 前面的多少张图像不进行处理
-init_interval_index : 60
+init_interval_index : 0
 # 后面的多少张图像不进行处理
 end_interval_index : 0
 # endregion
@@ -29,8 +29,8 @@ data_save_root : "D:/workspace/ml-workspace/registration/datasets"
 
 # region 裁剪图像配置
 # 中心点偏移量(遮罩的)+右移动，-左移动，+下移动，-上移动
-center_offset_x : -5
-center_offset_y : -35
+center_offset_x : 35
+center_offset_y : -79
 crop_radius : 580
 
 # 矩形裁剪配置
@@ -44,7 +44,7 @@ rect_roi_width : 624
 rect_roi_height : 512
 
 # 裁剪时偏移量 +右移动，-左移动，-下移动，+上移动
-roi_cropped_offset : [1, -5]
+roi_cropped_offset : [10, -40]
 # 裁剪时的增强算法配置
 bse_clipLimit : 3.0
 bse_tileGridSize : [8, 8]
@@ -67,12 +67,12 @@ offset_y : -100
 mask_rect_classfied_num : 3
 mask_comp_classfied_num : 5
 kmeans_random_status : 256
-rect_gray_cls : 0
+rect_gray_cls : 127
 comp_gray_cls : 126
 # 腐蚀扩张形态学相关操作参数
 kernel_size : 3
 # 去除掉一些较大的颗粒
-size_threshold : 1024
+size_threshold : 824
 # 大于BSE图像最大颗粒的1.2倍的颗粒会被筛选掉
 size_threshold_ratio : [0.8, 1.5, 2.5]
 

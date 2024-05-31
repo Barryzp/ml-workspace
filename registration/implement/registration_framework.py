@@ -59,9 +59,16 @@ class Registration:
         cement_sample_index = self.config.cement_sample_index
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
 
+        scale_ratio = self.config.size_threshold_ratio
+        particle_min = self.config.size_threshold_min / scale_ratio
+        particle_max = self.config.size_threshold_max * scale_ratio
+
         for index in ct_index_array:
             file_path = f"{ct_image_path}/{index}_{self.config.ct_mask_suffix}.bmp"
+
             moving_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+            moving_img = Tools.filter_connected_bin_img(moving_img, particle_min, particle_max)
+
             if self.config.downsampled: moving_img = Tools.downsample_image(moving_img, self.config.downsample_times)
             self.matched_moving_imgs[index] = moving_img
             if self.config.mode == "matched": self.config.cropped_ct_size = moving_img.shape

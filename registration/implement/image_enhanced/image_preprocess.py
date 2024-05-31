@@ -284,8 +284,8 @@ class ImageProcess:
         roi_comp_img = self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, comp_gray_cls, random_state, "comp")
 
         max_area, min_area = Tools.count_max_and_min_connected_area(roi_comp_img)
-        self.config.size_threshold_bse_min = min_area
-        self.config.size_threshold_bse_max = max_area
+        self.config.size_threshold_bse_min = min_area.item()
+        self.config.size_threshold_bse_max = max_area.item()
         self.save_cfg()
 
     def load_bse_preprocessd_cfg(self):
@@ -351,8 +351,8 @@ class ImageProcess:
             processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
             Tools.save_img(self.ct_processed_save_path, save_bin_img_name, processed_img)
             
-            # 筛选掉不同倍数以上的颗粒
-            self.save_filterred_diff_size(processed_img, slice_index, min_area, max_area)
+            # 筛选掉不同倍数以上的颗粒，这个放到匹配时的处理即可，不用直接保存了，这样占空间没啥意思
+            # self.save_filterred_diff_size(processed_img, slice_index, min_area, max_area)
 
             temp_mask_img = processed_img
 
@@ -360,15 +360,16 @@ class ImageProcess:
     def save_filterred_diff_size(self, ori_bin_img, slice_id, std_min, std_max):
         ratios = self.config.size_threshold_ratio
 
-        contours, _ = cv2.findContours(ori_bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # 寻找连通区域
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(ori_bin_img, 4, cv2.CV_32S)
 
         def filter_img(img, min, max):
             # 遍历每个联通区域
-            for contour in contours:
-                area = cv2.contourArea(contour)
+            for i in range(1, num_labels):
+                area = stats[i, cv2.CC_STAT_AREA]
                 if area < min or area > max:
                     # 如果面积不在指定范围内，将该区域填充为背景色
-                    cv2.drawContours(img, [contour], -1, (0, 0, 0), thickness=cv2.FILLED)
+                    img[labels == i] = 0
 
             return img
 

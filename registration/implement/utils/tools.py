@@ -427,10 +427,12 @@ class Tools:
         min_area = 10000000000
         max_area = -1
 
-        contours, _ = cv2.findContours(bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # 遍历每个联通区域
-        for contour in contours:
-            area = cv2.contourArea(contour)
+        # 寻找连通区域
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(bin_img, 4, cv2.CV_32S)
+
+        # 遍历所有连通区域
+        for i in range(1, num_labels):
+            area = stats[i, cv2.CC_STAT_AREA]
             if area > max_area : max_area = area
             if area < min_area : min_area = area
         
@@ -438,13 +440,14 @@ class Tools:
 
     # 将二值连通图像进行筛选，将颗粒大小维持在一个范围内，其它则填充背景色
     def filter_connected_bin_img(bin_img, min_area, max_area):
-        contours, _ = cv2.findContours(bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # 寻找连通区域
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(bin_img, 4, cv2.CV_32S)
 
         # 遍历每个联通区域
-        for contour in contours:
-            area = cv2.contourArea(contour)
+        for i in range(1, num_labels):
+            area = stats[i, cv2.CC_STAT_AREA]
             if area < min_area or area > max_area:
                 # 如果面积不在指定范围内，将该区域填充为背景色
-                cv2.drawContours(bin_img, [contour], -1, (0, 0, 0), thickness=cv2.FILLED)
+                bin_img[labels == i] = 0
 
         return bin_img
