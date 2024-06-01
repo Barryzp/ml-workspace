@@ -1,5 +1,5 @@
 
-record_id : "matched-sample3-S2-1-pso-interval-4-filter" # -fiter_bigsize
+record_id : "matched-sample3-S2-1-pso-interval-4-comp-filter" # -fiter_bigsize
 remark : "测试：PSO进行样本3，第1个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
@@ -28,7 +28,7 @@ data_path : "D:/workspace/ml-workspace/registration/datasets"
 # bse图像后缀，编号外的
 bse_suffix : "enhanced-roi"
 # mask图像后缀
-mask_suffix : "roi-mask"
+mask_suffix : "comp-mask"
 # ct mask, 普通的是mask_ct，筛出大颗粒的是mask_filterred_ct
 ct_mask_suffix : "mask_ct"
 # 模式：
