@@ -87,8 +87,8 @@ class GlobalMatchDatas():
         rect = np.array([crop_x, crop_y, width, height]) * downsample_times
 
         # 1. 原本的bse图像
-        ref_img_ori = self.reg_obj.ref_img_ori
-        ref_mask_ori = self.reg_obj.ref_mask_ori
+        bse_img_ori = self.reg_obj.bse_img_ori
+        bse_mask_ori = self.reg_obj.bse_mask_ori
         # 2. 原本的bse遮罩图像
         # 加载ct图像和ct遮罩图像
         ct_src = f"{self.config.data_path}/sample{self.config.cement_sample_index}/ct/matched"
@@ -104,8 +104,8 @@ class GlobalMatchDatas():
         # 4. CT最优匹配裁剪区域mask图像
         Tools.save_img(file_path, ct_file_name, result_ct_matched)
         Tools.save_img(file_path, mask_file_name, result_mask_ct_matched)
-        Tools.save_img(file_path, bse_file_name, ref_img_ori)
-        Tools.save_img(file_path, bse_mask_name, ref_mask_ori)
+        Tools.save_img(file_path, bse_file_name, bse_img_ori)
+        Tools.save_img(file_path, bse_mask_name, bse_mask_ori)
 
     def get_loop_state(self):
         return self.stop_loop

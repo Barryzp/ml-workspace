@@ -517,7 +517,7 @@ class ImageProcess:
         # (4) 对最优的BSE进行选择
         # (5) 得到最优区域之后将图像复制到指定文件夹中
         matched_rect_init, matched_rect_bse = self.cropped_rect_remapping()
-        matched_bse_refer_path, matched_bse_refer_filename = Tools.get_processed_referred_path(self.config)
+        matched_bse_refer_path, matched_bse_refer_filename = Tools.get_processed_bse_path(self.config)
         file_pref = f"{matched_bse_refer_path}/{matched_bse_refer_filename}"
         matched_bse_img = cv2.imread(f"{file_pref}-enhanced-roi.bmp", cv2.IMREAD_GRAYSCALE)
         matched_bse_cropped_img = cv2.imread(f"{file_pref}-matched-bse.bmp", cv2.IMREAD_GRAYSCALE)
@@ -558,7 +558,7 @@ class ImageProcess:
         #       还有一个问题：就是固定Z可以进一步减少解空间的大小。
         # (6) 得到最优区域之后将图像进行剪切（减小内存大小）并复制到指定文件夹中
         matched_rect_bse = self.bse_roi_remapping_in_ct()
-        matched_bse_refer_path, matched_bse_refer_filename = Tools.get_processed_referred_path(self.config)
+        matched_bse_refer_path, matched_bse_refer_filename = Tools.get_processed_bse_path(self.config)
         file_pref = f"{matched_bse_refer_path}/{matched_bse_refer_filename}"
 
         matched_bse_img = cv2.imread(f"{file_pref}-enhanced-roi.bmp", cv2.IMREAD_GRAYSCALE)

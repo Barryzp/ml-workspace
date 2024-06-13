@@ -1,6 +1,6 @@
 
-record_id : "matched-sample3-S2-1-pso-interval-4-comp-filter" # -fiter_bigsize
-remark : "测试：PSO进行样本3，第1个匹配"
+record_id : "matched-sample4-S1-1-3dct-pso-interval-8" # -fiter_bigsize
+remark : "测试：PSO进行样本4，第1个匹配"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -12,11 +12,11 @@ debug_mask_path: "D:/workspace/ml-workspace/registration/datasets/sample4/bse/s1
 
 # region 水泥样品相关信息
 # 对应第几个水泥样本
-cement_sample_index : 3
+cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 2
+sample_bse_index : 1
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # endregion
@@ -40,8 +40,8 @@ mode : "matched"
 filter_big_particle : False
 big_particle_lambda : 0.01
 # 新的方法，这个颗粒大小的下限和上限需要根据BSE图像处理的配置中的来进行区别x-1-1-config
-size_threshold_min : 859
-size_threshold_max : 3581
+size_threshold_min : 889
+size_threshold_max : 4283
 # 设置一定的阈值范围，正式的水泥颗粒大小应该在[min/ratio, max*ratio]
 size_threshold_ratio : 1.2 #[0.8, 1.5, 2.5]
 

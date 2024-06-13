@@ -57,7 +57,7 @@ class Tools:
         path_prefix = f"{path_prefix}/{config.record_id}"
         return path_prefix
 
-    def get_processed_referred_path(config):
+    def get_processed_bse_path(config):
         sample_index = config.cement_sample_index
         bse_sample_index = config.sample_bse_index
 

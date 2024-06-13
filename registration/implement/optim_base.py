@@ -61,7 +61,7 @@ class OptimBase:
             self.init_with_3d_params(border)
         elif self.config.mode == "matched":
             self.ct_matching_slice_index = ct_matching_slice_index
-            self.init_with_2d_params()
+            self.init_with_3d_params()
 
     # 基本参数的初始化
     def init_basic_params(self):
