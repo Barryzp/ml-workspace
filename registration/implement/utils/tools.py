@@ -2,6 +2,7 @@ import cv2, os
 import numpy as np
 import itk, yaml
 import pandas as pd
+from scipy import stats
 from math import radians
 from munch import Munch
 from pathlib import Path
@@ -10,9 +11,15 @@ from .common_config import CommonConfig
 
 
 class Tools:
-    # 加载yaml文件并转化成一个对象
+    # 加载yaml文件并转化成一个对象，注意：路径是决定路径
     def load_yaml_config(path):
-        with open(Path(path), 'r', encoding='utf-8') as f:
+        # 使用 Path 对象处理文件路径
+        file_path = Path(path)
+        if not file_path.is_absolute():
+            # 如果路径不是绝对路径，则将其转换为绝对路径
+            file_path = Path.cwd() / file_path
+
+        with open(file_path, 'r', encoding='utf-8') as f:
             yaml_config = yaml.safe_load(f)
         config = Munch(yaml_config)
         return config
@@ -58,10 +65,10 @@ class Tools:
         middle = zoom_times // 100
         end_index = config.zoom_bse_index
 
-        file_name = f"{sample_index}-{middle}-{end_index}"
+        file_pref = f"{sample_index}-{middle}-{end_index}"
         # BSE 图像裁剪以及对比度增强处理
         src_path = f"D:/workspace/ml-workspace/registration/datasets/sample{sample_index}/bse/s{bse_sample_index}/{zoom_times}"
-        return src_path, file_name
+        return src_path, file_pref
 
     def get_ct_img(cement_id, slice_index):
         return CommonConfig.get_cement_ct_slice(cement_id, slice_index)
@@ -74,6 +81,13 @@ class Tools:
         saved_img = Image.fromarray(img.astype(np.uint8))
         saved_img.save(file_path)
 
+    def save_img_jpg(folder_path, file_name, img, jpg_quality):
+        # 检查一下
+        file_path = Tools.check_file(folder_path, file_name)
+        # 保存图像, 这个img是np数组类型的
+        saved_img = Image.fromarray(img.astype(np.uint8))
+        saved_img.save(file_path, "JPEG", quality=jpg_quality, optimize=True, progressive=True)
+    
     # 将数据保存至dataframe
     def save_params2df(datas, columns, folder_path, file_name):
         file_path = Tools.check_file(folder_path, file_name)
@@ -99,6 +113,14 @@ class Tools:
         # 使用缩放因子来减半图片尺寸
         resized_image = cv2.resize(image_np, dsize=size, fx=1/downsample_times, fy=1/downsample_times, interpolation=cv2.INTER_AREA)
         return resized_image
+
+    # 下采样二值图像
+    def downsample_bin_img(image_np, downsample_times, size = None):
+        # 使用缩放因子来减半图片尺寸
+        resized_image = Tools.downsample_image(image_np, downsample_times, size)
+        # 对下采样后的图像进行二值化处理
+        _, binary_downsampled_image = cv2.threshold(resized_image, 127, 255, cv2.THRESH_BINARY)
+        return binary_downsampled_image
 
     # 剪切并旋转，这个就是图像的mi中的那个
     def crop_rotate_mi(image, center, size, angle, rect):
@@ -451,3 +473,104 @@ class Tools:
                 bin_img[labels == i] = 0
 
         return bin_img
+    
+    # 计算前一个二值化后的图像与分割后的图像中，处于前面10个最大连通区域中灰度出现最高的统计，都为numpy数组
+    def bin_mask_mode_gray_cls_10(bin_img, seg_img):
+        # 计算连通组件及其统计信息
+        num_labels, labels, stats_, centroids = cv2.connectedComponentsWithStats(bin_img, connectivity=4, ltype=cv2.CV_32S)
+        # 获取连通组件的面积
+        areas = stats_[:, cv2.CC_STAT_AREA]
+
+        # 排除背景（标签0），获取前十个最大的连通组件的索引
+        top_10_indices = np.argsort(areas[1:])[::-1][:10] + 1
+        gray_stat = np.array([])
+        # 遍历前十个最大的连通组件
+        for idx in top_10_indices:
+            mask = (labels == idx).astype(np.uint8)  # 创建当前连通组件的掩码
+            component_pixels = seg_img[mask == 1]  # 获取连通组件内的所有灰度值
+            # 计算灰度直方图
+            hist = cv2.calcHist([component_pixels], [0], None, [256], [0, 256])
+
+            # 打印一些统计信息
+            mean_val = np.mean(component_pixels)
+            std_val = np.std(component_pixels)
+            # 计算众数
+            mode_result = stats.mode(component_pixels)
+            # mode_result.mode给出众数，mode_result.count给出对应的频次
+            most_common_value = mode_result.mode
+            frequency = mode_result.count
+            gray_stat = np.append(gray_stat, most_common_value)
+
+        # 计算众数
+        mode_result = stats.mode(gray_stat)
+        return int(mode_result.mode)
+
+    # 二值化图像, gray_cls代表为白色的灰度值
+    def binarized_img(image, gray_cls):
+        neg_cls = image != gray_cls
+        positive_cls = image == gray_cls
+        image[neg_cls] = 0
+        image[positive_cls] = 255
+        return image
+
+    def trilinear_interpolation(ct_image, index_array):
+        """
+        手动实现三线性插值。
+        
+        参数:
+        ct_image -- 三维CT图像，形状为 (depth, height, width)
+        index_array -- 插值点的索引数组，形状为 (width, height, 3)
+        
+        返回:
+        values -- 插值后的值，形状为 (width, height)
+        """
+        def get_value_at_point(ct_image, z, y, x):
+            depth, height, width = ct_image.shape
+            
+            # 获取八个顶点的坐标
+            x0, x1 = int(np.floor(x)), int(np.ceil(x))
+            y0, y1 = int(np.floor(y)), int(np.ceil(y))
+            z0, z1 = int(np.floor(z)), int(np.ceil(z))
+            
+            # 确保坐标不越界
+            x0, x1 = max(0, x0), min(width - 1, x1)
+            y0, y1 = max(0, y0), min(height - 1, y1)
+            z0, z1 = max(0, z0), min(depth - 1, z1)
+            
+            # 获取八个顶点的值
+            c000 = ct_image[z0, y0, x0]
+            c001 = ct_image[z0, y0, x1]
+            c010 = ct_image[z0, y1, x0]
+            c011 = ct_image[z0, y1, x1]
+            c100 = ct_image[z1, y0, x0]
+            c101 = ct_image[z1, y0, x1]
+            c110 = ct_image[z1, y1, x0]
+            c111 = ct_image[z1, y1, x1]
+            
+            # 计算插值系数
+            xd = (x - x0) / (x1 - x0) if x1 != x0 else 0
+            yd = (y - y0) / (y1 - y0) if y1 != y0 else 0
+            zd = (z - z0) / (z1 - z0) if z1 != z0 else 0
+            
+            # 线性插值
+            c00 = c000 * (1 - xd) + c001 * xd
+            c01 = c010 * (1 - xd) + c011 * xd
+            c10 = c100 * (1 - xd) + c101 * xd
+            c11 = c110 * (1 - xd) + c111 * xd
+            
+            c0 = c00 * (1 - yd) + c01 * yd
+            c1 = c10 * (1 - yd) + c11 * yd
+            
+            c = c0 * (1 - zd) + c1 * zd
+            
+            return c
+        
+        width, height = index_array.shape[:2]
+        values = np.zeros((width, height))
+        
+        for i in range(width):
+            for j in range(height):
+                y, x, z = index_array[i, j]
+                values[i, j] = get_value_at_point(ct_image, z, y, x)
+        
+        return np.clip(values, 0, 255)  # 确保值在0-255范围内

@@ -160,7 +160,7 @@ class Registration:
     def _load_masked_img(self):
         if self.config.debug and self.config.masked:
             self.masked_img = cv2.imread(self.config.debug_mask_path, cv2.IMREAD_GRAYSCALE)
-            if self.config.downsampled: self.masked_img = Tools.downsample_image(self.masked_img, self.config.downsample_times)
+            if self.config.downsampled: self.masked_img = Tools.downsample_bin_img(self.masked_img, self.config.downsample_times)
             return
 
         src_path, prefix = Tools.get_processed_referred_path(self.config)
@@ -170,7 +170,7 @@ class Registration:
             masked_path = f"{src_path}/{file_name}"
             self.masked_img = cv2.imread(masked_path, cv2.IMREAD_GRAYSCALE)
             self.ref_mask_ori = np.copy(self.masked_img)
-            if self.config.downsampled: self.masked_img = Tools.downsample_image(self.masked_img, self.config.downsample_times)
+            if self.config.downsampled: self.masked_img = Tools.downsample_bin_img(self.masked_img, self.config.downsample_times)
 
     # 加载图像
     def load_img(self):

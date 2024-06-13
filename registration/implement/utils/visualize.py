@@ -16,6 +16,15 @@ class VisualizeData:
         self.fixed_height, self.fixed_width = fixed.shape
         self.mi_datas = None
 
+
+    def show_image(image, size = (15, 15), gray=True):
+        plt.figure(figsize=size)
+        if gray : plt.imshow(image, cmap='gray',vmin=0, vmax=255)
+        else : plt.imshow(image)
+        plt.axis('off')
+        plt.show()
+
+    # 展示图像（灰度）
     def show_imgs(imgs, imgs_name, cols = 2):
         count = len(imgs)
         rows = count // cols + 1
@@ -27,6 +36,36 @@ class VisualizeData:
         # 使用tight_layout自动调整子图参数
         plt.tight_layout()
         plt.show()
+
+    def concate_imgs_show(imgs, cols, space, size = (15, 15), gray = True):
+        count = len(imgs)
+        rows = count // cols
+
+        width, height = imgs[0].shape[1], imgs[0].shape[0]
+
+        vertical_space = np.zeros([width, space])
+        # 先进行水平拼接
+        hori_concates = None
+        # 每一行把图像全部拼起来
+        for i in range(rows):
+            cocates = None
+            for j in range(cols):
+                id = i * cols + j
+                if j < cols - 1:
+                    if cocates is None: 
+                        cocates = np.concatenate([imgs[id], vertical_space], axis=1)
+                    else: 
+                        cocates = np.concatenate([cocates, imgs[id], vertical_space], axis=1)
+                else:
+                    cocates = np.concatenate([cocates, imgs[id]], axis=1)
+            horizontal_space = np.zeros([space, cocates.shape[1]])
+            if i < rows - 1:
+                if hori_concates is None: hori_concates = np.concatenate([cocates, horizontal_space], axis=0)
+                else: hori_concates = np.concatenate([hori_concates, cocates, horizontal_space], axis=0)
+            else: hori_concates = np.concatenate([hori_concates, cocates], axis=0)
+
+        VisualizeData.show_image(hori_concates, size, gray)
+
 
     # delta代表在多大范围内进行的， interval代表的是步长
     def spawn_datas(self, delta, interval, csv_prefix = "visualize_data"):

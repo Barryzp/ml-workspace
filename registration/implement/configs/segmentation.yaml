@@ -1,0 +1,31 @@
+cement_sample_index : 19
+
+# region 路径相关
+# 处理过后图像的存放路径
+data_save_root : "D:/workspace/ml-workspace/registration/datasets"
+save_temp_res : False
+# endregion
+
+# 去除开始的若干张图像
+init_interval_index : 0
+# 去除结束的若干张图像
+end_interval_index : 0
+
+# 采样间隔
+sample_interval : 4
+# kmeans随机种子
+kmeans_random_status : 1024
+# ct图像的类别分割数量
+mask_classfied_num : 5
+# 待分割的水泥颗粒灰度
+ct_gray_cls : 189
+# 腐蚀扩张形态学相关操作参数
+kernel_size : 3
+# 筛出的水泥颗粒最小尺寸
+size_threshold : 512
+
+
+# 是否进行CLAHE增强
+enhanced : False
+# JPEG格式压缩质量
+jpeg_qulity : 75

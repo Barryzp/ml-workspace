@@ -14,23 +14,40 @@ import numpy as np
 import cv2
 import numpy as np
 
-# 创建一个示例二值图像
-img = np.array([
-    [0 ,0, 0, 0, 0],
-    [0, 0, 255, 255, 255],
-    [0, 0, 255, 0, 255],
-    [0, 0, 255, 0, 255],
-    [0, 0, 255, 255, 0],
-], dtype=np.uint8)
+X = np.array([[1, 2, 3], 
+              [4, 5, 6]])
+class BatchNorm:
+    def __init__(self, D):
+        self.gamma = np.ones(D)
+        self.beta = np.zeros(D)
+    
+    def __call__(self, X):
+        mean = X.mean(axis=0)
+        variance = X.var(axis=0)
+        X_hat = (X - mean) / np.sqrt(variance + 1e-8)
+        return self.gamma * X_hat + self.beta
 
-# 检查轮廓的面积
-contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-for contour in contours:
-    area = cv2.contourArea(contour)
-    print(f"Contour Area: {area}")
+# Initialize BatchNorm with 3 features
+batch_norm = BatchNorm(3)
 
-# 使用 connectedComponentsWithStats 计算联通区域的面积
-num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(img, connectivity=4, ltype=cv2.CV_32S)
-for i in range(1, num_labels):  # 从1开始忽略背景
-    area = stats[i, cv2.CC_STAT_AREA]
-    print(f"Connected Component {i} Area: {area}")
+# Apply BatchNorm
+output_bn = batch_norm(X)
+print("BatchNorm output:\n", output_bn)
+
+class LayerNorm:
+    def __init__(self, D):
+        self.gamma = np.ones(D)
+        self.beta = np.zeros(D)
+    
+    def __call__(self, X):
+        mean = X.mean(axis=1, keepdims=True)
+        variance = X.var(axis=1, keepdims=True)
+        X_hat = (X - mean) / np.sqrt(variance + 1e-8)
+        return self.gamma * X_hat + self.beta
+
+# Initialize LayerNorm with 3 features
+layer_norm = LayerNorm(3)
+
+# Apply LayerNorm
+output_ln = layer_norm(X)
+print("LayerNorm output:\n", output_ln)

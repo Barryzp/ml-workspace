@@ -2,11 +2,11 @@
 # 图像预处理配置文件
 record_id : "记录的防伪标签"
 # 对应第几个水泥样本
-cement_sample_index : 10
+cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 2
+sample_bse_index : 1
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # ct图像采样间隔区间
@@ -100,8 +100,10 @@ bse_roi_size : [624, 512]
 downsample_times : 1
 # 搜索的区域大小
 latent_slice_area : 25
-
+# 设置分块的大小
+patch_size : 128
 matched_slice_index : 585
-matched_translate : [423, 365]
+# 在采样倍数下距离左上角的偏移量
+matched_translate : [598, 813]
 matched_rotation : 244
 # endregion

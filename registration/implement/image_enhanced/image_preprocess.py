@@ -6,6 +6,8 @@ from PIL import Image, ImageDraw
 from utils.tools import Tools
 from utils.segmentation_kms import SegmentationKMS
 from utils.common_config import CommonConfig
+from utils.visualize import VisualizeData
+from dtos.patch_info import PatchCfg, PyramidCfg
 
 class ImageProcess:
     def __init__(self, config) -> None:
@@ -242,7 +244,6 @@ class ImageProcess:
         image[positive_cls] = 255
         return image
 
-
     # 不裁剪小区域
     def seg_mask(self, image, kms_cls, gray_cls, random=None, id = "roi"):
         # 1. 对图像进行分割
@@ -390,7 +391,7 @@ class ImageProcess:
                                        crop_rect
                                        )
         mi = Tools.mutual_information(cropped_bse_rect_in_ct, bse_img)
-        return mi
+        return mi, cropped_bse_rect_in_ct
 
     # 正向或者反向获取最优的slice
     def get_best_slice_idx(self, start_idx, interval, refer_img, crop_rect, rot, forward = True):
@@ -399,13 +400,13 @@ class ImageProcess:
 
         start_ct_img = Tools.get_ct_img(self.config.cement_sample_index, start_idx)
         best_slice_index = start_idx
-        best_mi = self.compute_mi_in_cropped(start_ct_img, refer_img, crop_rect, rot)
+        best_mi, _ = self.compute_mi_in_cropped(start_ct_img, refer_img, crop_rect, rot)
 
         for i in range(interval):
             slice_idx = start_idx + (i + 1)*delta
             ct_img = Tools.get_ct_img(self.config.cement_sample_index, slice_idx)
 
-            mi = self.compute_mi_in_cropped(ct_img, refer_img, crop_rect, rot)
+            mi, _ = self.compute_mi_in_cropped(ct_img, refer_img, crop_rect, rot)
             print(f"slice: {slice_idx}, mi: {mi}")
             if mi > best_mi :
                 best_mi = mi
@@ -414,7 +415,19 @@ class ImageProcess:
         return best_mi, best_slice_index
 
 
-    # 匹配图像成功后最后的一些处理
+    # bse roi区域在到原始CT中对应的坐标
+    def bse_roi_remapping_in_ct(self):
+        pos_in_ct = np.array(self.config.matched_translate) * self.config.downsample_times
+
+        # 匹配的BSE图像的剪切
+        matched_bse_rect = [
+            pos_in_ct[0].item(),
+            pos_in_ct[1].item(),
+            self.config.bse_roi_size[0],
+            self.config.bse_roi_size[1]
+        ]
+        return matched_bse_rect
+
     def cropped_rect_remapping(self):
         # 剪切区域位置到原始CT图像的重映射
         ct_size = self.config.ground_ct_size
@@ -442,7 +455,7 @@ class ImageProcess:
 
         return matched_cropped_rect, matched_bse_rect
 
-    def get_best_slice_idx_from_ct(self, init_slice_index, bse_cropped_matched, cropped_rect):
+    def get_best_slice_idx_from_ct(self, init_slice_index, bse_cropped_matched_img, cropped_rect):
         latent_slice_area = self.config.latent_slice_area
 
         ct_size = self.config.ground_ct_size
@@ -454,17 +467,17 @@ class ImageProcess:
                                    cropped_rect
                                    )
 
-        init_mi = Tools.mutual_information(bse_cropped_matched, ct_cropped_matched)
+        init_mi = Tools.mutual_information(bse_cropped_matched_img, ct_cropped_matched)
         print(f"init best slice: {init_slice_index}, mi: {init_mi}")
 
         forward_best_mi, forward_best_idx = self.get_best_slice_idx(init_slice_index, 
                                                                latent_slice_area, 
-                                                               bse_cropped_matched, 
+                                                               bse_cropped_matched_img, 
                                                                cropped_rect, 
                                                                self.config.matched_rotation)
         backward_best_mi, backward_best_idx = self.get_best_slice_idx(init_slice_index, 
                                                                latent_slice_area, 
-                                                               bse_cropped_matched, 
+                                                               bse_cropped_matched_img, 
                                                                cropped_rect, 
                                                                self.config.matched_rotation,
                                                                False)
@@ -496,8 +509,8 @@ class ImageProcess:
             Tools.save_img(file_path, file_name, enhanced_img)
 
 
-    # 选择最佳潜在区域，并保存起来
-    def choose_best_slices_save(self):
+    # 选择最佳潜在区域，并保存起来，这是针对于是小的切片的情况下的，也就是从CT中截取了1024*1024大小的，BSE上截取的ROI
+    def choose_best_slices_save_tiny_region(self):
         # (1) 剪切区域重映射
         # (2) 获取匹配区域最优的slice
         # (3) 获取整个BSE ROI最优的slice
@@ -533,3 +546,193 @@ class ImageProcess:
         Tools.save_obj_yaml(file_path, cfg_name, self.config)
 
         return best_matched_slice_index
+
+    # 使用截取的BSE ROI图像来选择最佳区域(此时是这样的：bse_roi在整个ct区域上进行)
+    def choose_best_slices_bse_roi(self):
+        # 同样的逻辑
+        # (1) 剪切区域重映射
+        # (2) 获取匹配区域最优的slice
+        # (3) 获取整个BSE ROI最优的slice
+        # (4) 对最优的BSE进行选择
+        # (5) 我在想有一步确定最佳Z切片的需要放在这一步吗？并且其最佳切片的值还要进一步保存到文件里
+        #       还有一个问题：就是固定Z可以进一步减少解空间的大小。
+        # (6) 得到最优区域之后将图像进行剪切（减小内存大小）并复制到指定文件夹中
+        matched_rect_bse = self.bse_roi_remapping_in_ct()
+        matched_bse_refer_path, matched_bse_refer_filename = Tools.get_processed_referred_path(self.config)
+        file_pref = f"{matched_bse_refer_path}/{matched_bse_refer_filename}"
+
+        matched_bse_img = cv2.imread(f"{file_pref}-enhanced-roi.bmp", cv2.IMREAD_GRAYSCALE)
+        middle_matched_slice = self.config.matched_slice_index
+        proper_matched_slice_index, proper_matched_mi = self.get_best_slice_idx_from_ct(
+            middle_matched_slice, matched_bse_img, matched_rect_bse
+        )
+        print(f"best cropped index: {proper_matched_slice_index}, best cropped mi: {proper_matched_mi}")
+
+        # HACK 来测试一波
+        patches_info = self.sapwn_patches(proper_matched_slice_index, matched_bse_img)
+
+        # HACK 循环迭代寻找各个Patch所处在的最优切片
+        patches_mi = self.set_patch_best_slice_idx(proper_matched_slice_index, patches_info)
+
+        # self.visualize_patch_info(patches_info)
+
+        return proper_matched_slice_index, patches_mi
+    
+
+    # HACK 后期再改良，目前的版本只有原倍数下的图像
+    def compute_patch_mi(self, patch_info, ct_img):
+        patch_in_times1 = patch_info.pyramids[0]
+        bse_img_size = patch_in_times1.patch_size
+
+        r_img = patch_in_times1.r_img
+        rect = [patch_in_times1.delta_translate_ct[0], patch_in_times1.delta_translate_ct[1],
+                bse_img_size[0], bse_img_size[1]]
+        rotation = self.config.matched_rotation
+        mi, cropped_img = self.compute_mi_in_cropped(ct_img, r_img, rect, rotation)
+        return mi, cropped_img
+
+    def set_patch_best_slice_idx(self, middle_best_slice_index, patches_info):
+
+        latent_slice_area = self.config.latent_slice_area
+        ct_size = self.config.ground_ct_size
+
+        # how todo:
+        # (1) 从底层到上层，index由低到高，比如说：目前最佳是580，那么id从580-latent_slice_area ~ 580+latent_slice_area
+        # (2) 遍历patches_info，计算每个patch的mi
+        # (3) 将每个patch对应切片CT裁剪区域的mi保存起来，用id作为索引，格式如：
+        # (4) 将每个层的mi都保存一下
+
+        patches_mi = []
+        for patch_info in patches_info:
+            patch_mi = {
+                "patch_id" : patch_info.id,
+                "patch_info" : patch_info,
+                "mis" : []
+            }
+            patches_mi.append(patch_mi)
+
+        start_index_ct = middle_best_slice_index - latent_slice_area
+        total_area = latent_slice_area * 2
+
+        for i in range(total_area):
+            ct_slice = start_index_ct + i
+            ct_img = Tools.get_ct_img(self.config.cement_sample_index, ct_slice)
+    
+            for patch_mi in patches_mi:
+                patch_info = patch_mi.get("patch_info")
+                mi, cropped_img = self.compute_patch_mi(patch_info, ct_img)
+                slice_mi_item = {
+                    "slice_index":ct_slice,
+                    "mi" : mi,
+                    "cropped_img" : cropped_img
+                }
+                patch_mi.get("mis").append(slice_mi_item)
+
+        return patches_mi
+
+
+    def visualize_patch_info(self, patches_info, downsamples_times=1, bse_or_ct = "bse"):
+        
+        imgs = []
+        labels = []
+        count = 1
+        for patch_info in patches_info:
+            img = patch_info.pyramids[0].r_img
+            imgs.append(img)
+            labels.append(f"{count}")
+            count+=1
+        VisualizeData.show_concate_imgs(imgs, 5)
+
+    # 从BSE图像中截取某个尺寸大小的区域
+    def crop_from_bse(self, bse_img, rect):
+        pos_x, pos_y, w, h = int(rect[0]), int(rect[1]), int(rect[2]), int(rect[3])  # 裁剪位置和大小
+        cropped_image = bse_img[pos_y:pos_y+h, pos_x:pos_x+w]
+        return cropped_image
+
+    def sapwn_patches(self, best_slice, bse_img):
+        # 根据设定的patch大小来对图像进行分patch处理（部分patch可能会大于也会小于标准的patch大小）
+        patch_size = self.config.patch_size
+        half_patch_size = patch_size * 0.5
+        bse_size = self.config.bse_roi_size # width, height
+        bse_pos_in_ct = self.config.matched_translate # bse图像左上角位于ct图像的位置，以左上角为原点
+
+        width_remain = bse_size[0] % patch_size
+        height_remain = bse_size[1] % patch_size
+
+        # 用来判断宽或者高的多余的patch是否能够作为单独的一格，大于设定的patch大小的一半就行（这是一个先验）
+        does_width_single = False
+        does_height_single = False
+
+        if width_remain > half_patch_size: does_width_single = True
+        if height_remain > half_patch_size: does_height_single = True
+
+        cols = bse_size[0] // patch_size
+        rows = bse_size[1] // patch_size
+        if does_width_single : cols += 1
+        if does_height_single : rows += 1
+
+        start_x = bse_pos_in_ct[0]
+        start_y = bse_pos_in_ct[1]
+        x_delta = 0
+        y_delta = 0
+
+        # patch 的大小
+        patch_width = patch_size
+        patch_height = patch_size
+
+        start_id = 1
+        patches_info = []
+
+        for i in range(rows):
+            y_delta = patch_size * i
+
+            if i == rows - 1:
+                if does_height_single :
+                    patch_height = height_remain
+                else:
+                    patch_height += height_remain
+
+            patch_width = patch_size
+            for j in range(cols):
+                x_delta = patch_size * j
+
+                if j == cols - 1:
+                    if does_width_single :
+                        patch_width = width_remain
+                    else:
+                        patch_width += width_remain
+
+                translate_ct = [start_x+x_delta, start_y+y_delta]
+                translate_bse = [x_delta, y_delta]
+                patch_info = self.spawn_preprocess_patch_info(start_id, best_slice, bse_img, 
+                                                              translate_bse, translate_ct,
+                                                              [patch_width, patch_height])
+                patches_info.append(patch_info)
+                start_id += 1
+                # print(f"position: {x, y}")
+                # print(f"patch size: {patch_width, patch_height}")
+
+        return patches_info
+
+    # 生成预处理的patch信息，这里的patch信息是未经过下采样的图像，也就是downsample_times为1时的配置信息
+    def spawn_preprocess_patch_info(self, id, best_slice, bse_img, translate_bse, translate_ct, size):
+        patch_info = PatchCfg()
+
+        pyramids = []
+        for i in range(3):
+            pyramid = PyramidCfg.buildPyramid(2**i, None, None, None, None)
+            pyramids.append(pyramid)
+
+        pyramid1 = pyramids[0]
+        crop_rect = [translate_bse[0], translate_bse[1], size[0], size[1]]
+        pyramid1.r_img = self.crop_from_bse(bse_img, crop_rect)
+        pyramid1.patch_size = size
+        pyramid1.delta_translate_bse = translate_bse
+        pyramid1.delta_translate_ct = translate_ct
+
+        patch_info.set_info(id, best_slice, pyramids)
+        return patch_info
+
+    def search_latent_area(self):
+        best_slice = self.choose_best_slices_bse_roi()
+        patchs_info = self.sapwn_patches(best_slice, )
