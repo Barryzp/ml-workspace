@@ -77,6 +77,8 @@ matched_save_lower_threshold: 0.55
 masked : True
 
 
+# 潜在的bse图像能够代表的深度
+latent_bse_depth : 20
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [512.0, 512.0]
 # 初始旋转角度

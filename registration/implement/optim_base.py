@@ -76,16 +76,16 @@ class OptimBase:
         rotation_delta = self.rotation_delta[-1]
 
         # 生成初始参数规定范围，
-        self.minV = [
+        self.minV = torch.tensor([
                 self.init_translate[0],
                 self.init_translate[1],
                 init_rotation,
-        ]
-        self.maxV = [
+        ])
+        self.maxV = torch.tensor([
                 self.init_translate[0] + self.translate_delta[0], 
                 self.init_translate[1] + self.translate_delta[1],
                 init_rotation + rotation_delta, 
-        ]
+        ])
 
     # 2d/3d图像的最优参数查找
     def init_with_3d_params(self, img_border_len):
@@ -101,22 +101,22 @@ class OptimBase:
         rotation_delta = math.degrees(math.atan((self.slice_num * 0.5)/(img_border_len * 0.5))) 
         self.rotation_center_xy = self.config.rotation_center_xy
         # 生成初始参数规定范围，
-        self.minV = [
+        self.minV = torch.tensor([
             init_translate[0], 
                 init_translate[1],
                 init_translate[2],
                 init_rotation[0], 
                 init_rotation[1],
                 init_rotation[2],
-        ]
-        self.maxV = [
+        ])
+        self.maxV = torch.tensor([
             init_translate[0] + translate_delta[0], 
                 init_translate[1] + translate_delta[1],
                 init_translate[2] + translate_delta[2],
                 init_rotation[0] + rotation_delta, 
                 init_rotation[1] + rotation_delta,
                 init_rotation[2] + rotation_delta,
-        ]
+        ])
 
     def auto_nonlinear_sp_lambda(self, k=12, a=0.7):
         all_iteration = self.config.iteratons + 1

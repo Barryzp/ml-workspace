@@ -1,13 +1,12 @@
 import numpy as np
-import torch
-import cv2
-import itk
+import torch, cv2, itk, math
 from functools import partial
 from utils.tools import Tools
 
 
 class Registration:
-    def __init__(self, config, ct_index_array = None) -> None:
+    def __init__(self, config, ct_slice_inteval = None, ct_index_array = None) -> None:
+
         self.itk_img = None
         self.ct_matched_3d = None
         self.bse_img = None
@@ -31,6 +30,8 @@ class Registration:
         if self.config.mode == "matched":
             # 匹配过程中ct的索引数组
             self.ct_index_array = ct_index_array
+            self.ct_slice_inteval = ct_slice_inteval
+            self.start_ct_index = ct_index_array[0]
             self.matched_ct_imgs = {}
 
         self.load_img()
@@ -38,7 +39,7 @@ class Registration:
     
     def set_config_delta(self):
         mode = self.config.mode
-        if mode == "matched" or mode == "2d":
+        if mode == "2d":
             bse_height, bse_width = self.get_bse_img_shape()
             ct_height, ct_width = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
             self.config.rotation_center_xy = [ct_width/2, ct_height/2]
@@ -46,7 +47,42 @@ class Registration:
             translate_y = ct_height - bse_height
             self.config.translate_delta[0] = translate_x
             self.config.translate_delta[1] = translate_y
+        elif mode == "matched":
+            # 做一点事情：限制范围
+            self.init_match_params()
 
+    def init_match_params(self):
+        ct_depth = len(self.ct_index_array)
+        latent_depth = self.config.latent_bse_depth
+        bse_height, bse_width = self.get_bse_img_shape()
+        ct_height, ct_width = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
+        # 限制x的移动范围
+        # 起始的左上角坐标
+        # bse切面外接圆半径
+        r_slice_circle = math.sqrt(bse_width**2 + bse_height**2) * 0.5
+        max_width_delta = r_slice_circle - bse_width * 0.5
+        max_height_delta = r_slice_circle - bse_height * 0.5
+        self.config.init_translate = [max_width_delta, max_height_delta, latent_depth]
+        
+        translate_delta_x = ct_width - bse_width - 2 * max_width_delta
+        translate_delta_y = ct_height - bse_height - 2 * max_height_delta
+        translate_delta_z = ct_depth - 2 * latent_depth
+        self.config.translate_delta = [translate_delta_x, translate_delta_y, translate_delta_z]
+
+        sin_theta_width = latent_depth / (bse_width * 0.5)
+        sin_theta_height = latent_depth / (bse_height * 0.5)
+        radians_height = math.asin(sin_theta_height)
+        degree_height = math.degrees(radians_height)
+        radians_width = math.asin(sin_theta_width)
+        degree_width = math.degrees(radians_width)
+
+        self.config.init_rotation = [-degree_width, -degree_height, 0.]
+        rotation_delta_x = degree_width * 2
+        rotation_delta_y = degree_height * 2
+        rotation_delta_z = 360.
+        self.config.rotation_delta = [rotation_delta_x, 
+                                      rotation_delta_y, 
+                                      rotation_delta_z]
 
     def set_optim_algorithm(self, optim, ct_matching_slice_index = None):
         self.optim_framework = optim
@@ -65,7 +101,6 @@ class Registration:
         scale_ratio = self.config.size_threshold_ratio
         particle_min = self.config.size_threshold_min / scale_ratio
         particle_max = self.config.size_threshold_max * scale_ratio
-
 
         for index in ct_index_array:
             file_path = f"{ct_image_path}/{index}_{self.config.ct_mask_suffix}.bmp"
@@ -194,6 +229,33 @@ class Registration:
             self._load_itk()
         elif self.config.mode == "matched":
             self._load_matched_ct3d_img()
+            self.init_bse_indeces()
+
+    # 计算距离切片的偏移, size:[width, height]
+    def compute_offset_from_ct(self, ct_size, slice_size):
+        delta_x = ct_size[0] * .5 - slice_size[0] * .5
+        delta_y = ct_size[1] * .5 - slice_size[1] * .5
+        return [delta_x, delta_y]
+
+    # 初始化好bse位于ct图像中的索引
+    def init_bse_indeces(self):
+        bse_height, bse_width = self.get_bse_img_shape()
+
+        # 这个还是不加上去，只作为参考的初始索引，左上角为原点，变换时索引则为：coordinates + optimized_position
+        # bse_offset_from_origin = self.compute_offset_from_ct([ct_slice_width, ct_slice_height],
+        #                                                      [bse_width, bse_height])
+        # 使用 meshgrid 生成网格，然后将其转换为所需格式
+        x, y = np.meshgrid(np.arange(bse_height), np.arange(bse_width))
+        # 转置网格坐标，使其符合 [N, M] 的形状
+        x = x.T
+        y = y.T
+        # 堆叠坐标网格形成所需的数组
+        coordinates = np.stack((x, y), axis=-1)
+        # 创建一个与 coordinates 形状匹配的常量数组
+        constant_array = np.full(coordinates.shape[:-1] + (1,), 0)
+
+        # 将 coordinates 和 constant_array 连接起来
+        self.bse_indeces_in_ct = np.concatenate((coordinates, constant_array), axis=-1)
 
     # 这个值越大越好 空间相关性
     def spatial_correlation(self, img1, img2):

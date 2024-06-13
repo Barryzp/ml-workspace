@@ -97,23 +97,32 @@ class PSO_optim(OptimBase):
         self.speed = torch.tensor([speed_x, speed_y, speed_z, speed_rotation, speed_rotation, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
 
     # 需要进行调参，惯性权重，个体最优系数，种群最有系数
-    # 采用环形边界的方式将点限制在一个范围内
+    # 采用环形边界的方式将点限制在一个范围内，
+    # 但是这种环形边界是否合理呢？还是采用弹性边界？
+    # 其实问题也不是很大，因为都要向着最优的方向移动，弹性边界的优势在于
+    # 最优区域在边界的时候，那么收敛较快些，但容易陷入局部最优，在边界震荡。
+    # 但咱们的这个方法不是特别需要，更需要的是在整个参数空间中均匀搜索
+    # HACK 这部分代码可以优化：
+    # range_size = upper_bound - lower_bound
+    # position = lower_bound + np.mod(position - lower_bound, range_size)
     def constrain(self, t):
-        # 这里只循环了一次，需要多次处理
-        item_num = t.numel()
-        def judge(i):
-            return t[i] < self.minV[i] or t[i] > self.maxV[i]
+        range_size = self.maxV - self.minV
+        position = self.minV + torch.remainder(t - self.minV, range_size)
+        return position
+        # item_num = t.numel()
+        # def judge(i):
+        #     return t[i] < self.minV[i] or t[i] > self.maxV[i]
         
-        def fixed(i):
-            if t[i] < self.minV[i] or t[i] > self.maxV[i]:
-                t[i] = self.minV[i] + t[i] % (self.maxV[i] - self.minV[i])
+        # def fixed(i):
+        #     if t[i] < self.minV[i] or t[i] > self.maxV[i]:
+        #         t[i] = self.minV[i] + t[i] % (self.maxV[i] - self.minV[i])
 
-        # 只限定x,y,也要限定z旋转角度z
-        for index in range(item_num):
-            while(judge(index)):
-                fixed(index)
+        # # 只限定x,y,也要限定z旋转角度z
+        # for index in range(item_num):
+        #     while(judge(index)):
+        #         fixed(index)
 
-        return t
+        # return t
 
     # 将速度限制在最大范围内
     def constrain_velocity(self, velocity):
