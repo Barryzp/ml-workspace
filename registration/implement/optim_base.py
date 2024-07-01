@@ -9,7 +9,7 @@ class OptimBase:
         self.ct_matching_slice_index = None
         # 用于匹配过程中的全局数据共享
         self.global_share_obj = global_share_datas
-        
+
         self.current_iterations = 0
         self.config = config
         self.records = []
@@ -38,30 +38,18 @@ class OptimBase:
     def put_best_data_in_share(self, fit_res, position):
         if self.config.mode != "matched": return
         if self.global_share_obj == None: return
-        max_val, _, mi, sp, weighted_sp = self.best_result_per_iter
+        max_val, _, latent_z_slice, mi, sp, weighted_sp = self.best_result_per_iter
         pos_np = position.numpy()
-        pos_np = np.insert(pos_np, 0, self.ct_matching_slice_index)
+        pos_np = np.insert(pos_np, 0, latent_z_slice)
         pos_np = np.insert(pos_np, pos_np.size, max_val)
         pos_np = np.insert(pos_np, pos_np.size, mi)
         pos_np = np.insert(pos_np, pos_np.size, sp)
         pos_np = np.insert(pos_np, pos_np.size, weighted_sp)
         self.global_share_obj.put_in_share_objects(pos_np.tolist())
 
-    def set_init_params(self, refer_img_size, reg_similarity, ct_matching_slice_index = None):
+    def set_init_params(self, reg_similarity):
         self.init_basic_params()
         self.reg_similarity = reg_similarity
-        if self.config.mode == "2d":
-            self.init_with_2d_params()
-        elif self.config.mode == "3d":
-            width, height = refer_img_size
-            if height > width:
-                border = width
-            else:
-                border = height
-            self.init_with_3d_params(border)
-        elif self.config.mode == "matched":
-            self.ct_matching_slice_index = ct_matching_slice_index
-            self.init_with_3d_params()
 
     # 基本参数的初始化
     def init_basic_params(self):
@@ -88,18 +76,21 @@ class OptimBase:
         ])
 
     # 2d/3d图像的最优参数查找
-    def init_with_3d_params(self, img_border_len):
-        ############## 初始参数变量范围设置，六个（translate_x,y,z, rotation_x,y,z）###################
-        self.slice_num = self.config.slice_num
+    def init_with_3d_params(self):
         self.parameters_num = 6
-        
+        ############## 初始参数变量范围设置，六个（translate_x,y,z, rotation_x,y,z）###################
+        # 参数的范围在registration中已经设置完毕了
+
+        # z轴的旋转角度分段优化
+        init_rotation_z = self.init_rotation[-1]
+        rotation_delta_z = self.rotation_delta[-1]
+
         # 这个坐标需要注意，是需要记录的
-        init_translate = (self.config.init_translate[0], self.config.init_translate[1], self.slice_num * 0.5)
-        init_rotation = (0.0, 0.0, 0.0)
+        init_translate = self.config.init_translate
+        init_rotation = self.config.init_rotation
         # 位移限制的范围
         translate_delta = self.config.translate_delta
-        rotation_delta = math.degrees(math.atan((self.slice_num * 0.5)/(img_border_len * 0.5))) 
-        self.rotation_center_xy = self.config.rotation_center_xy
+        rotation_delta = self.config.rotation_delta
         # 生成初始参数规定范围，
         self.minV = torch.tensor([
             init_translate[0], 
@@ -107,15 +98,15 @@ class OptimBase:
                 init_translate[2],
                 init_rotation[0], 
                 init_rotation[1],
-                init_rotation[2],
+                init_rotation_z,
         ])
         self.maxV = torch.tensor([
             init_translate[0] + translate_delta[0], 
                 init_translate[1] + translate_delta[1],
                 init_translate[2] + translate_delta[2],
-                init_rotation[0] + rotation_delta, 
-                init_rotation[1] + rotation_delta,
-                init_rotation[2] + rotation_delta,
+                init_rotation[0] + rotation_delta[0], 
+                init_rotation[1] + rotation_delta[1],
+                init_rotation_z + rotation_delta_z,
         ])
 
     def auto_nonlinear_sp_lambda(self, k=12, a=0.7):
@@ -127,7 +118,7 @@ class OptimBase:
         sp_lambda = 1
         if self.config.auto_lambda:
             sp_lambda = self.auto_nonlinear_sp_lambda()
-        return self.reg_similarity(position, self.ct_matching_slice_index, sp_lambda)
+        return self.reg_similarity(position)
 
     # 保存迭代过程中的参数
     def save_iteration_params(self):
@@ -142,15 +133,18 @@ class OptimBase:
                        "rotation_x", "rotation_y", "rotation_z",
                        "fitness"]
         elif self.config.mode == "matched":
-            columns = ["iterations", "x", "y", "rotation", "fitness", "weighted_sp", "mi", "sp"]
-            file_name = f"pso_params_{self.ct_matching_slice_index}.csv"
+            columns = ["iterations", 
+                       "translate_x", "translate_y", "translate_z", 
+                       "rotation_x", "rotation_y", "rotation_z", 
+                       "fitness", "weighted_sp", "mi", "sp"]
+            file_name = f"pso_params_3d_ct.csv"
 
         Tools.save_params2df(self.records, columns, file_path, file_name)
 
     def save_iteration_best_reg_img(self, img_array, iterations):
         file_path = Tools.get_save_path(self.config)
         file_name = f"iter{iterations}_best_reg.bmp"
-        if self.config.mode == "matched": file_name = f"best_reg_{self.ct_matching_slice_index}.bmp"
+        if self.config.mode == "matched": file_name = f"best_reg_3dct.bmp"
         Tools.save_img(file_path, file_name, img_array)
 
     def save_iter_records(self, iter):
@@ -180,35 +174,31 @@ class OptimBase:
         return self.global_share_obj.get_loop_state()
 
     # best_val为正值
-    def set_global_best_datas(self, best_val, best_position, best_img):
+    def set_global_best_datas(self, best_val, best_position, best_img, ct_matching_slice_index):
         if self.global_share_obj == None: return
-        self.global_share_obj.set_best(best_val, best_position, best_img, self.ct_matching_slice_index)
+        self.global_share_obj.set_best(best_val, best_position, best_img, ct_matching_slice_index)
 
     # 在匹配过程中不太一样，我们将角度化成若干份，再进行优化，主要是减少搜索空间
     def run_matched(self, total_runtimes):
+        start_rot_z = self.init_rotation[-1]
         # 分成若干段
-        self.init_rotation[-1] = 0.0
-        rot_z_delta = self.rotation_delta[-1]
-        
+        rot_z_delta = self.config.rot_z_delta
         loop_times = int(360 // rot_z_delta)
 
         total_iterations = total_runtimes * loop_times
-        g_iter = 1
+        g_iter = 0
 
         for i in range(loop_times):
-            self.init_rotation[-1] = rot_z_delta * i
+            self.init_rotation[-1] = start_rot_z + rot_z_delta * i
             if self.init_rotation[-1] >= 360.0 : self.init_rotation[-1] = 0
-
             print(f"================================rotation: {rot_z_delta * i}=====================================\n")
-
             for j in range(total_runtimes):
                 self.run()
                 g_iter+=1
                 if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
                 print(f"================================{(g_iter/total_iterations) * 100}%================================")
 
-            self.save_iteration_params()
-
+        self.save_iteration_params()
         print(f"The maximum value of the function is: {self.best_value}")
         print(f"The best position found is: {self.best_solution}")
 
@@ -216,8 +206,10 @@ class OptimBase:
     def run(self):
         # 将参数初始化一下
         mode = self.config.mode
-        if mode == "matched" or mode == "2d":
+        if mode == "2d":
             self.init_with_2d_params()
+        elif mode == "matched":
+            self.init_with_3d_params()
 
     # 反复进行循环run函数，目的是寻找最优
     def run_matched_with_loops(self):

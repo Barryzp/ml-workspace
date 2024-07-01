@@ -1,6 +1,6 @@
 
-record_id : "matched-sample4-S1-1-3dct-pso-interval-8" # -fiter_bigsize
-remark : "测试：PSO进行样本4，第1个匹配"
+record_id : "matched-sample4-S1-7-3dct-pso-interval-8" # -fiter_bigsize
+remark : "缩减样本的数量，还没啥用，什么鬼？"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -27,18 +27,16 @@ data_path : "D:/workspace/ml-workspace/registration/datasets"
 # 图像后缀
 # bse图像后缀，编号外的
 bse_suffix : "enhanced-roi"
-# mask图像后缀
-mask_suffix : "comp-mask"
-# ct mask, 普通的是mask_ct，筛出大颗粒的是mask_filterred_ct
+# bse mask图像后缀
+mask_suffix : "roi-mask"
+# ct 切片图像, 普通的是enhanced_ct，遮罩是mask_ct
+ct_slice_suffix: "enhanced_ct"
 ct_mask_suffix : "mask_ct"
 # 模式：
 # 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
 # 3d代表2d/3d配准，进行目标配准，流程的最后一步
 # matched代表匹配
 mode : "matched"
-# !过时! 是否开启筛选大的水泥颗粒正则化方法
-filter_big_particle : False
-big_particle_lambda : 0.01
 # 新的方法，这个颗粒大小的下限和上限需要根据BSE图像处理的配置中的来进行区别x-1-1-config
 size_threshold_min : 889
 size_threshold_max : 4283
@@ -68,7 +66,7 @@ sample_interval : 4
 downsampled : True
 downsample_times : 8
 # 每张图片循环多少次进行查找
-match_loop_times : 2
+match_loop_times : 1
 matched_threshold: 0.8
 # 大于这个值的就保存一下
 matched_save_lower_threshold: 0.55
@@ -83,8 +81,10 @@ latent_bse_depth : 20
 rotation_center_xy : [512.0, 512.0]
 # 初始旋转角度
 init_rotation : [.0, .0, 0.0]
+# 将旋转角度分成若干个范围来进行优化，优化搜索空间的大小
+rot_z_delta : 60
 # 基于初始旋转角度，允许的最大增量
-rotation_delta : [0.0, 0.0, 60.0]
+rotation_delta : [0.0, 0.0, 0.0]
 # 初始位移，以图像的左上角为原点
 init_translate : [0.0, 0.0, 0.0]
 # 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
@@ -105,9 +105,9 @@ ct_2d_index : 32
 
 # PSO 参数
 # 粒子个数
-particle_num : 128
+particle_num : 512
 # 迭代次数
-iteratons : 50
+iteratons : 100
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
 weight_inertia : 0.729  # Inertia weight
 # 个体学习因子，朝着个体最佳方向

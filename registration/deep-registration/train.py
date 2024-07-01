@@ -17,6 +17,7 @@ from utils import read_split_data, train_one_epoch, evaluate
 def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
+
     if os.path.exists("./weights") is False:
         os.makedirs("./weights")
 
@@ -61,7 +62,8 @@ def main(args):
                                              num_workers=nw,
                                              collate_fn=val_dataset.collate_fn)
 
-    model = create_model(num_classes=args.num_classes, has_logits=False).to(device)
+
+    model = create_model(num_classes=args.num_classes, has_logits=True).to(device)
 
     if args.weights != "":
         assert os.path.exists(args.weights), "weights file: '{}' not exist.".format(args.weights)
@@ -110,7 +112,7 @@ def main(args):
         # tb_writer.add_scalar(tags[3], val_acc, epoch)
         # tb_writer.add_scalar(tags[4], optimizer.param_groups[0]["lr"], epoch)
 
-        torch.save(model.state_dict(), "./weights/model-{}.pth".format(epoch))
+        torch.save(model.state_dict(), "./deep-registration/weights/model-{}.pth".format(epoch))
 
 
 if __name__ == '__main__':
@@ -129,11 +131,11 @@ if __name__ == '__main__':
     # 数据集所在根目录
     # https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
-                        default="/data/flower_photos")
+                        default="deep-registration/datasets/flower_photos")
     parser.add_argument('--model-name', default='', help='create model name')
 
     # 预训练权重路径，如果不想载入就设置为空字符
-    parser.add_argument('--weights', type=str, default='./vit_base_patch16_224_in21k.pth',
+    parser.add_argument('--weights', type=str, default='deep-registration/weights/vit_base_patch16_224.pth',
                         help='initial weights path')
     # 是否冻结权重
     parser.add_argument('--freeze-layers', type=bool, default=True)

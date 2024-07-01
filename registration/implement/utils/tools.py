@@ -375,6 +375,16 @@ class Tools:
         ith_count = counts[sorted_indices[i-1]]
 
         return ith_element, ith_count
+    
+    def most_frequent_element(arr):
+        # 获取唯一元素及其出现的频率
+        unique_elements, counts = np.unique(arr, return_counts=True)
+        
+        # 获取出现频率最高的元素的索引
+        max_count_index = np.argmax(counts)
+        
+        # 返回出现频率最高的元素
+        return unique_elements[max_count_index]
 
     # 去寻找除了背景以外的区域, stats的shape为[n, 5]，代表有n-1个联通区域
     def max_index_besides_bg(stats):
@@ -512,7 +522,95 @@ class Tools:
         image[neg_cls] = 0
         image[positive_cls] = 255
         return image
+    
+    # 对点进行位移，translation：(translation_x, translation_y, translation_z)
+    def translate_points(translation, points):
+        # 注意这个地方的point具体的坐标是[rows, cols, dim]，而对于我们的translation数组，
+        # 它应该是[width_delta, height_delta, z_delta]，因此需要转换
+        translation[0], translation[1] = translation[1], translation[0]
 
+        translation = np.array(translation)
+        # 需要在这个地方进行判定不，不能为负，为负就跳出异常
+        after_translate = points + translation
+        if after_translate.min() < 0 : raise ValueError("索引小于零，访问越界！")
+        return after_translate
+
+
+    def rotation_matrix_from_euler_angles(angles, order='XYZ'):
+        """
+        根据欧拉角生成旋转矩阵。
+        参数：
+        angles -- 欧拉角，长度为 3 的数组，表示绕每个轴的旋转角度
+        order -- 旋转顺序，默认为 'XYZ'
+        返回：
+        rotation_matrix -- 旋转矩阵，形状为 (3, 3)
+        """
+        theta_x, theta_y, theta_z = angles
+
+        Rx = np.array([
+            [1, 0, 0],
+            [0, np.cos(theta_x), -np.sin(theta_x)],
+            [0, np.sin(theta_x), np.cos(theta_x)]
+        ])
+
+        Ry = np.array([
+            [np.cos(theta_y), 0, np.sin(theta_y)],
+            [0, 1, 0],
+            [-np.sin(theta_y), 0, np.cos(theta_y)]
+        ])
+
+        Rz = np.array([
+            [np.cos(theta_z), -np.sin(theta_z), 0],
+            [np.sin(theta_z), np.cos(theta_z), 0],
+            [0, 0, 1]
+        ])
+
+        if order == 'XYZ':
+            return np.dot(Rz, np.dot(Ry, Rx))
+        elif order == 'ZYX':
+            return np.dot(Rx, np.dot(Ry, Rz))
+        else:
+            raise ValueError("Unsupported rotation order")
+
+    # rotation_center：就是切片的中心对应的那个点
+    # points: 切片
+    # rotations: (rotation_x, rotation_y, rotation_z)都是角度
+    def rotate_points(rotation_center, rotations, points):
+        # 定义旋转角度（弧度制）
+        theta_x = np.radians(rotations[0])  # 绕 x 轴旋转角度
+        theta_y = np.radians(rotations[1])  # 绕 y 轴旋转角度
+        theta_z = np.radians(rotations[2])  # 绕 z 轴旋转角度
+
+        # 根据欧拉角生成旋转矩阵，固定旋转顺序为 'XYZ'
+        rotation_matrix = Tools.rotation_matrix_from_euler_angles([theta_x, theta_y, theta_z], order='XYZ')
+
+        translate_2_origin = np.array(rotation_center)
+
+        points_in_origin = points - translate_2_origin
+        points_after_rotate = np.dot(points_in_origin, rotation_matrix)
+
+        points_after_transform = points_after_rotate + translate_2_origin
+
+        # 注意这个地方跑出了边界外的处理，需要进行限制，两个方面限制
+        # （1）确实就是超出去了怎么办，其中有负值，那么怎么处理，这个地方设置不当容易造成溢出
+        # （2）可以事先进行先验的范围设置
+        # 这个地方不能直接这样暴力地转换，要进行四舍五入的处理
+        min_value = points_after_transform.min()
+        if min_value < 0 :
+            arr = points_after_transform
+            min_index = np.argmin(arr)
+            min_index_multi_dim = np.unravel_index(min_index, arr.shape)
+            index = arr[min_index_multi_dim[:2]]
+            raise ValueError("索引小于零，访问越界！")
+
+        return points_after_transform
+
+    def force_convert_uint(index_array):
+        index_array = np.round(index_array)
+        index_array = index_array.astype(np.uint16)
+        return index_array
+
+    # 三次线性插值
     def trilinear_interpolation(ct_image, index_array):
         """
         手动实现三线性插值。

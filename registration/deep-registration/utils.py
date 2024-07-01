@@ -11,6 +11,11 @@ import matplotlib.pyplot as plt
 
 
 def read_split_data(root: str, val_rate: float = 0.2):
+
+    # 打印当前工作目录
+    print("当前工作目录:", os.getcwd())
+
+
     random.seed(0)  # 保证随机结果可复现
     assert os.path.exists(root), "dataset root: {} does not exist.".format(root)
 

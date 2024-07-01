@@ -32,8 +32,6 @@ bse_zoom_times : 100
 sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 4
-filter_big_particle : False
-big_particle_lambda : 0.01
 # endregion
 
 # region 相关路径

@@ -21,18 +21,28 @@ class GlobalMatchDatas():
     # 这个best_val都是正值
     def set_best(self, best_val, best_position, best_img, ct_slice_index):
         if best_val > self.global_best_value:
+            self.iteration_count += 1
             self.global_best_value = best_val
             self.global_best_position = best_position
             self.global_best_img = best_img
-            self.aim_slice_index = ct_slice_index
-            self.iteration_count += 1
             print(f"id: {self.iteration_count}; best val: {best_val}; ct_slice_index: {ct_slice_index}")
+            
+            ori_slice_img, ct_slice_index = self.reg_obj.crop_slice_from_ori_3dct(best_position)
+            self.aim_slice_index = ct_slice_index
+
             # 把这张图片保存一下
-            self.save_best_match(ct_slice_index, best_position)
-        if best_val > self.config.matched_save_lower_threshold:
-            # 临时保存一下
-            self.lower_save_count += 1
-            self.save_above_crop_ct(ct_slice_index, best_position)
+            file_path = Tools.get_save_path(self.config)
+            mask_file_name = f"{self.iteration_count}-{ct_slice_index}-a-mask_ct.bmp"
+            Tools.save_img(file_path, mask_file_name, best_img)
+            slice_file_name = f"{self.iteration_count}-{ct_slice_index}-a-slice_ct.bmp"
+            Tools.save_img(file_path, slice_file_name, ori_slice_img)
+            
+            # self.save_best_match(ct_slice_index, best_position)
+
+        # if best_val > self.config.matched_save_lower_threshold:
+        #     # 临时保存一下
+        #     self.lower_save_count += 1
+        #     self.save_above_crop_ct(ct_slice_index, best_position)
 
         if self.global_best_value > self.threshold:
             self.stop_loop = True
@@ -44,12 +54,11 @@ class GlobalMatchDatas():
 
     def save_match_ct(self, slice_index, position, ct_ori_file_name, ct_mask_file_name):
         file_path = Tools.get_save_path(self.config)
-
-        # 另外，并保存原始CT图像和maskCT
+        # 另外，并保存原始CT图像和maskCT，这个是原始大小，如果完全加载进来就会太大，先不这样
         crop_x, crop_y = position[0].item(), position[1].item()
         rot = position[-1].item()
         downsample_times = self.config.downsample_times
-        height, width = self.reg_obj.get_referred_img_shape()
+        height, width = self.reg_obj.get_bse_img_shape()
         rect = np.array([crop_x, crop_y, width, height]) * downsample_times
         ct_src = f"{self.config.data_path}/sample{self.config.cement_sample_index}/ct/matched"
         ct_ori_name = f"{slice_index}_enhanced_ct.bmp"
@@ -83,7 +92,7 @@ class GlobalMatchDatas():
         rot = position[-1].item()
 
         downsample_times = self.config.downsample_times
-        height, width = self.reg_obj.get_referred_img_shape()
+        height, width = self.reg_obj.get_bse_img_shape()
         rect = np.array([crop_x, crop_y, width, height]) * downsample_times
 
         # 1. 原本的bse图像

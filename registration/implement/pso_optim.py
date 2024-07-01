@@ -82,19 +82,23 @@ class PSO_optim(OptimBase):
         speed_rotation = rotation_delta * self.speed_param_ratio
         self.speed = torch.tensor([speed_x, speed_y, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
 
-    def init_with_3d_params(self, img_border_len):
-        super(PSO_optim, self).init_with_3d_params(img_border_len)
+    def init_with_3d_params(self):
+        super(PSO_optim, self).init_with_3d_params()
 
         # 位移限制的范围
         translate_delta = self.config.translate_delta
-        rotation_delta = math.degrees(math.atan((self.slice_num * 0.5)/(img_border_len * 0.5)))
+        rotation_delta = self.config.rotation_delta
 
         # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
-        speed_x = translate_delta[0] * 2 * self.speed_param_ratio
-        speed_y = translate_delta[1] * 2 * self.speed_param_ratio
-        speed_z = translate_delta[0] * 2 * self.speed_param_ratio
-        speed_rotation = rotation_delta * 2 * self.speed_param_ratio
-        self.speed = torch.tensor([speed_x, speed_y, speed_z, speed_rotation, speed_rotation, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
+        speed_x = translate_delta[0] * self.speed_param_ratio
+        speed_y = translate_delta[1] * self.speed_param_ratio
+        speed_z = translate_delta[2] * self.speed_param_ratio
+
+        speed_rot_x = rotation_delta[0] * 2 * self.speed_param_ratio
+        speed_rot_y = rotation_delta[1] * 2 * self.speed_param_ratio
+        speed_rot_z = rotation_delta[2] * self.speed_param_ratio
+
+        self.speed = torch.tensor([speed_x, speed_y, speed_z, speed_rot_x, speed_rot_y, speed_rot_z]) # 粒子移动的速度为参数范围的10%~20%
 
     # 需要进行调参，惯性权重，个体最优系数，种群最有系数
     # 采用环形边界的方式将点限制在一个范围内，
@@ -149,6 +153,7 @@ class PSO_optim(OptimBase):
 
             fit_res = self.fitness(global_best_position)
             global_best_val = fit_res[0]
+
             __ = fit_res[1]
             weighted_sp = fit_res[-1]
             mi_value = fit_res[-3]
@@ -168,7 +173,10 @@ class PSO_optim(OptimBase):
                 print(f"iterations: {_}, fitness: {global_best_val}, weighted_sp: {weighted_sp},{matched_suffix} params: {global_best_position}")
 
             local_best = global_best_val
-            self.set_global_best_datas(global_best_val, global_best_position, __)
+            if self.config.mode == "matched":
+                z_index = fit_res[2]
+                print(f"iterations: {_}, fitness: {global_best_val}, params: {global_best_position}")
+                self.set_global_best_datas(global_best_val, global_best_position, __, z_index)
 
             for particle in particles:
                 particle.update_velocity(global_best_position)

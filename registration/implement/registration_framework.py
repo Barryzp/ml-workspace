@@ -8,7 +8,12 @@ class Registration:
     def __init__(self, config, ct_slice_inteval = None, ct_index_array = None) -> None:
 
         self.itk_img = None
+        
+        # ct图像3d
         self.ct_matched_3d = None
+        # ctmask图像3d
+        self.ct_matched_msk_3d = None
+
         self.bse_img = None
         self.ct_img = None
         # 老早的版本了，用于mi + sp
@@ -18,10 +23,13 @@ class Registration:
         # 这两个是bse图像中的
         self.bse_img_ori = None
         self.bse_mask_ori = None
-        self.bse_indeces_in_ct = None # bse图像位于ct图像中的索引
+        self.bse_ori_shape = None
+        # bse图像位于ct图像中的索引，注意：这个值只是一个相对值
+        self.bse_indeces_in_ct = None
         # 这两个是ct图像中的，在匹配的时候是为空的
         self.ct_img_ori = None
         self.ct_msk_img_ori = None
+        self.ct_slice_ori_shape = None
         # endregion
 
         self.optim_framework = None
@@ -53,44 +61,47 @@ class Registration:
 
     def init_match_params(self):
         ct_depth = len(self.ct_index_array)
-        latent_depth = self.config.latent_bse_depth
-        bse_height, bse_width = self.get_bse_img_shape()
-        ct_height, ct_width = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
+        # Z轴上也进行了下采样，向上取整以防超出区域
+        downsamp_times = self.config.downsample_times
+        latent_depth = math.ceil(self.config.latent_bse_depth / downsamp_times)
+        bse_height_cur, bse_width_cur = self.get_bse_img_shape()
+        ct_height_cur, ct_width_cur = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
+        
+        bse_height_ori, bse_width_ori = self.bse_ori_shape
+        
         # 限制x的移动范围
         # 起始的左上角坐标
         # bse切面外接圆半径
-        r_slice_circle = math.sqrt(bse_width**2 + bse_height**2) * 0.5
-        max_width_delta = r_slice_circle - bse_width * 0.5
-        max_height_delta = r_slice_circle - bse_height * 0.5
+        r_slice_circle = math.sqrt(bse_width_cur**2 + bse_height_cur**2) * 0.5
+        max_width_delta = math.ceil(r_slice_circle - bse_width_cur * 0.5)
+        max_height_delta = math.ceil(r_slice_circle - bse_height_cur * 0.5)
         self.config.init_translate = [max_width_delta, max_height_delta, latent_depth]
         
-        translate_delta_x = ct_width - bse_width - 2 * max_width_delta
-        translate_delta_y = ct_height - bse_height - 2 * max_height_delta
+        translate_delta_x = ct_width_cur - bse_width_cur - 2 * max_width_delta
+        translate_delta_y = ct_height_cur - bse_height_cur - 2 * max_height_delta
         translate_delta_z = ct_depth - 2 * latent_depth
         self.config.translate_delta = [translate_delta_x, translate_delta_y, translate_delta_z]
 
-        sin_theta_width = latent_depth / (bse_width * 0.5)
-        sin_theta_height = latent_depth / (bse_height * 0.5)
+        sin_theta_width = latent_depth / (bse_width_ori * 0.5)
+        sin_theta_height = latent_depth / (bse_height_ori * 0.5)
         radians_height = math.asin(sin_theta_height)
         degree_height = math.degrees(radians_height)
         radians_width = math.asin(sin_theta_width)
         degree_width = math.degrees(radians_width)
 
-        self.config.init_rotation = [-degree_width, -degree_height, 0.]
+        self.config.init_rotation = [-degree_width, -degree_height, self.config.init_rotation[-1]]
         rotation_delta_x = degree_width * 2
         rotation_delta_y = degree_height * 2
-        rotation_delta_z = 360.
+        rotation_delta_z = self.config.rot_z_delta
         self.config.rotation_delta = [rotation_delta_x, 
                                       rotation_delta_y, 
                                       rotation_delta_z]
 
-    def set_optim_algorithm(self, optim, ct_matching_slice_index = None):
+    def set_optim_algorithm(self, optim):
         self.optim_framework = optim
-
-        height, width = self.get_bse_img_shape()
         # 需要绑定实例对象
         similarity_fun = partial(self.similarity)
-        optim.set_init_params((width, height), similarity_fun, ct_matching_slice_index)
+        optim.set_init_params(similarity_fun)
 
     def _load_matched_ct3d_img(self):
         ct_index_array = self.ct_index_array
@@ -103,20 +114,30 @@ class Registration:
         particle_max = self.config.size_threshold_max * scale_ratio
 
         for index in ct_index_array:
-            file_path = f"{ct_image_path}/{index}_{self.config.ct_mask_suffix}.bmp"
+            mask_file_path = f"{ct_image_path}/{index}_{self.config.ct_mask_suffix}.bmp"
+            img_file_path = f"{ct_image_path}/{index}_{self.config.ct_slice_suffix}.bmp"
 
-            ct_img = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
-            ct_img = Tools.filter_connected_bin_img(ct_img, particle_min, particle_max)
+            ct_slice_img = cv2.imread(img_file_path, cv2.IMREAD_GRAYSCALE) 
+            ct_mask_img = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
+            self.ct_slice_ori_shape = ct_mask_img.shape
+            ct_mask_img = Tools.filter_connected_bin_img(ct_mask_img, particle_min, particle_max)
 
-            if self.config.downsampled: ct_img = Tools.downsample_bin_img(ct_img, self.config.downsample_times)
-            self.matched_ct_imgs[index] = ct_img
-            if self.config.mode == "matched": self.config.cropped_ct_size = ct_img.shape
+            if self.config.downsampled: 
+                ct_mask_img = Tools.downsample_bin_img(ct_mask_img, self.config.downsample_times)
+                ct_slice_img = Tools.downsample_image(ct_slice_img, self.config.downsample_times)
+            
+            self.matched_ct_imgs[index] = ct_mask_img
+            if self.config.mode == "matched": self.config.cropped_ct_size = ct_mask_img.shape
 
             # 升维，作为三维图像的一个切面
-            slice_img = ct_img[np.newaxis, :]
-            if self.ct_matched_3d is None : self.ct_matched_3d = slice_img
-            else: self.ct_matched_3d = np.concatenate([self.ct_matched_3d, slice_img], axis=0)
-
+            slice_msk_img = ct_mask_img[np.newaxis, :]
+            slice_ct_img = ct_slice_img[np.newaxis, :]
+            if self.ct_matched_msk_3d is None :
+                self.ct_matched_msk_3d = slice_msk_img
+                self.ct_matched_3d = slice_ct_img
+            else: 
+                self.ct_matched_msk_3d = np.concatenate([self.ct_matched_msk_3d, slice_msk_img], axis=0)
+                self.ct_matched_3d = np.concatenate([self.ct_matched_3d, slice_ct_img], axis=0)
 
     def _load_ct_img(self):
         if self.config.debug:
@@ -183,6 +204,7 @@ class Registration:
         bse_file_path = f'{src_path}/{bse_file_name}.bmp'
         self.bse_img = cv2.imread(bse_file_path, cv2.IMREAD_GRAYSCALE)
         self.bse_img_ori = np.copy(self.bse_img)
+        self.bse_ori_shape = self.bse_img_ori.shape
 
         # HACK 暂时先这么处理吧
         if self.config.mode == "matched":
@@ -192,9 +214,6 @@ class Registration:
         if self.config.downsampled: self.bse_img = Tools.downsample_image(self.bse_img, self.config.downsample_times)
         r_img_height, r_img_width = self.bse_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
-
-        if self.config.filter_big_particle:
-            num_labels_m, labels_m, self.stats_r, centroids_m = cv2.connectedComponentsWithStats(self.bse_img, 4, cv2.CV_32S)
 
     def get_bse_img_shape(self):
         # (height, width)(rows, column)
@@ -330,6 +349,43 @@ class Registration:
 
         return mi
 
+    def crop_slice_from_mask_3dct(self, x, interpolation = "None"):
+        return self.crop_slice_from_3dct(x, self.ct_matched_msk_3d, interpolation)
+
+    def crop_slice_from_ori_3dct(self, x, interpolation = "None"):
+        return self.crop_slice_from_3dct(x, self.ct_matched_3d, interpolation)
+
+    # 从ct图像中根据索引切片
+    def crop_slice_from_3dct(self, x, volume, interpolation = "None"):
+        position = x.clone().numpy()
+        translation = position[:3]
+        rotation = position[3:]
+
+        indeces_in_ct = Tools.translate_points(translation, self.bse_indeces_in_ct)
+        height, width = self.get_bse_img_shape()
+        # 围绕切片中心旋转
+        rotation_center = indeces_in_ct[height // 2, width // 2]
+        index_array = Tools.rotate_points(rotation_center, rotation, indeces_in_ct)
+        integer_indeces = Tools.force_convert_uint(index_array)
+
+        max_item = np.max(integer_indeces)
+        if max_item >= 240:
+            print("stop here...")
+
+        # 通过index_array来进行索引切片
+        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+        
+        # 获取这个切片中Z方向最多的元素，也就是找到起最多包含的断层面
+        most_prob_slice_index = Tools.most_frequent_element(integer_indeces[:, 2])
+        # 还需要做一个映射
+        most_prob_slice_index = self.ct_index_array[0] + most_prob_slice_index * self.ct_slice_inteval
+
+        # HACK 用于后面的插值处理，目前看来还是不这样搞
+        if interpolation == "None":
+            pass
+        
+        return result, most_prob_slice_index
+
     # 只利用遮罩的空间信息
     def similarity_only_mask_spatial(self, x, ct_matching_slice_index):
         rotation_center_xy = self.config.rotation_center_xy
@@ -374,27 +430,10 @@ class Registration:
         # print(f"sp: {sp}, mi: {mi}, similar: {similar}")
         return similar, cropped_image, mi, sp, weightd_sp 
 
-    def similarity_matched_dice(self, x, ct_matching_slice_index):
-        rotation_center_xy = self.config.rotation_center_xy
-
-        image = self.matched_ct_imgs[ct_matching_slice_index]
-        r_height, r_width = self.get_bse_img_shape()
-        f_height = self.config.cropped_ct_size[0]
-        f_width = self.config.cropped_ct_size[1]
-
-        angle = x[2].item()
-        scale = 1.0
-        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
-        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
-
-        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
-        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
-        
+    def similarity_matched_dice(self, x):
+        cropped_image, latent_z = self.crop_slice_from_mask_3dct(x)
         dice = Tools.dice_coefficient(cropped_image, self.bse_img)
-        if self.config.filter_big_particle : 
-            penalty = Tools.big_particle_penalty(self.stats_r, cropped_image)
-            dice = dice - self.config.big_particle_lambda * penalty
-        return dice, cropped_image, 0, 0, 0 
+        return dice, cropped_image, latent_z, 0, 0, 0
 
     def similarity_jaccard(self, x):
         rotation_center_xy = self.config.rotation_center_xy
@@ -436,9 +475,6 @@ class Registration:
 
         # 特殊处理得到的二值化图像，计算其DICE分数，DICE分数其实包含了一定程度上的空间信息
         dice_value = Tools.dice_coefficient(cropped_image, self.bse_img)
-        if self.config.filter_big_particle : 
-            penalty = Tools.big_particle_penalty(self.stats_r, cropped_image)
-            dice_value = dice_value - self.config.big_particle_lambda * penalty
 
         return dice_value, cropped_image, 0, 0, 0
 
@@ -497,7 +533,7 @@ class Registration:
         elif self.config.mode == "3d":
             return self.similarity_3d(x)
         elif self.config.mode == "matched":
-            return self.similarity_matched_dice(x, ct_matching_slice_index)
+            return self.similarity_matched_dice(x)
 
     def save_matched_result(self, position):
         # 对于重采样的重新处理，旋转角度不需要操作的
