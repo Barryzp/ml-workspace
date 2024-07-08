@@ -183,7 +183,7 @@ class OptimBase:
         start_rot_z = self.init_rotation[-1]
         # 分成若干段
         rot_z_delta = self.config.rot_z_delta
-        loop_times = int(360 // rot_z_delta)
+        loop_times = 1 #int(360 // rot_z_delta)
 
         total_iterations = total_runtimes * loop_times
         g_iter = 0

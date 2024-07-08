@@ -1,6 +1,6 @@
 
-record_id : "matched-sample4-S1-8(diameter)-3dct-pso-interval-8" # -fiter_bigsize
-remark : "缩减样本的数量，还没啥用，什么鬼？"
+record_id : "matched-sample4-S1-8(test)-3dct-pso-interval-8" # -fiter_bigsize
+remark : "测试为啥减少搜索区域，还不好找了呢？"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
