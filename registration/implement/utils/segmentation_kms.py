@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from utils.tools import Tools
 from sklearn.cluster import KMeans
 
 
@@ -42,17 +43,14 @@ class SegmentationKMS:
         return out_image
     
     # 将形态学处理的结果选择性抹去，去掉那些较小的颗粒，保留那些较大的颗粒，从而减小配准时候的差异
-    def filter_small_size_out(self, morphy_image, filter_size = 128, ):
-        # 寻找连通区域
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(morphy_image, 4, cv2.CV_32S)
+    def filter_small_size_out(self, morphy_image, quantile = 0.3):
+        # 对轮廓进行提取
+        contour_img, contours = Tools.find_contours_in_bin_img(morphy_image)
+        filled_img = Tools.fill_contours(contour_img, contours)
 
-        # 创建一个新的图像来存放结果
-        new_image = np.zeros_like(morphy_image)
+        total_particle_area = np.sum(filled_img == 255)
+        dist_diameter_min, dist_diameter_max = Tools.get_typical_particle_diameter(contours, quantile, total_particle_area)
 
-        # 遍历所有连通区域
-        for i in range(1, num_labels):
-            if stats[i, cv2.CC_STAT_AREA] >= filter_size:
-                # 如果连通区域的大小大于阈值，则将其添加到新图像中
-                new_image[labels == i] = 255
+        filtered_img = Tools.filter_by_diameter(contours, filled_img, [dist_diameter_min, dist_diameter_max])
 
-        return new_image
+        return filtered_img, [dist_diameter_min, dist_diameter_max]

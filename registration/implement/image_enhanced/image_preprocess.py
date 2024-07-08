@@ -220,7 +220,7 @@ class ImageProcess:
         kms = cv2.imread(classfied_img_path, cv2.IMREAD_GRAYSCALE)
 
         # 2. 计算联通区域筛选出较大的颗粒
-        filterred_image = self.segmentation.filter_small_size_out(kms, self.config.size_threshold)
+        filterred_image, _ = self.segmentation.filter_small_size_out(kms, self.config.particle_quantile)
         cv2.imwrite(f"{path_pref}-{id}-masked.bmp", filterred_image)
 
         kms_cls = self.config.mask_classfied_num
@@ -256,17 +256,18 @@ class ImageProcess:
         kms_image = self.binarized_img(kms_image, gray_cls)
 
         # 2. 计算联通区域筛选出较大的颗粒
-        filterred_image = self.segmentation.filter_small_size_out(kms_image, self.config.size_threshold)
+        filterred_image, diameter_interval = self.segmentation.filter_small_size_out(kms_image, self.config.particle_quantile)
         cv2.imwrite(f"{path_pref}-{id}-filter.bmp", filterred_image)
 
         # 3. 经过一些腐蚀扩张操作去除掉一些细微的颗粒
         processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
 
         # 4. 腐蚀扩张操作会留下一些离散的孔隙，在把这些个孔隙去掉
-        processed_img = self.segmentation.filter_small_size_out(processed_img, self.config.size_threshold)
+        processed_img = Tools.filter_by_diameter_bin_img(processed_img, diameter_interval)
+        diameter_interval = Tools.get_diameter_interval(processed_img)
         cv2.imwrite(f'{path_pref}-{id}-mask.bmp', processed_img)
 
-        return processed_img
+        return processed_img, diameter_interval
 
 
     # bse图像匹配前预处理
@@ -280,13 +281,13 @@ class ImageProcess:
         rect_kms_cls = self.config.mask_rect_classfied_num
         comp_kms_cls = self.config.mask_comp_classfied_num
         
-        # 分割并保存
+        # 分割并保存（使用粒径的方式）
         self.seg_mask(np.array(roi_enhanced), rect_kms_cls, rect_gray_cls, random_state)
-        roi_comp_img = self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, comp_gray_cls, random_state, "comp")
+        roi_comp_img, diameter_interval = self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, comp_gray_cls, random_state, "comp")
 
-        max_area, min_area = Tools.count_max_and_min_connected_area(roi_comp_img)
-        self.config.size_threshold_bse_min = min_area.item()
-        self.config.size_threshold_bse_max = max_area.item()
+        max_area, min_area = diameter_interval[1], diameter_interval[0]
+        self.config.size_threshold_bse_min = min_area
+        self.config.size_threshold_bse_max = max_area
         self.save_cfg()
 
     def load_bse_preprocessd_cfg(self):
@@ -300,7 +301,12 @@ class ImageProcess:
 
         # 读取BSE配置，获取标准BSE图像中的水泥颗粒的大小范围
         bse_config = self.load_bse_preprocessd_cfg()
-        max_area, min_area = bse_config.size_threshold_bse_max, bse_config.size_threshold_bse_min
+
+        max_diameter, min_diameter = bse_config.size_threshold_bse_max, bse_config.size_threshold_bse_min
+        # 保留较大的颗粒，让图像可以具有多种用途
+        max_diameter = max_diameter * 100
+        diameter_ratio = bse_config.size_threshold_ratio[1]
+        min_diameter = min_diameter / diameter_ratio
 
         cement_id = self.config.cement_sample_index
         sample_range = CommonConfig.get_range(cement_id)
@@ -347,13 +353,11 @@ class ImageProcess:
             # 二值化图像
             ct_bin_img = self.binarized_img(cls_ct, ct_gray_cls)
             # 2. 计算联通区域筛选出较大的颗粒
-            filterred_image = self.segmentation.filter_small_size_out(ct_bin_img, self.config.size_threshold)
+            filterred_image = Tools.filter_by_diameter_bin_img(ct_bin_img, [min_diameter, max_diameter])
+            
             # 3. 经过一些腐蚀操作去除掉一些细微的颗粒
             processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
             Tools.save_img(self.ct_processed_save_path, save_bin_img_name, processed_img)
-            
-            # 筛选掉不同倍数以上的颗粒，这个放到匹配时的处理即可，不用直接保存了，这样占空间没啥意思
-            # self.save_filterred_diff_size(processed_img, slice_index, min_area, max_area)
 
             temp_mask_img = processed_img
 
@@ -507,7 +511,6 @@ class ImageProcess:
             enhanced_img = self.ct_clahe.apply(rotated_image)
             # 进行保存
             Tools.save_img(file_path, file_name, enhanced_img)
-
 
     # 选择最佳潜在区域，并保存起来，这是针对于是小的切片的情况下的，也就是从CT中截取了1024*1024大小的，BSE上截取的ROI
     def choose_best_slices_save_tiny_region(self):

@@ -1,5 +1,5 @@
 
-record_id : "matched-sample4-S1-7-3dct-pso-interval-8" # -fiter_bigsize
+record_id : "matched-sample4-S1-8(diameter)-3dct-pso-interval-8" # -fiter_bigsize
 remark : "缩减样本的数量，还没啥用，什么鬼？"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
@@ -38,9 +38,10 @@ ct_mask_suffix : "mask_ct"
 # matched代表匹配
 mode : "matched"
 # 新的方法，这个颗粒大小的下限和上限需要根据BSE图像处理的配置中的来进行区别x-1-1-config
+# 需要去进行读取这个配置
 size_threshold_min : 889
 size_threshold_max : 4283
-# 设置一定的阈值范围，正式的水泥颗粒大小应该在[min/ratio, max*ratio]
+# 设置一定的阈值范围，正式的水泥粒径大小应该在[min/ratio, max*ratio]
 size_threshold_ratio : 1.2 #[0.8, 1.5, 2.5]
 
 # endregion
@@ -82,7 +83,7 @@ rotation_center_xy : [512.0, 512.0]
 # 初始旋转角度
 init_rotation : [.0, .0, 0.0]
 # 将旋转角度分成若干个范围来进行优化，优化搜索空间的大小
-rot_z_delta : 60
+rot_z_delta : 360
 # 基于初始旋转角度，允许的最大增量
 rotation_delta : [0.0, 0.0, 0.0]
 # 初始位移，以图像的左上角为原点

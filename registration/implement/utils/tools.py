@@ -1,9 +1,7 @@
-import cv2, os
+import cv2, os, math, itk, yaml
 import numpy as np
-import itk, yaml
 import pandas as pd
 from scipy import stats
-from math import radians
 from munch import Munch
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -114,6 +112,12 @@ class Tools:
         resized_image = cv2.resize(image_np, dsize=size, fx=1/downsample_times, fy=1/downsample_times, interpolation=cv2.INTER_AREA)
         return resized_image
 
+    # 上采样图像
+    def upsample_image(image_np, upsample_times, size = None):
+        # 使用缩放因子来减半图片尺寸
+        resized_image = cv2.resize(image_np, dsize=size, fx=upsample_times, fy=upsample_times, interpolation=cv2.INTER_AREA)
+        return resized_image
+
     # 下采样二值图像
     def downsample_bin_img(image_np, downsample_times, size = None):
         # 使用缩放因子来减半图片尺寸
@@ -121,6 +125,14 @@ class Tools:
         # 对下采样后的图像进行二值化处理
         _, binary_downsampled_image = cv2.threshold(resized_image, 127, 255, cv2.THRESH_BINARY)
         return binary_downsampled_image
+
+    # 上采样二值图像
+    def upsample_bin_img(image_np, upsample_times, size = None):
+        # 使用缩放因子来减半图片尺寸
+        resized_image = Tools.upsample_image(image_np, upsample_times, size)
+        # 对下采样后的图像进行二值化处理
+        _, binary_upsampled_image = cv2.threshold(resized_image, 127, 255, cv2.THRESH_BINARY)
+        return binary_upsampled_image
 
     # 剪切并旋转，这个就是图像的mi中的那个
     def crop_rotate_mi(image, center, size, angle, rect):
@@ -216,7 +228,7 @@ class Tools:
         translation_to_origin.SetOffset(rotation_center)
 
         rotation_transform = itk.Euler3DTransform.New()
-        rotation_transform.SetRotation(radians(rotation[0]), radians(rotation[1]), radians(rotation[2]))
+        rotation_transform.SetRotation(math.radians(rotation[0]), math.radians(rotation[1]), math.radians(rotation[2]))
 
         translation_back = itk.TranslationTransform[itk.D, 3].New()
         translation_back.SetOffset(-1.0 * np.array(rotation_center))
@@ -470,7 +482,11 @@ class Tools:
         
         return max_area, min_area
 
-    # 将二值连通图像进行筛选，将颗粒大小维持在一个范围内，其它则填充背景色
+    # 计算二值图像中最大最小粒径
+    def count_max_and_min_diameter(bin_img):
+        pass
+
+    # 将二值连通图像进行筛选，将颗粒大小维持在一个范围内，通过区域面积进行选择，其它则填充背景色
     def filter_connected_bin_img(bin_img, min_area, max_area):
         # 寻找连通区域
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(bin_img, 4, cv2.CV_32S)
@@ -534,6 +550,67 @@ class Tools:
         after_translate = points + translation
         if after_translate.min() < 0 : raise ValueError("索引小于零，访问越界！")
         return after_translate
+
+    def remapping_from_optim_pos(pos_ori, start_slice_idx_matched, downsample_times, start_slice_idx_remapping):
+        # 在原始CT图像中应该处在的Z轴位移
+        z_optim = downsample_times * pos_ori[2].item() + start_slice_idx_matched
+        z_optim = z_optim - start_slice_idx_remapping
+        pos_remapping = np.array([
+            # translation_x, y, z
+            pos_ori[0].item() * downsample_times,
+            pos_ori[1].item() * downsample_times,
+            z_optim,
+            # rot_x, rot_y, # rot_z
+            pos_ori[3].item(),
+            pos_ori[4].item(),
+            pos_ori[5].item(),
+        ])
+        return pos_remapping
+        
+    # 加载3d ct图像
+    def load_3dct_as_np_array(cement_id, index_array):
+        ct_3d = None
+
+        for slice_index in index_array:
+            ct_img = Tools.get_ct_img(cement_id, slice_index)
+            ct_img = ct_img[np.newaxis, :]
+            if ct_3d is None:
+                ct_3d = ct_img
+            else:
+                ct_3d = np.concatenate([ct_3d, ct_img], axis=0)
+        
+        return ct_3d
+
+    # 从三维体素中进行切片，使用的是优化的参数值，注意：参数值使用的是volume的参考系下的，
+    # 所以不能直接用position，坐标需要重映射，见GlobalMatchDatas，有用法
+    def crop_slice_from_volume_use_position(crop_size, volume, position):
+        # crop_size : [width, height]
+        integer_indeces = Tools.get_slice_indeces_after_transformed(crop_size, position)
+        # 对indeces进行变换
+        # 通过index_array来进行索引切片
+        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+        return result
+
+    def get_slice_indeces_after_transformed(crop_size, position):
+        position = position.copy()
+        translation = position[:3]
+        rotation = position[3:]
+
+        width, height = crop_size[0], crop_size[1]
+        x, y = np.meshgrid(np.arange(height), np.arange(width))
+        # 转置网格坐标，使其符合 [N, M] 的形状
+        x = x.T
+        y = y.T
+        coordinates = np.stack((x, y), axis=-1)
+        # 创建一个与 coordinates 形状匹配的常量数组
+        constant_array = np.full(coordinates.shape[:-1] + (1,), 0)
+        indeces_in_ct = np.concatenate((coordinates, constant_array), axis=-1)
+        indeces_in_ct = Tools.translate_points(translation, indeces_in_ct)
+
+        rotation_center = indeces_in_ct[height // 2, width // 2]
+        index_array = Tools.rotate_points(rotation_center, rotation, indeces_in_ct)
+        integer_indeces = Tools.force_convert_uint(index_array)
+        return integer_indeces
 
 
     def rotation_matrix_from_euler_angles(angles, order='XYZ'):
@@ -672,3 +749,132 @@ class Tools:
                 values[i, j] = get_value_at_point(ct_image, z, y, x)
         
         return np.clip(values, 0, 255)  # 确保值在0-255范围内
+
+    # 得到二值图像的边缘轮廓
+    def find_contours_in_bin_img(bin_img):
+        contours, hierarchy = cv2.findContours(bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # 创建一个空白图像用于绘制轮廓
+        contour_image = np.zeros_like(bin_img)
+        # 绘制轮廓
+        cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 1)
+        return contour_image, contours
+
+    # 填充轮廓图像
+    def fill_contours(contours_img, contours):
+        fill_contour_img = np.zeros_like(contours_img)
+        cv2.drawContours(fill_contour_img, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
+        return fill_contour_img
+
+    # 1：粒径计算公式(等效投影面积直径) d_pa = sqrt(4*A_p / pi)
+    def projected_area_diameter(area):
+        return math.sqrt((4 * area) / math.pi)
+
+    # 给轮廓标注粒径大小
+    def mark_diameter_of_contour(contours, ori_img, offset = [0, 0]):
+        # 创建一个空白图像用于绘制轮廓和标注
+        marked_img = np.zeros((ori_img.shape[0], ori_img.shape[1], 3), dtype=np.uint8)
+
+        offset_x, offset_y = offset[0], offset[1]
+        # 绘制填充轮廓并标注面积
+        if contours:
+            for contour in contours:
+                # 绘制填充轮廓
+                cv2.drawContours(marked_img, [contour], -1, (255, 255, 255), thickness=cv2.FILLED)
+                # 计算轮廓面积, contour的size代表轮廓中点的数量，轮廓点x2就是size，和轮廓长度没有关系
+                area = cv2.contourArea(contour)
+                diameter = Tools.projected_area_diameter(area)
+
+                # 计算轮廓的质心
+                M = cv2.moments(contour)
+                if M["m00"] != 0:
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+                else:
+                    cX, cY = 0, 0
+
+                # 标注面积
+                cv2.putText(marked_img, f"{int(diameter)}", (cX+offset_x, cY+offset_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+        else:
+            print("No contours found")
+
+        return marked_img
+
+    # 获取图像的粒径分布直方图
+    def statstics_diameter_hist(contours):
+        hist = []
+        for contour in contours:
+            # 计算轮廓面积, contour的size代表轮廓中点的数量，轮廓点x2就是size，和轮廓长度没有关系
+            area = cv2.contourArea(contour)
+            diameter = Tools.projected_area_diameter(area)
+            hist.append(diameter)
+        return hist
+
+    # 基于轮廓得到代表性的最小粒径大小（分位数方法）
+    def get_typical_particle_diameter(contours, quantile, total_white_area):
+        area_array = []
+        # 计算并打印每个轮廓的面积
+        for i, contour in enumerate(contours):
+            area = cv2.contourArea(contour)
+            area_array.append(area)
+
+        sorted_arr = sorted(area_array, reverse=True)
+
+        current_area = 0
+        sum_big_size_area = 0
+        for area in sorted_arr:
+            sum_big_size_area += area
+            current_area = area
+
+            if (sum_big_size_area / total_white_area) >= quantile:
+                break
+        
+        dist_diameter_min = Tools.projected_area_diameter(current_area)
+        dist_diameter_max = Tools.projected_area_diameter(sorted_arr[0])
+        return dist_diameter_min, dist_diameter_max
+
+    def get_diameter_interval(bin_img):
+        contours_img, contours = Tools.find_contours_in_bin_img(bin_img)
+        diameter_array = []
+        # 计算并打印每个轮廓的面积
+        for i, contour in enumerate(contours):
+            area = cv2.contourArea(contour)
+            diameter_array.append(Tools.projected_area_diameter(area))
+
+        sorted_arr = sorted(diameter_array)
+        # [min, max]
+        return sorted_arr[0], sorted_arr[-1]
+
+    # 通过粒径的大小对图像进行筛选
+    def filter_by_diameter(contours, ori_img, diameter_interval):
+        # 创建一个空白图像用于绘制筛选后的轮廓
+        filtered_image = np.zeros_like(ori_img)
+        diameter_min, diameter_max = diameter_interval[0], diameter_interval[1]
+        # 筛选轮廓并绘制
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            contour_diameter = Tools.projected_area_diameter(area)
+            if contour_diameter >= diameter_min and contour_diameter <= diameter_max:
+                cv2.drawContours(filtered_image, [contour], -1, (255), thickness=cv2.FILLED)
+            else:
+                # 将小于阈值的轮廓设置为背景色（即0）
+                cv2.drawContours(filtered_image, [contour], -1, (0), thickness=cv2.FILLED)
+
+        return filtered_image
+    
+        # 通过粒径的大小对图像进行筛选
+    def filter_by_diameter_bin_img(bin_img, diameter_interval):
+        contours_img, contours = Tools.find_contours_in_bin_img(bin_img)
+        # 创建一个空白图像用于绘制筛选后的轮廓
+        filtered_image = np.zeros_like(bin_img)
+        diameter_min, diameter_max = diameter_interval[0], diameter_interval[1]
+        # 筛选轮廓并绘制
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            contour_diameter = Tools.projected_area_diameter(area)
+            if contour_diameter >= (diameter_min-1) and contour_diameter <= (diameter_max+1):
+                cv2.drawContours(filtered_image, [contour], -1, (255), thickness=cv2.FILLED)
+            else:
+                # 将小于阈值的轮廓设置为背景色（即0）
+                cv2.drawContours(filtered_image, [contour], -1, (0), thickness=cv2.FILLED)
+
+        return filtered_image

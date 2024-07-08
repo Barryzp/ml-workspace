@@ -16,7 +16,6 @@ class VisualizeData:
         self.fixed_height, self.fixed_width = fixed.shape
         self.mi_datas = None
 
-
     def show_image(image, size = (15, 15), gray=True):
         plt.figure(figsize=size)
         if gray : plt.imshow(image, cmap='gray',vmin=0, vmax=255)
@@ -24,13 +23,32 @@ class VisualizeData:
         plt.axis('off')
         plt.show()
 
-    # 展示图像（灰度）
-    def show_imgs(imgs, imgs_name, cols = 2):
+    def show_imgs_rgb(imgs, imgs_name, cols = 2):
         count = len(imgs)
         rows = count // cols + 1
         plt.figure(figsize=(12, 8))
         for i in range(count):
-            plt.subplot(rows, cols, i + 1), plt.imshow(imgs[i], cmap='gray',vmin=0, vmax=255), plt.title(f'{imgs_name[i]}')
+            plt.subplot(rows, cols, i + 1), plt.imshow(imgs[i]), plt.title(f'{imgs_name[i]}')
+        # 调整间距
+        plt.subplots_adjust(hspace=0.5, wspace=0.5)  # hspace控制垂直间距, wspace控制水平间距
+        # 使用tight_layout自动调整子图参数
+        plt.tight_layout()
+        plt.show()
+
+    # 展示图像（灰度）
+    def show_imgs(imgs, imgs_name, cols = 2, gray = None):
+        count = len(imgs)
+
+        if gray is None:
+            gray = [True] * count
+
+        rows = count // cols + 1
+        plt.figure(figsize=(12, 8))
+        for i in range(count):
+            plt.subplot(rows, cols, i + 1)
+            if gray[i] : plt.imshow(imgs[i], cmap='gray',vmin=0, vmax=255)
+            else: plt.imshow(imgs[i])
+            plt.title(f'{imgs_name[i]}')
         # 调整间距
         plt.subplots_adjust(hspace=0.5, wspace=0.5)  # hspace控制垂直间距, wspace控制水平间距
         # 使用tight_layout自动调整子图参数
@@ -65,6 +83,26 @@ class VisualizeData:
             else: hori_concates = np.concatenate([hori_concates, cocates], axis=0)
 
         VisualizeData.show_image(hori_concates, size, gray)
+
+    def show_hist(hist_array, bins = 10, title = "histgram", color = 'blue', edgecolor = 'black', show_x = True, show_y = True, x_label = None, y_label = None):
+        # 绘制直方图
+        n, bins, patches = plt.hist(hist_array, bins=bins, color=color, edgecolor=edgecolor)
+        # 在每个 bin 上显示对应的数值
+        # 在每个 bin 上显示对应的左右边界
+        # 隐藏X轴的刻度
+        if not show_y : plt.yticks([])
+        if not show_x : plt.xticks([])
+        for i in range(len(n)):
+            bin_left = bins[i]
+            bin_right = bins[i + 1]
+            bin_center = (bin_left + bin_right) / 2
+            label = f'{bin_left:.1f} - {bin_right:.1f}'
+            plt.text(bin_center, -0.1, label, ha='center', va='top', rotation=45, fontsize=8, color='black')
+
+        # 添加标题和标签
+        if title is not None : plt.title('Histogram of Particle Size Distribution')
+        if x_label is not None : plt.xlabel('Particle Size')
+        if y_label is not None : plt.ylabel('Frequency')
 
 
     # delta代表在多大范围内进行的， interval代表的是步长

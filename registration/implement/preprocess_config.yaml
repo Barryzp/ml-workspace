@@ -11,6 +11,7 @@ sample_bse_index : 1
 zoom_bse_index : 1
 # ct图像采样间隔区间
 sample_interval : 4
+# CT二值化是否需要保存中间结果
 save_temp_res : False
 # 前面的多少张图像不进行处理
 init_interval_index : 0
@@ -73,8 +74,12 @@ comp_gray_cls : 126
 kernel_size : 3
 # 去除掉一些较大的颗粒
 size_threshold : 824
+
+# 粒径大小分位数，具体也就是大于这个粒径之上的颗粒占到整体水泥颗粒面积的多少
+particle_quantile : 0.3
+
 # 大于BSE图像最大颗粒的1.2倍的颗粒会被筛选掉
-size_threshold_ratio : [0.8, 1.5, 2.5]
+size_threshold_ratio : [0.8, 1.2, 2.5]
 
 # ct二值化的图像灰度值
 ct_gray_cls : 189

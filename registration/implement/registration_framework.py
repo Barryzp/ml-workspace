@@ -103,6 +103,19 @@ class Registration:
         similarity_fun = partial(self.similarity)
         optim.set_init_params(similarity_fun)
 
+    def get_bse_diameter_interval(self):
+        sample_id = self.config.cement_sample_index
+        zoom_times = self.config.bse_zoom_times
+        times = zoom_times // 100
+        suffix = self.config.zoom_bse_index
+        self.file_name_pref = f"{sample_id}-{times}-{suffix}"
+        bse_save_path = f"{self.config.data_path}/sample{sample_id}/bse/s{self.config.sample_bse_index}/{zoom_times}"
+
+        config_name = f"{self.file_name_pref}-config.yaml"
+        bse_config = Tools.load_yaml_config(f"{bse_save_path}/{config_name}")
+
+        return [bse_config.size_threshold_bse_min, bse_config.size_threshold_bse_max]
+
     def _load_matched_ct3d_img(self):
         ct_index_array = self.ct_index_array
         data_path = self.config.data_path
@@ -110,8 +123,9 @@ class Registration:
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
 
         scale_ratio = self.config.size_threshold_ratio
-        particle_min = self.config.size_threshold_min / scale_ratio
-        particle_max = self.config.size_threshold_max * scale_ratio
+        diamter_interval = self.get_bse_diameter_interval()
+        particle_min = diamter_interval[0]
+        particle_max = diamter_interval[1] * scale_ratio
 
         for index in ct_index_array:
             mask_file_path = f"{ct_image_path}/{index}_{self.config.ct_mask_suffix}.bmp"
@@ -120,7 +134,8 @@ class Registration:
             ct_slice_img = cv2.imread(img_file_path, cv2.IMREAD_GRAYSCALE) 
             ct_mask_img = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
             self.ct_slice_ori_shape = ct_mask_img.shape
-            ct_mask_img = Tools.filter_connected_bin_img(ct_mask_img, particle_min, particle_max)
+            # 用于兼容以前的代码，以前只过滤了较小粒径的水泥颗粒，这样灵活一些
+            ct_mask_img = Tools.filter_by_diameter_bin_img(ct_mask_img, [particle_min, particle_max])
 
             if self.config.downsampled: 
                 ct_mask_img = Tools.downsample_bin_img(ct_mask_img, self.config.downsample_times)
@@ -275,6 +290,7 @@ class Registration:
 
         # 将 coordinates 和 constant_array 连接起来
         self.bse_indeces_in_ct = np.concatenate((coordinates, constant_array), axis=-1)
+        
 
     # 这个值越大越好 空间相关性
     def spatial_correlation(self, img1, img2):
