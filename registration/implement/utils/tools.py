@@ -809,28 +809,19 @@ class Tools:
             hist.append(diameter)
         return hist
 
-    # 基于轮廓得到代表性的最小粒径大小（分位数方法）
-    def get_typical_particle_diameter(contours, quantile, total_white_area):
-        area_array = []
+    # 基于轮廓得到代表性的最小粒径大小（从最大颗粒开始，往前的20个作为选择的目标）
+    def get_typical_particle_diameter(contours, quantile):
+        diameter_array = []
         # 计算并打印每个轮廓的面积
         for i, contour in enumerate(contours):
             area = cv2.contourArea(contour)
-            area_array.append(area)
-
-        sorted_arr = sorted(area_array, reverse=True)
-
-        current_area = 0
-        sum_big_size_area = 0
-        for area in sorted_arr:
-            sum_big_size_area += area
-            current_area = area
-
-            if (sum_big_size_area / total_white_area) >= quantile:
-                break
+            diameter_array.append(Tools.projected_area_diameter(area))
         
-        dist_diameter_min = Tools.projected_area_diameter(current_area)
-        dist_diameter_max = Tools.projected_area_diameter(sorted_arr[0])
-        return dist_diameter_min, dist_diameter_max
+        sorted_arr = sorted(diameter_array, reverse=True)
+        max_diameter = math.ceil(sorted_arr[0])
+        min_diameter = math.floor(sorted_arr[quantile - 1])
+    
+        return min_diameter, max_diameter
 
     def get_diameter_interval(bin_img):
         contours_img, contours = Tools.find_contours_in_bin_img(bin_img)

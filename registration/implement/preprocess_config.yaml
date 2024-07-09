@@ -75,8 +75,8 @@ kernel_size : 3
 # 去除掉一些较大的颗粒
 size_threshold : 824
 
-# 粒径大小分位数，具体也就是大于这个粒径之上的颗粒占到整体水泥颗粒面积的多少
-particle_quantile : 0.3
+# 粒径大小选择，BSE图像的粒径大小从最大到最小设定有20个颗粒
+particle_quantile : 20
 
 # 大于BSE图像最大颗粒的1.2倍的颗粒会被筛选掉
 size_threshold_ratio : [0.8, 1.2, 2.5]

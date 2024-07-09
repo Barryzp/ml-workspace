@@ -43,13 +43,12 @@ class SegmentationKMS:
         return out_image
     
     # 将形态学处理的结果选择性抹去，去掉那些较小的颗粒，保留那些较大的颗粒，从而减小配准时候的差异
-    def filter_small_size_out(self, morphy_image, quantile = 0.3):
+    def filter_small_size_out(self, morphy_image, quantile = 20):
         # 对轮廓进行提取
         contour_img, contours = Tools.find_contours_in_bin_img(morphy_image)
         filled_img = Tools.fill_contours(contour_img, contours)
 
-        total_particle_area = np.sum(filled_img == 255)
-        dist_diameter_min, dist_diameter_max = Tools.get_typical_particle_diameter(contours, quantile, total_particle_area)
+        dist_diameter_min, dist_diameter_max = Tools.get_typical_particle_diameter(contours, quantile)
 
         filtered_img = Tools.filter_by_diameter(contours, filled_img, [dist_diameter_min, dist_diameter_max])
 
