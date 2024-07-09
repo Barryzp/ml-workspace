@@ -66,11 +66,15 @@ cropped_ct_size : [1024, 1024]
 sample_interval : 4
 downsampled : True
 downsample_times : 8
+# 分层匹配的3dct原始深度
+matched_3dct_depth : 160
+
 # 每张图片循环多少次进行查找
 match_loop_times : 1
 matched_threshold: 0.8
 # 大于这个值的就保存一下
 matched_save_lower_threshold: 0.55
+
 
 # 是否有遮罩
 masked : True
@@ -110,7 +114,7 @@ particle_num : 512
 # 迭代次数
 iteratons : 100
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
-weight_inertia : 1.5  # Inertia weight
+weight_inertia : 0.429  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
 individual_w : 3.56    # Cognitive (particle's best) weight [0, 4]
 # 群体学习因子，朝着全局最佳方向
