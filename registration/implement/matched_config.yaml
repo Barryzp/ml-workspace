@@ -81,9 +81,9 @@ latent_bse_depth : 20
 # CT图像的XOY平面上的旋转中心
 rotation_center_xy : [512.0, 512.0]
 # 初始旋转角度
-init_rotation : [.0, .0, 0.0]
+init_rotation : [.0, .0, 240.0]
 # 将旋转角度分成若干个范围来进行优化，优化搜索空间的大小
-rot_z_delta : 360
+rot_z_delta : 60
 # 基于初始旋转角度，允许的最大增量
 rotation_delta : [0.0, 0.0, 0.0]
 # 初始位移，以图像的左上角为原点
@@ -110,9 +110,9 @@ particle_num : 512
 # 迭代次数
 iteratons : 100
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
-weight_inertia : 0.729  # Inertia weight
+weight_inertia : 1.5  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
-individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
+individual_w : 3.56    # Cognitive (particle's best) weight [0, 4]
 # 群体学习因子，朝着全局最佳方向
 global_w : 2.05    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
