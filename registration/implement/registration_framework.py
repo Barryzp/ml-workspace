@@ -9,10 +9,10 @@ class Registration:
 
         self.itk_img = None
         
-        # ct图像3d
-        self.ct_matched_3d = None
+        # ct图像3d，这是一个系列噢
+        self.ct_matched_3d = []
         # ctmask图像3d
-        self.ct_matched_msk_3d = None
+        self.ct_matched_msk_3d = []
 
         self.bse_img = None
         self.ct_img = None
@@ -38,9 +38,12 @@ class Registration:
         if self.config.mode == "matched":
             # 匹配过程中ct的索引数组
             self.ct_index_array = ct_index_array
+            # 下采样的切片间隔
             self.ct_slice_inteval = ct_slice_inteval
             self.start_ct_index = ct_index_array[0]
+            self.matched_3dct_indeces = None
             self.matched_ct_imgs = {}
+            self.set_matched_3dct_indeces()
 
         self.load_img()
         self.set_config_delta()
@@ -59,9 +62,31 @@ class Registration:
             # 做一点事情：限制范围
             self.init_match_params()
 
+    # 设置匹配时的分块三维ct图像的切片索引
+    def set_matched_3dct_indeces(self):
+        downsample3dct_slices = int(self.config.matched_3dct_depth / self.config.downsample_times)
+        ct_index_array = self.ct_index_array
+
+        # 以防最优解可能在划分的切片之间
+        ct3d_interval = downsample3dct_slices // 2
+        ct3d_nums = len(ct_index_array) // ct3d_interval
+        # 余出来的完全可以单独地干，因为必然是大于切片数量是大于10的，
+        # 而我们要求的最低CT高度为ceil(depth/downsample_times)，换算也就是ceil(20/8) = 3张，咋个都可以了
+        index_array = None
+
+        ct_3d_indeces = []
+        for i in range(ct3d_nums):
+            ct_start_index = i * ct3d_interval
+            ct_end_index = ct_start_index + downsample3dct_slices
+            # 切分的ct块的索引数组
+            if i == ct3d_nums - 1: index_array = ct_index_array[ct_start_index:]
+            else: index_array = ct_index_array[ct_start_index:ct_end_index]
+            ct_3d_indeces.append(index_array)
+        self.matched_3dct_indeces = ct_3d_indeces
+
     def init_match_params(self):
         ct_depth = len(self.ct_index_array)
-        # Z轴上也进行了下采样，向上取整以防超出区域
+        # Z轴上也进行了下采样，向上取整以防超出区域，这个角度其实也可以用原始的尺寸算，但是难得取，就这样也可以
         downsamp_times = self.config.downsample_times
         latent_depth = math.ceil(self.config.latent_bse_depth / downsamp_times)
         bse_height_cur, bse_width_cur = self.get_bse_img_shape()
@@ -116,8 +141,7 @@ class Registration:
 
         return [bse_config.size_threshold_bse_min, bse_config.size_threshold_bse_max]
 
-    def _load_matched_ct3d_img(self):
-        ct_index_array = self.ct_index_array
+    def _load_matched_ct3d(self, ct_index_array):
         data_path = self.config.data_path
         cement_sample_index = self.config.cement_sample_index
         ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
@@ -126,6 +150,9 @@ class Registration:
         diamter_interval = self.get_bse_diameter_interval()
         particle_min = diamter_interval[0]
         particle_max = diamter_interval[1] * scale_ratio
+
+        ct_matched_msk_3d = None
+        ct_matched_3d = None
 
         for index in ct_index_array:
             mask_file_path = f"{ct_image_path}/{index}_{self.config.ct_mask_suffix}.bmp"
@@ -147,12 +174,21 @@ class Registration:
             # 升维，作为三维图像的一个切面
             slice_msk_img = ct_mask_img[np.newaxis, :]
             slice_ct_img = ct_slice_img[np.newaxis, :]
-            if self.ct_matched_msk_3d is None :
-                self.ct_matched_msk_3d = slice_msk_img
-                self.ct_matched_3d = slice_ct_img
+            if ct_matched_msk_3d is None :
+                ct_matched_msk_3d = slice_msk_img
+                ct_matched_3d = slice_ct_img
             else: 
-                self.ct_matched_msk_3d = np.concatenate([self.ct_matched_msk_3d, slice_msk_img], axis=0)
-                self.ct_matched_3d = np.concatenate([self.ct_matched_3d, slice_ct_img], axis=0)
+                ct_matched_msk_3d = np.concatenate([ct_matched_msk_3d, slice_msk_img], axis=0)
+                ct_matched_3d = np.concatenate([ct_matched_3d, slice_ct_img], axis=0)
+        
+        return ct_matched_3d, ct_matched_msk_3d
+
+    def _load_matched_ct3d_imgs(self):
+        cts_index_array = self.matched_3dct_indeces
+        for ct_index_array in cts_index_array:
+            ct_matched_3d, ct_matched_msk_3d = self._load_matched_ct3d(ct_index_array)
+            self.ct_matched_3d.append(ct_matched_3d)
+            self.ct_matched_msk_3d.append(ct_matched_msk_3d)
 
     def _load_ct_img(self):
         if self.config.debug:
@@ -262,7 +298,7 @@ class Registration:
         elif self.config.mode == "3d":
             self._load_itk()
         elif self.config.mode == "matched":
-            self._load_matched_ct3d_img()
+            self._load_matched_ct3d_imgs()
             self.init_bse_indeces()
 
     # 计算距离切片的偏移, size:[width, height]

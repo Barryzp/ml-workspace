@@ -106,13 +106,48 @@ class PSO_optim(OptimBase):
     # 其实问题也不是很大，因为都要向着最优的方向移动，弹性边界的优势在于
     # 最优区域在边界的时候，那么收敛较快些，但容易陷入局部最优，在边界震荡。
     # 但咱们的这个方法不是特别需要，更需要的是在整个参数空间中均匀搜索
-    # HACK 这部分代码可以优化：
-    # range_size = upper_bound - lower_bound
-    # position = lower_bound + np.mod(position - lower_bound, range_size)
-    def constrain(self, t):
+    
+    # 循环边界处理
+    def loop_boundary_constrain(self, t):
         range_size = self.maxV - self.minV
         position = self.minV + torch.remainder(t - self.minV, range_size)
-        return position
+        return position        
+
+    # 反射边界处理，改变粒子的运动方向，镜像反射
+    def reflect_boundary_constrain(self, t):
+        for i in range(len(t)):
+            if t[i] < self.minV[i]:
+                t[i] = 2 * self.minV[i] - t[i]
+                if t[i] > self.maxV[i]:  # 防止超出上边界
+                    t[i] = self.maxV[i]
+            elif t[i] > self.maxV[i]:
+                t[i] = 2 * self.maxV[i] - t[i]
+                if t[i] < self.minV[i]:  # 防止超出下边界
+                    t[i] = self.minV[i]
+        return t
+
+    # 反弹边界处理
+    def bounce_boundary(self, t):
+        for i in range(len(t)):
+            if t[i] < self.minV[i]:
+                t[i] = self.minV[i] + (self.minV[i] - t[i])
+                if t[i] > self.maxV[i]:  # 防止超出上边界
+                    t[i] = self.maxV[i]
+            elif t[i] > self.maxV[i]:
+                t[i] = self.maxV[i] - (t[i] - self.maxV[i])
+                if t[i] < self.minV[i]:  # 防止超出下边界
+                    t[i] = self.minV[i]
+        return t
+
+    # 随机重置边界
+    def random_reset_constrain(self, t):
+        for i in range(len(t)):
+            if t[i] < self.minV[i] or t[i] > self.maxV[i]:
+                t[i] = self.minV[i] + torch.rand(1).item() * (self.maxV[i] - self.minV[i])
+        return t
+
+    def constrain(self, t):
+        return self.random_reset_constrain(t)
         # item_num = t.numel()
         # def judge(i):
         #     return t[i] < self.minV[i] or t[i] > self.maxV[i]
