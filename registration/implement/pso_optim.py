@@ -59,8 +59,8 @@ class Particle:
 
 class PSO_optim(OptimBase):
 
-    def __init__(self, config, share_records_out = None) -> None:
-        super(PSO_optim, self).__init__(config, share_records_out)
+    def __init__(self, config, share_records_out = None, matched_3dct_id = None) -> None:
+        super(PSO_optim, self).__init__(config, share_records_out, matched_3dct_id)
 
     # 基本参数的初始化
     def init_basic_params(self):
@@ -70,7 +70,7 @@ class PSO_optim(OptimBase):
         self.individual_w = self.config.individual_w    # Cognitive (particle's best) weight
         self.global_w = self.config.global_w    # Social (swarm's best) weight
         self.speed_param_ratio = self.config.speed_param_ratio # 0.1 ~ 0.2
-
+    
     def init_with_2d_params(self):
         super(PSO_optim, self).init_with_2d_params()
         # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
@@ -147,7 +147,7 @@ class PSO_optim(OptimBase):
         return t
 
     def constrain(self, t):
-        return self.random_reset_constrain(t)
+        return self.loop_boundary_constrain(t)
         # item_num = t.numel()
         # def judge(i):
         #     return t[i] < self.minV[i] or t[i] > self.maxV[i]
@@ -199,19 +199,17 @@ class PSO_optim(OptimBase):
             #     print("debug here...")
 
             data_item = global_best_position.numpy()
-            data_item = np.insert(data_item, 0, _)
-            data_item = np.insert(data_item, data_item.size, global_best_val)
-            data_item = np.append(data_item, [weighted_sp, mi_value, sp])
-            self.records.append(data_item.tolist())
-            if self.config.mode != "matched": 
-                self.save_iteration_best_reg_img(__, _)
-                print(f"iterations: {_}, fitness: {global_best_val}, weighted_sp: {weighted_sp},{matched_suffix} params: {global_best_position}")
-
             local_best = global_best_val
             if self.config.mode == "matched":
                 z_index = fit_res[2]
+                data_item = np.insert(data_item, 0, z_index)
+                self.save_iteration_best_reg_img(__, _)
                 print(f"iterations: {_}, fitness: {global_best_val}, params: {global_best_position}")
-                self.set_global_best_datas(global_best_val, global_best_position, __, z_index)
+                self.set_global_best_datas(global_best_val, global_best_position, __, z_index, self.matched_3dct_id)
+
+            data_item = np.insert(data_item, 0, _)
+            data_item = np.insert(data_item, data_item.size, global_best_val)
+            self.records.append(data_item.tolist())
 
             for particle in particles:
                 particle.update_velocity(global_best_position)
@@ -270,11 +268,12 @@ class PSO_optim(OptimBase):
         # Running PSO
         iter_best_position = self._algorithm(poses, self.iteratons)
         fit_res = self.fitness(iter_best_position)
-        self.best_result_per_iter = fit_res
-        val, best_regi_img = fit_res[0], fit_res[1]
-        self.put_best_data_in_share(fit_res, iter_best_position)
+
+        val, best_regi_img, best_slice = fit_res[0], fit_res[1],fit_res[2]
 
         if self.config.mode == "matched":
+            self.ct_matching_slice_index = best_slice
+            self.put_best_data_in_share(self.matched_3dct_id, iter_best_position, val, best_slice)
             print(f"The current slice index found is: {self.ct_matching_slice_index}")
             print(f"The current iteration best position found is: {iter_best_position}")
             print(f"The cur iteration maximum value of the function is: {val}")

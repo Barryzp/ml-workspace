@@ -9,7 +9,7 @@ class Registration:
 
         self.itk_img = None
         
-        # ct图像3d，这是一个系列噢
+        # ct图像3d，这是一个数组噢
         self.ct_matched_3d = []
         # ctmask图像3d
         self.ct_matched_msk_3d = []
@@ -58,9 +58,18 @@ class Registration:
             translate_y = ct_height - bse_height
             self.config.translate_delta[0] = translate_x
             self.config.translate_delta[1] = translate_y
-        elif mode == "matched":
-            # 做一点事情：限制范围
-            self.init_match_params()
+
+    def get_3dct_index_array(self, index):
+        return self.matched_3dct_indeces[index]
+
+    def get_matched_3dct_indeces(self):
+        return self.matched_3dct_indeces
+
+    def get_matched_3d_msk_ct(self, matched_index):
+        return self.ct_matched_msk_3d[matched_index]
+
+    def get_matched_3d_ct(self, matched_index):
+        return self.ct_matched_3d[matched_index]
 
     # 设置匹配时的分块三维ct图像的切片索引
     def set_matched_3dct_indeces(self):
@@ -84,49 +93,11 @@ class Registration:
             ct_3d_indeces.append(index_array)
         self.matched_3dct_indeces = ct_3d_indeces
 
-    def init_match_params(self):
-        ct_depth = len(self.ct_index_array)
-        # Z轴上也进行了下采样，向上取整以防超出区域，这个角度其实也可以用原始的尺寸算，但是难得取，就这样也可以
-        downsamp_times = self.config.downsample_times
-        latent_depth = math.ceil(self.config.latent_bse_depth / downsamp_times)
-        bse_height_cur, bse_width_cur = self.get_bse_img_shape()
-        ct_height_cur, ct_width_cur = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
-        
-        bse_height_ori, bse_width_ori = self.bse_ori_shape
-        
-        # 限制x的移动范围
-        # 起始的左上角坐标
-        # bse切面外接圆半径
-        r_slice_circle = math.sqrt(bse_width_cur**2 + bse_height_cur**2) * 0.5
-        max_width_delta = math.ceil(r_slice_circle - bse_width_cur * 0.5)
-        max_height_delta = math.ceil(r_slice_circle - bse_height_cur * 0.5)
-        self.config.init_translate = [max_width_delta, max_height_delta, latent_depth]
-        
-        translate_delta_x = ct_width_cur - bse_width_cur - 2 * max_width_delta
-        translate_delta_y = ct_height_cur - bse_height_cur - 2 * max_height_delta
-        translate_delta_z = ct_depth - 2 * latent_depth
-        self.config.translate_delta = [translate_delta_x, translate_delta_y, translate_delta_z]
-
-        sin_theta_width = latent_depth / (bse_width_ori * 0.5)
-        sin_theta_height = latent_depth / (bse_height_ori * 0.5)
-        radians_height = math.asin(sin_theta_height)
-        degree_height = math.degrees(radians_height)
-        radians_width = math.asin(sin_theta_width)
-        degree_width = math.degrees(radians_width)
-
-        self.config.init_rotation = [-degree_width, -degree_height, self.config.init_rotation[-1]]
-        rotation_delta_x = degree_width * 2
-        rotation_delta_y = degree_height * 2
-        rotation_delta_z = self.config.rot_z_delta
-        self.config.rotation_delta = [rotation_delta_x, 
-                                      rotation_delta_y, 
-                                      rotation_delta_z]
-
     def set_optim_algorithm(self, optim):
         self.optim_framework = optim
         # 需要绑定实例对象
         similarity_fun = partial(self.similarity)
-        optim.set_init_params(similarity_fun)
+        optim.set_init_params(similarity_fun, self)
 
     def get_bse_diameter_interval(self):
         sample_id = self.config.cement_sample_index
@@ -270,6 +241,10 @@ class Registration:
         # (height, width)(rows, column)
         return self.bse_img.shape
 
+    def get_bse_ori_img_shape(self):
+        # (height, width)(rows, column)
+        return self.bse_img_ori.shape
+
     # 加载遮罩图像
     def _load_masked_img(self):
         if self.config.debug and self.config.masked:
@@ -401,18 +376,20 @@ class Registration:
 
         return mi
 
-    def crop_slice_from_mask_3dct(self, x, interpolation = "None"):
-        return self.crop_slice_from_3dct(x, self.ct_matched_msk_3d, interpolation)
+    def crop_slice_from_mask_3dct(self, x, volume_index,interpolation = "None"):
+        return self.crop_slice_from_3dct_match(x, volume_index, interpolation)
 
-    def crop_slice_from_ori_3dct(self, x, interpolation = "None"):
-        return self.crop_slice_from_3dct(x, self.ct_matched_3d, interpolation)
+    def crop_slice_from_ori_3dct(self, x, volume_index, interpolation = "None"):
+        return self.crop_slice_from_3dct_match(x, volume_index, interpolation)
 
-    # 从ct图像中根据索引切片
-    def crop_slice_from_3dct(self, x, volume, interpolation = "None"):
+    def crop_slice_from_3dct_match(self, x, volume_index, interpolation = "None"):
+        volume = self.get_matched_3d_ct(volume_index)
+        ct_index_array = self.get_3dct_index_array(volume_index)
         position = x.clone().numpy()
         translation = position[:3]
         rotation = position[3:]
 
+        # 这个地方的bse_indeces_in_ct是不变的
         indeces_in_ct = Tools.translate_points(translation, self.bse_indeces_in_ct)
         height, width = self.get_bse_img_shape()
         # 围绕切片中心旋转
@@ -429,7 +406,40 @@ class Registration:
         
         # 获取这个切片中Z方向最多的元素，也就是找到起最多包含的断层面
         most_prob_slice_index = Tools.most_frequent_element(integer_indeces[:, 2])
-        # 还需要做一个映射
+        # 还需要做一个映射 HACK 有问题这里
+        most_prob_slice_index = ct_index_array[0] + most_prob_slice_index * self.ct_slice_inteval
+
+        # HACK 用于后面的插值处理，目前看来还是不这样搞
+        if interpolation == "None":
+            pass
+        
+        return result, most_prob_slice_index
+
+
+    # 从ct图像中根据索引切片
+    def crop_slice_from_3dct(self, x, volume, interpolation = "None"):
+        position = x.clone().numpy()
+        translation = position[:3]
+        rotation = position[3:]
+
+        # 这个地方的bse_indeces_in_ct是不变的
+        indeces_in_ct = Tools.translate_points(translation, self.bse_indeces_in_ct)
+        height, width = self.get_bse_img_shape()
+        # 围绕切片中心旋转
+        rotation_center = indeces_in_ct[height // 2, width // 2]
+        index_array = Tools.rotate_points(rotation_center, rotation, indeces_in_ct)
+        integer_indeces = Tools.force_convert_uint(index_array)
+
+        max_item = np.max(integer_indeces)
+        if max_item >= 240:
+            print("stop here...")
+
+        # 通过index_array来进行索引切片
+        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+        
+        # 获取这个切片中Z方向最多的元素，也就是找到起最多包含的断层面
+        most_prob_slice_index = Tools.most_frequent_element(integer_indeces[:, 2])
+        # 还需要做一个映射 HACK 有问题这里
         most_prob_slice_index = self.ct_index_array[0] + most_prob_slice_index * self.ct_slice_inteval
 
         # HACK 用于后面的插值处理，目前看来还是不这样搞
@@ -482,8 +492,8 @@ class Registration:
         # print(f"sp: {sp}, mi: {mi}, similar: {similar}")
         return similar, cropped_image, mi, sp, weightd_sp 
 
-    def similarity_matched_dice(self, x):
-        cropped_image, latent_z = self.crop_slice_from_mask_3dct(x)
+    def similarity_matched_dice(self, x, match3dct_idx):
+        cropped_image, latent_z = self.crop_slice_from_mask_3dct(x, match3dct_idx)
         dice = Tools.dice_coefficient(cropped_image, self.bse_img)
         return dice, cropped_image, latent_z, 0, 0, 0
 
@@ -573,7 +583,7 @@ class Registration:
         mis = mi_value + lamda_mis * spation_info
         return mis, slice_img.reshape((width, height))
 
-    def similarity(self, x, ct_matching_slice_index=None, sp_lambda=0):
+    def similarity(self, x, match3dct_idx=None, sp_lambda=0):
         if self.config.debug :
             # 反射机制：通过函数名字符串调用对象的成员方法
             return getattr(self, self.config.debug_simiarity)(x)
@@ -585,7 +595,7 @@ class Registration:
         elif self.config.mode == "3d":
             return self.similarity_3d(x)
         elif self.config.mode == "matched":
-            return self.similarity_matched_dice(x)
+            return self.similarity_matched_dice(x, match3dct_idx)
 
     def save_matched_result(self, position):
         # 对于重采样的重新处理，旋转角度不需要操作的

@@ -4,7 +4,7 @@ from utils.tools import Tools
 
 class OptimBase:
 
-    def __init__(self, config, global_share_datas = None) -> None:
+    def __init__(self, config, global_share_datas = None, matched_3dct_id = None) -> None:
         # 匹配过程中的ct切片索引
         self.ct_matching_slice_index = None
         # 用于匹配过程中的全局数据共享
@@ -26,6 +26,12 @@ class OptimBase:
         
         self.init_rotation = self.config.init_rotation
         self.rotation_delta = self.config.rotation_delta
+        self.rot_z_delta = self.config.rot_z_delta
+
+
+        # 设置匹配过程对应3d块的唯一索引
+        if self.config.mode == "matched":
+            self.matched_3dct_id = matched_3dct_id
 
     def clear_datas(self):
         self.records = []
@@ -35,21 +41,62 @@ class OptimBase:
             self.best_value = value
             self.best_solution = solution
 
-    def put_best_data_in_share(self, fit_res, position):
+    # 全局的数据
+    def put_best_data_in_share(self, ct3d_index, position, fitness, best_slice):
         if self.config.mode != "matched": return
         if self.global_share_obj == None: return
-        max_val, _, latent_z_slice, mi, sp, weighted_sp = self.best_result_per_iter
+
         pos_np = position.numpy()
-        pos_np = np.insert(pos_np, 0, latent_z_slice)
-        pos_np = np.insert(pos_np, pos_np.size, max_val)
-        pos_np = np.insert(pos_np, pos_np.size, mi)
-        pos_np = np.insert(pos_np, pos_np.size, sp)
-        pos_np = np.insert(pos_np, pos_np.size, weighted_sp)
+        pos_np = np.insert(pos_np, 0, best_slice)
+        pos_np = np.insert(pos_np, 0, ct3d_index)
+        pos_np = np.insert(pos_np, pos_np.size, fitness)
         self.global_share_obj.put_in_share_objects(pos_np.tolist())
 
-    def set_init_params(self, reg_similarity):
+    def set_init_params(self, reg_similarity, reg_obj):
         self.init_basic_params()
         self.reg_similarity = reg_similarity
+        if self.config.mode == "matched" : self.init_match_params(reg_obj)
+    
+    # 对于不同的ct块还不一样
+    def init_match_params(self, reg_obj):
+        ct_index_array = reg_obj.get_3dct_index_array(self.matched_3dct_id)
+        ct_depth = len(ct_index_array)
+        # Z轴上也进行了下采样，向上取整以防超出区域，这个角度其实也可以用原始的尺寸算，但是难得取，就这样也可以
+        downsamp_times = self.config.downsample_times
+        latent_depth = math.ceil(self.config.latent_bse_depth / downsamp_times)
+        bse_height_cur, bse_width_cur = reg_obj.get_bse_img_shape()
+        ct_height_cur, ct_width_cur = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
+        
+        bse_height_ori, bse_width_ori = reg_obj.get_bse_ori_img_shape()
+        
+        # 限制x的移动范围
+        # 起始的左上角坐标
+        # bse切面外接圆半径
+        r_slice_circle = math.sqrt(bse_width_cur**2 + bse_height_cur**2) * 0.5
+        max_width_delta = math.ceil(r_slice_circle - bse_width_cur * 0.5)
+        max_height_delta = math.ceil(r_slice_circle - bse_height_cur * 0.5)
+        self.init_translate = [max_width_delta, max_height_delta, latent_depth]
+        
+        translate_delta_x = ct_width_cur - bse_width_cur - 2 * max_width_delta
+        translate_delta_y = ct_height_cur - bse_height_cur - 2 * max_height_delta
+        translate_delta_z = ct_depth - 2 * latent_depth
+        self.translate_delta = [translate_delta_x, translate_delta_y, translate_delta_z]
+
+        sin_theta_width = latent_depth / (bse_width_ori * 0.5)
+        sin_theta_height = latent_depth / (bse_height_ori * 0.5)
+        radians_height = math.asin(sin_theta_height)
+        degree_height = math.degrees(radians_height)
+        radians_width = math.asin(sin_theta_width)
+        degree_width = math.degrees(radians_width)
+
+        self.init_rotation = [-degree_width, -degree_height, self.init_rotation[-1]]
+        rotation_delta_x = degree_width * 2
+        rotation_delta_y = degree_height * 2
+        rotation_delta_z = self.rot_z_delta
+        self.rotation_delta = [rotation_delta_x, 
+                                      rotation_delta_y, 
+                                      rotation_delta_z]
+
 
     # 基本参数的初始化
     def init_basic_params(self):
@@ -85,12 +132,13 @@ class OptimBase:
         init_rotation_z = self.init_rotation[-1]
         rotation_delta_z = self.rotation_delta[-1]
 
+        # 这个config就不能是公用的了
         # 这个坐标需要注意，是需要记录的
-        init_translate = self.config.init_translate
-        init_rotation = self.config.init_rotation
+        init_translate = self.init_translate
+        init_rotation = self.init_rotation
         # 位移限制的范围
-        translate_delta = self.config.translate_delta
-        rotation_delta = self.config.rotation_delta
+        translate_delta = self.translate_delta
+        rotation_delta = self.rotation_delta
         # 生成初始参数规定范围，
         self.minV = torch.tensor([
             init_translate[0], 
@@ -118,6 +166,8 @@ class OptimBase:
         sp_lambda = 1
         if self.config.auto_lambda:
             sp_lambda = self.auto_nonlinear_sp_lambda()
+        if self.config.mode == "matched":
+            return self.reg_similarity(position, self.matched_3dct_id)
         return self.reg_similarity(position)
 
     # 保存迭代过程中的参数
@@ -133,11 +183,12 @@ class OptimBase:
                        "rotation_x", "rotation_y", "rotation_z",
                        "fitness"]
         elif self.config.mode == "matched":
-            columns = ["iterations", 
+            columns = ["iterations",
+                       "slice_index", 
                        "translate_x", "translate_y", "translate_z", 
                        "rotation_x", "rotation_y", "rotation_z", 
-                       "fitness", "weighted_sp", "mi", "sp"]
-            file_name = f"pso_params_3d_ct.csv"
+                       "fitness"]
+            file_name = f"{self.matched_3dct_id}_pso_params_3d_ct.csv"
 
         Tools.save_params2df(self.records, columns, file_path, file_name)
 
@@ -152,14 +203,15 @@ class OptimBase:
         fit_res = self.best_result_per_iter
         global_best_val = fit_res[0]
         __ = fit_res[1]
+        slice_index = fit_res[2]
         weighted_sp = fit_res[-1]
         mi_value = fit_res[-3]
         sp = fit_res[-2]
 
         data_item = self.best_solution.numpy()
+        data_item = np.insert(data_item, 0, slice_index)
         data_item = np.insert(data_item, 0, iter)
         data_item = np.insert(data_item, data_item.size, global_best_val)
-        data_item = np.append(data_item, [weighted_sp, mi_value, sp])
         self.records.append(data_item.tolist())
 
         if self.config.mode != "matched": self.save_iteration_best_reg_img(__, iter)
@@ -174,15 +226,15 @@ class OptimBase:
         return self.global_share_obj.get_loop_state()
 
     # best_val为正值
-    def set_global_best_datas(self, best_val, best_position, best_img, ct_matching_slice_index):
+    def set_global_best_datas(self, best_val, best_position, best_img, ct_matching_slice_index, volume_index):
         if self.global_share_obj == None: return
-        self.global_share_obj.set_best(best_val, best_position, best_img, ct_matching_slice_index)
+        self.global_share_obj.set_best(best_val, best_position, best_img, ct_matching_slice_index, volume_index)
 
     # 在匹配过程中不太一样，我们将角度化成若干份，再进行优化，主要是减少搜索空间
     def run_matched(self, total_runtimes):
         start_rot_z = self.init_rotation[-1]
         # 分成若干段
-        rot_z_delta = self.config.rot_z_delta
+        rot_z_delta = self.rot_z_delta
         loop_times = int(360 // rot_z_delta)
 
         total_iterations = total_runtimes * loop_times

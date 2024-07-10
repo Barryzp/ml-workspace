@@ -24,12 +24,21 @@ class SegmentationKMS:
         kmeans = KMeans(n_clusters=n_clusters, random_state=rand_seed)
         labels = kmeans.fit_predict(img_array)
 
+        # 查看聚类中心
+        cluster_centers = kmeans.cluster_centers_
+        # 最大聚类中心对应的索引也就是水泥颗粒对应的灰度值
+        max_cluster_index = np.argmax(cluster_centers).item()
+
         # 将聚类结果映射回原始图像尺寸
         segmented_image = np.zeros((h, w), dtype=np.uint8)
+        segmented_bin_image = np.zeros((h, w), dtype=np.uint8)
         for i in range(len(labels)):
+            intensity = 0
+            if labels[i].item() == max_cluster_index: intensity = 255
+            segmented_bin_image[i // w, i % w] = intensity
             segmented_image[i // w, i % w] = labels[i] * (255 // (n_clusters - 1))
 
-        return segmented_image
+        return segmented_image, segmented_bin_image
     
     # 对kms的结果进行形态学处理, kms_image是numpy对象
     def morphy_process_kms_image(self, kms_image, kernel_size=3):

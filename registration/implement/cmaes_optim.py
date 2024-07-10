@@ -43,6 +43,7 @@ class CMAES(OptimBase):
             self.best_solution = x
             self.best_match_img = res[1]
             self.best_result_per_iter = res
+            # HACK 这个函数是有些问题的，参数列表没有对齐
             self.set_global_best_datas()
         return fitness
 

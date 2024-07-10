@@ -9,6 +9,7 @@ class GlobalMatchDatas():
         self.global_best_value = -1000
         self.iteration_count = 0
         self.lower_save_count = 0
+        self.global_best_volume_index = -1
         self.global_best_position = torch.tensor([.0, .0, .0])
         self.global_best_img = None
         self.share_records_out = []
@@ -19,7 +20,7 @@ class GlobalMatchDatas():
         self.reg_obj = reg
 
     # 这个best_val都是正值
-    def set_best(self, best_val, best_position, best_img, ct_slice_index):
+    def set_best(self, best_val, best_position, best_img, ct_slice_index, volume_index):
         if best_val > self.global_best_value:
             self.iteration_count += 1
             self.global_best_value = best_val
@@ -27,7 +28,7 @@ class GlobalMatchDatas():
             self.global_best_img = best_img
             print(f"id: {self.iteration_count}; best val: {best_val}; ct_slice_index: {ct_slice_index}")
             
-            ori_slice_img, ct_slice_index = self.reg_obj.crop_slice_from_ori_3dct(best_position)
+            ori_slice_img, ct_slice_index = self.reg_obj.crop_slice_from_ori_3dct(best_position, volume_index)
             self.aim_slice_index = ct_slice_index
 
             # 把这张图片保存一下

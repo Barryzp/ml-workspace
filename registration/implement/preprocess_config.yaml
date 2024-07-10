@@ -66,10 +66,9 @@ offset_x : 80
 offset_y : -100
 # 遮罩来自于从哪张图像进行分割的
 mask_rect_classfied_num : 3
+# 既是ct的又是完整bse图像的分类类别数量
 mask_comp_classfied_num : 5
 kmeans_random_status : 256
-rect_gray_cls : 127
-comp_gray_cls : 126
 # 腐蚀扩张形态学相关操作参数
 kernel_size : 3
 # 去除掉一些较大的颗粒

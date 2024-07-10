@@ -30,7 +30,7 @@ class CementSegDatasetMaking:
         ct_seg_cls = self.config.mask_classfied_num
 
         img_ori = CommonConfig.get_cement_ct_slice(cement_id, first_slice)
-        cls_ct = self.segment_ct(img_ori, ct_seg_cls, kmeans_random)
+        cls_ct, bin_ct = self.segment_ct(img_ori, ct_seg_cls, kmeans_random)
 
         # 可视化
         VisualizeData.show_imgs([img_ori, cls_ct], ["ori_ct", "seg_result"])
@@ -54,7 +54,6 @@ class CementSegDatasetMaking:
 
         kmeans_random = self.config.kmeans_random_status
         ct_seg_cls = self.config.mask_classfied_num
-        ct_gray_cls = self.config.ct_gray_cls
 
         jpeg_quality = self.config.jpeg_qulity
 
@@ -74,14 +73,15 @@ class CementSegDatasetMaking:
             if self.config.enhanced : enhanced_ct = self.enhanced_ct(ori_ct_img)
             enhanced_ct = ori_ct_img
             # 分割图像
-            cls_ct = self.segment_ct(enhanced_ct, ct_seg_cls, kmeans_random)
+            cls_ct, bin_ct = self.segment_ct(enhanced_ct, ct_seg_cls, kmeans_random)
             
-            if temp_mask_img is not None:
-                if self.config.save_temp_res : Tools.save_img(self.ct_mask_save_path, save_test_temp_img_name, cls_ct)
-                ct_gray_cls = Tools.bin_mask_mode_gray_cls_10(temp_mask_img, cls_ct)
+            # HACK 过时方法，现在可以直接得到最大聚类中心，那个中心就是未水化的水泥颗粒
+            # if temp_mask_img is not None:
+            #     if self.config.save_temp_res : Tools.save_img(self.ct_mask_save_path, save_test_temp_img_name, cls_ct)
+            #     ct_gray_cls = Tools.bin_mask_mode_gray_cls_10(temp_mask_img, cls_ct)
             
             # 二值化图像
-            ct_bin_img = Tools.binarized_img(cls_ct, ct_gray_cls)
+            ct_bin_img = bin_ct #Tools.binarized_img(cls_ct, ct_gray_cls)
             # 2. 计算联通区域筛选出较大的颗粒
             filterred_image = self.segmentation.filter_small_size_out(ct_bin_img, self.config.size_threshold)
             # 3. 经过一些腐蚀操作去除掉一些细微的颗粒

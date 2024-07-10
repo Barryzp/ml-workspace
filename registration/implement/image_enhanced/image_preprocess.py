@@ -176,9 +176,11 @@ class ImageProcess:
 
         for i in range(cls_num):
             classified_num = i + 2
-            seg_result = self.segmentation.kmeans_image_segmentation(image, classified_num, random)
+            seg_result, bin_img = self.segmentation.kmeans_image_segmentation(image, classified_num, random)
             classified_path = f"{save_path}/{file_pref}-{id}-kms{classified_num}.bmp"
+            bin_classified_path = f"{save_path}/{file_pref}-{id}-bin-kms{classified_num}.bmp"
             cv2.imwrite(classified_path, seg_result)
+            cv2.imwrite(bin_classified_path, bin_img)
 
     # bse_img_enhanced, bin_img 都是numpy
     def crop_processed_bse_bin_images(self, bse_img_enhanced, bin_img, left_top, cropped_size, offset, suffix=""):
@@ -245,15 +247,15 @@ class ImageProcess:
         return image
 
     # 不裁剪小区域
-    def seg_mask(self, image, kms_cls, gray_cls, random=None, id = "roi"):
+    def seg_mask(self, image, kms_cls, random=None, id = "roi"):
         # 1. 对图像进行分割
         self.kms_segmentation(image, id, random)
         path_pref = f"{self.bse_save_path}/{self.file_name_pref}"
-        classfied_img_path = f"{path_pref}-{id}-kms{kms_cls}.bmp"
+        classfied_img_path = f"{path_pref}-{id}-bin-kms{kms_cls}.bmp"
         kms_image = cv2.imread(classfied_img_path, cv2.IMREAD_GRAYSCALE)
 
-        # 对图像进行二值化处理
-        kms_image = self.binarized_img(kms_image, gray_cls)
+        # 对图像进行二值化处理 已经二值化处理过了
+        # kms_image = self.binarized_img(kms_image, gray_cls)
 
         # 2. 计算联通区域筛选出较大的颗粒
         filterred_image, diameter_interval = self.segmentation.filter_small_size_out(kms_image, self.config.particle_quantile)
@@ -276,14 +278,12 @@ class ImageProcess:
         roi_enhanced, roi_enhanced_comp = self.crop_enhaned_bse()
 
         random_state = self.config.kmeans_random_status
-        rect_gray_cls = self.config.rect_gray_cls
-        comp_gray_cls = self.config.comp_gray_cls
         rect_kms_cls = self.config.mask_rect_classfied_num
         comp_kms_cls = self.config.mask_comp_classfied_num
         
         # 分割并保存（使用粒径的方式）
-        self.seg_mask(np.array(roi_enhanced), rect_kms_cls, rect_gray_cls, random_state)
-        roi_comp_img, diameter_interval = self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, comp_gray_cls, random_state, "comp")
+        self.seg_mask(np.array(roi_enhanced), rect_kms_cls, random_state)
+        roi_comp_img, diameter_interval = self.seg_mask(np.array(roi_enhanced_comp), comp_kms_cls, random_state, "comp")
 
         max_area, min_area = diameter_interval[1], diameter_interval[0]
         self.config.size_threshold_bse_min = min_area
@@ -324,7 +324,6 @@ class ImageProcess:
 
         kmeans_random = self.config.kmeans_random_status
         ct_seg_cls = self.config.mask_comp_classfied_num
-        ct_gray_cls = self.config.ct_gray_cls
 
         temp_mask_img = None
         # 记录所有的编号
@@ -342,16 +341,17 @@ class ImageProcess:
             enhanced_ct = ori_ct_img
             Tools.save_img(self.ct_processed_save_path, save_enhanced_img_name, enhanced_ct)
             # 分割图像
-            cls_ct = self.segment_ct(enhanced_ct, ct_seg_cls, kmeans_random)
+            cls_ct, bin_ct = self.segment_ct(enhanced_ct, ct_seg_cls, kmeans_random)
             if self.config.save_temp_res : Tools.save_img(self.ct_processed_save_path, save_test_seg_img_name, cls_ct)
-            
-            if temp_mask_img is not None:
-                and_img = temp_mask_img & cls_ct
-                if self.config.save_temp_res : Tools.save_img(self.ct_processed_save_path, save_test_temp_img_name, and_img)
-                ct_gray_cls,_ = Tools.find_ith_frequent_element(and_img, 2)
+
+            # HACK 过时方法了            
+            # if temp_mask_img is not None:
+            #     and_img = temp_mask_img & cls_ct
+            #     if self.config.save_temp_res : Tools.save_img(self.ct_processed_save_path, save_test_temp_img_name, and_img)
+            #     ct_gray_cls,_ = Tools.find_ith_frequent_element(and_img, 2)
             
             # 二值化图像
-            ct_bin_img = self.binarized_img(cls_ct, ct_gray_cls)
+            ct_bin_img = bin_ct # self.binarized_img(cls_ct, ct_gray_cls)
             # 2. 计算联通区域筛选出较大的颗粒
             filterred_image = Tools.filter_by_diameter_bin_img(ct_bin_img, [min_diameter, max_diameter])
             
@@ -359,6 +359,7 @@ class ImageProcess:
             processed_img = self.segmentation.morphy_process_kms_image(filterred_image, self.config.kernel_size)
             Tools.save_img(self.ct_processed_save_path, save_bin_img_name, processed_img)
 
+            print(f"{slice_index} processed.")
             temp_mask_img = processed_img
 
     # 保存筛除掉对应大小的水泥颗粒图像

@@ -15,6 +15,5 @@ import cv2
 import numpy as np
 
 # t[i] = self.minV[i] + t[i] % (self.maxV[i] - self.minV[i])
-
-a = [2,1,8, 9]
-print(sorted(a, reverse=True))
+a = 1, 2, 3, 4
+print(a)
