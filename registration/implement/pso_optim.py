@@ -111,7 +111,7 @@ class PSO_optim(OptimBase):
     def loop_boundary_constrain(self, t):
         range_size = self.maxV - self.minV
         position = self.minV + torch.remainder(t - self.minV, range_size)
-        return position        
+        return position
 
     # 反射边界处理，改变粒子的运动方向，镜像反射
     def reflect_boundary_constrain(self, t):

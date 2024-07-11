@@ -139,6 +139,7 @@ class Registration:
                 ct_mask_img = Tools.downsample_bin_img(ct_mask_img, self.config.downsample_times)
                 ct_slice_img = Tools.downsample_image(ct_slice_img, self.config.downsample_times)
             
+            # 这个属性没啥作用
             self.matched_ct_imgs[index] = ct_mask_img
             if self.config.mode == "matched": self.config.cropped_ct_size = ct_mask_img.shape
 
