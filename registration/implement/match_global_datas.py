@@ -27,7 +27,7 @@ class GlobalMatchDatas():
             self.global_best_position = best_position
             self.global_best_img = best_img
             print(f"id: {self.iteration_count}; best val: {best_val}; ct_slice_index: {ct_slice_index}")
-            
+            self.global_best_volume_index = volume_index
             ori_slice_img, ct_slice_index = self.reg_obj.crop_slice_from_ori_3dct(best_position, volume_index)
             self.aim_slice_index = ct_slice_index
 
@@ -86,8 +86,10 @@ class GlobalMatchDatas():
         downsample_times = self.config.downsample_times
         bse_height, bse_width = self.reg_obj.bse_ori_shape
 
+        index_array = self.reg_obj.get_3dct_index_array(self.global_best_volume_index)
+
         # 1. 首先是获得咱们这个ct的start_slice_idx
-        start_index_in_match3dct = self.reg_obj.start_ct_index
+        start_index_in_match3dct = index_array[0]
         # 2. 获取切预览图像时应该的start_slice_idx, 也就是出现最多的slice_idx
         start_index_in_preview3dct = self.aim_slice_index - latent_bse_depth
         pos_remapping = Tools.remapping_from_optim_pos(best_pos, start_index_in_match3dct,

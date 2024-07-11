@@ -118,7 +118,7 @@ weight_inertia : 0.729  # Inertia weight
 # 个体学习因子，朝着个体最佳方向
 individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
 # 群体学习因子，朝着全局最佳方向
-global_w : 2.05    # Social (swarm's best) weight [0, 4]
+global_w : 2.78    # Social (swarm's best) weight [0, 4]
 # 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
 speed_param_ratio : 0.18 # 0.1 ~ 0.2
 

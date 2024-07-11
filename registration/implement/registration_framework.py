@@ -378,13 +378,14 @@ class Registration:
         return mi
 
     def crop_slice_from_mask_3dct(self, x, volume_index,interpolation = "None"):
-        return self.crop_slice_from_3dct_match(x, volume_index, interpolation)
+        volume = self.get_matched_3d_msk_ct(volume_index)
+        return self.crop_slice_from_3dct_match(x, volume_index, volume, interpolation)
 
     def crop_slice_from_ori_3dct(self, x, volume_index, interpolation = "None"):
-        return self.crop_slice_from_3dct_match(x, volume_index, interpolation)
-
-    def crop_slice_from_3dct_match(self, x, volume_index, interpolation = "None"):
         volume = self.get_matched_3d_ct(volume_index)
+        return self.crop_slice_from_3dct_match(x, volume_index, volume, interpolation)
+
+    def crop_slice_from_3dct_match(self, x, volume_index, volume, interpolation = "None"):
         ct_index_array = self.get_3dct_index_array(volume_index)
         position = x.clone().numpy()
         translation = position[:3]
