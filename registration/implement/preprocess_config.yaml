@@ -103,10 +103,10 @@ bse_roi_size : [624, 512]
 # 下采样倍数
 downsample_times : 1
 # 搜索的区域大小
-latent_slice_area : 25
+latent_slice_area : 80
 # 设置分块的大小
 patch_size : 128
-matched_slice_index : 585
+matched_slice_index : 597
 # 在采样倍数下距离左上角的偏移量
 matched_translate : [598, 813]
 matched_rotation : 244

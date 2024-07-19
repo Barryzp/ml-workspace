@@ -108,14 +108,14 @@ class Tools:
 
     # 下采样图像
     def downsample_image(image_np, downsample_times, size = None):
-        # 使用缩放因子来减半图片尺寸
+        # 使用缩放因子来减半图片尺寸，下采样采用cv2.INTER_AREA的方式进行插值，尽可能降低插值带来的灰度分布变化
         resized_image = cv2.resize(image_np, dsize=size, fx=1/downsample_times, fy=1/downsample_times, interpolation=cv2.INTER_AREA)
         return resized_image
 
     # 上采样图像
     def upsample_image(image_np, upsample_times, size = None):
         # 使用缩放因子来减半图片尺寸
-        resized_image = cv2.resize(image_np, dsize=size, fx=upsample_times, fy=upsample_times, interpolation=cv2.INTER_AREA)
+        resized_image = cv2.resize(image_np, dsize=size, fx=upsample_times, fy=upsample_times, interpolation=cv2.INTER_LINEAR)
         return resized_image
 
     # 下采样二值图像

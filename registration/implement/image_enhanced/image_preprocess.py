@@ -98,9 +98,6 @@ class ImageProcess:
 
     def segment_ct(self, ct_img_enhanced, cls_num=4, random = None):
         return self.segmentation.kmeans_image_segmentation(ct_img_enhanced, cls_num, random)
-
-    def filter_segment_img(self, img, cls_intensity, particle_size):
-        pass
     
     # 增强BSE区域，这是只裁剪了原型区域的，并没有剪切为矩形区域
     def enhanced_unrect_bse(self, show_result = True):
@@ -551,7 +548,35 @@ class ImageProcess:
 
         return best_matched_slice_index
 
-    # 使用截取的BSE ROI图像来选择最佳区域(此时是这样的：bse_roi在整个ct区域上进行)
+    # 转移最佳切片所在最优区域
+    def choose_best_volume_for_fine_reg(self):
+        # 咱们就扩大范围，以对应的切片为中心上下总共80层作为结果复制过去，80层的原因是因为下采样了8倍，这样好复制一些
+        middle_slice_index = self.config.matched_slice_index
+        latent_volume_depth = self.config.latent_slice_area
+        half_depth = latent_volume_depth // 2
+        start_slice_index = middle_slice_index - half_depth
+        end_slice_index = middle_slice_index + half_depth - 1
+        volume_slice_interval = [start_slice_index, end_slice_index]
+        self.config.volume_slice_interval = volume_slice_interval
+        
+        # 保存一下配置
+        file_path = f"{self.config.data_save_root}/sample{self.config.cement_sample_index}/ct/s{self.config.sample_bse_index}"
+        cfg_name = f"cement_{self.config.cement_sample_index}_s{self.config.sample_bse_index}.yaml"
+        Tools.save_obj_yaml(file_path, cfg_name, self.config)
+
+        # 复制图片过去，不进行变换操作，因为参数咱们还要接着用
+        for i in range(latent_volume_depth):
+            index = start_slice_index + i
+            ct_img = Tools.get_ct_img(self.config.cement_sample_index, index)
+            enhanced_file_name = f"{index}_enhanced.bmp"
+            ori_file_name = f"slice_{index}.bmp"
+            Tools.save_img(file_path, ori_file_name, ct_img)
+            enhanced_img = self.ct_clahe.apply(ct_img)
+            # 进行保存
+            Tools.save_img(file_path, enhanced_file_name, enhanced_img)
+
+
+    # HACK 过时的方法，逐层逐片搜索 使用截取的BSE ROI图像来选择最佳区域(此时是这样的：bse_roi在整个ct区域上进行)
     def choose_best_slices_bse_roi(self):
         # 同样的逻辑
         # (1) 剪切区域重映射
@@ -579,7 +604,6 @@ class ImageProcess:
         patches_mi = self.set_patch_best_slice_idx(proper_matched_slice_index, patches_info)
 
         # self.visualize_patch_info(patches_info)
-
         return proper_matched_slice_index, patches_mi
     
 
@@ -596,16 +620,13 @@ class ImageProcess:
         return mi, cropped_img
 
     def set_patch_best_slice_idx(self, middle_best_slice_index, patches_info):
-
         latent_slice_area = self.config.latent_slice_area
         ct_size = self.config.ground_ct_size
-
         # how todo:
         # (1) 从底层到上层，index由低到高，比如说：目前最佳是580，那么id从580-latent_slice_area ~ 580+latent_slice_area
         # (2) 遍历patches_info，计算每个patch的mi
         # (3) 将每个patch对应切片CT裁剪区域的mi保存起来，用id作为索引，格式如：
         # (4) 将每个层的mi都保存一下
-
         patches_mi = []
         for patch_info in patches_info:
             patch_mi = {
@@ -636,7 +657,6 @@ class ImageProcess:
 
 
     def visualize_patch_info(self, patches_info, downsamples_times=1, bse_or_ct = "bse"):
-        
         imgs = []
         labels = []
         count = 1

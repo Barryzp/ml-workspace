@@ -175,10 +175,6 @@ class PSO_optim(OptimBase):
         
         # self.save_psos_parameters(particles, "start")
 
-        matched_suffix = ""
-        if self.config.mode == "matched":
-            matched_suffix = f" slice_index: {self.ct_matching_slice_index},"
-
         for _ in range(num_iterations):
 
             check = self.check_match_finished()

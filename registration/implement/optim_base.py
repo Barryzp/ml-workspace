@@ -2,6 +2,9 @@ import torch, math
 import numpy as np
 from utils.tools import Tools
 
+# 粒子类也抽象一下？算了，先不抽象，之后再说
+# class Particle:
+
 class OptimBase:
 
     def __init__(self, config, global_share_datas = None, matched_3dct_id = None) -> None:
