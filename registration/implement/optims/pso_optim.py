@@ -2,60 +2,7 @@ import torch, math, random
 import numpy as np
 from scipy.stats import qmc
 from utils.tools import Tools
-from optim_base import OptimBase
-
-# Particle class
-class Particle:
-    def __init__(self, x0, pso_optim, id):
-        self.id = id
-        self.position = x0
-        self.pso_optim = pso_optim
-
-        self.velocity = torch.rand_like(x0)
-        self.best_position = torch.clone(x0)
-        
-        self.debug = False
-
-        fit_res = pso_optim.fitness(x0)
-        self.best_value = fit_res[0]
-
-    def update_velocity(self, global_best_position):
-        r1 = random.random()
-        r2 = random.random()
-        individual_w = self.pso_optim.individual_w
-        global_w = self.pso_optim.global_w
-        weight_inertia = self.pso_optim.weight_inertia
-
-        cog_delta = (self.best_position - self.position)
-        # cog_dir = torch.zeros_like(global_best_position)
-        # cog_norm = torch.norm(cog_delta)
-        # if cog_norm > 0:
-        #     cog_dir = cog_delta / cog_norm
-        cognitive_velocity = individual_w * r1 * cog_delta
-
-
-        soc_delta = (global_best_position - self.position)
-        # soc_dir = torch.zeros_like(global_best_position)
-        # soc_norm = torch.norm(soc_delta)
-        # if soc_norm > 0:
-        #     soc_dir = soc_delta / soc_norm
-        social_velocity = global_w * r2 * soc_delta
-        
-        self.velocity = weight_inertia * self.velocity + cognitive_velocity + social_velocity
-        self.velocity = self.pso_optim.constrain_velocity(self.velocity)
-
-    def move(self):
-        self.position += self.velocity
-        # constrain the position in a range
-        self.position = self.pso_optim.constrain(self.position)
-
-
-        fit_res = self.pso_optim.fitness(self.position)
-        value = fit_res[0]
-
-        if value > self.best_value:
-            self.best_position = self.position.clone()
-            self.best_value = value
+from optims.optim_base import OptimBase, Particle
 
 class PSO_optim(OptimBase):
 

@@ -1,6 +1,6 @@
 
-record_id : "matched-sample4-S1-8(test)-3dct-pso-interval-8" # -fiter_bigsize
-remark : "测试为啥减少搜索区域，还不好找了呢？"
+record_id : "matched-sample4-S2-1(pso)-3dct-pso-interval-8" # -fiter_bigsize
+remark : "ppso 4 s2"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -16,7 +16,7 @@ cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 1
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # endregion
@@ -39,8 +39,6 @@ ct_mask_suffix : "mask_ct"
 mode : "matched"
 # 新的方法，这个颗粒大小的下限和上限需要根据BSE图像处理的配置中的来进行区别x-1-1-config
 # 需要去进行读取这个配置
-size_threshold_min : 889
-size_threshold_max : 4283
 # 设置一定的阈值范围，正式的水泥粒径大小应该在[min/ratio, max*ratio]
 size_threshold_ratio : 1.2 #[0.8, 1.5, 2.5]
 
@@ -130,3 +128,13 @@ sigma0 : 45
 pop_size : 256
 # 最大迭代数目
 max_iter : 50
+
+# ppso参数
+layer_config : [4, 8, 20, 32]
+phi : 0.008
+#     if dimensions == 50:
+#         phi = 0.04
+#     elif dimensions == 30:
+#         phi = 0.02
+#     else:
+#         phi = 0.008

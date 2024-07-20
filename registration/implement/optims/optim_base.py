@@ -1,9 +1,51 @@
-import torch, math
+import torch, math, random
 import numpy as np
 from utils.tools import Tools
 
-# 粒子类也抽象一下？算了，先不抽象，之后再说
-# class Particle:
+# 粒子类也抽象一下，先不抽象，之后再说
+class Particle:
+    def __init__(self, x0, pso_optim, id):
+        self.id = id
+        self.position = x0
+        self.pso_optim = pso_optim
+
+        self.velocity = torch.rand_like(x0)
+        self.best_position = torch.clone(x0)
+        
+        self.debug = False
+
+        fit_res = pso_optim.fitness(x0)
+        self.best_value = fit_res[0]
+
+    def update_velocity(self, global_best_position):
+        r1 = random.random()
+        r2 = random.random()
+        individual_w = self.pso_optim.individual_w
+        global_w = self.pso_optim.global_w
+        weight_inertia = self.pso_optim.weight_inertia
+
+        cog_delta = (self.best_position - self.position)
+        cognitive_velocity = individual_w * r1 * cog_delta
+
+
+        soc_delta = (global_best_position - self.position)
+        social_velocity = global_w * r2 * soc_delta
+        
+        self.velocity = weight_inertia * self.velocity + cognitive_velocity + social_velocity
+        self.velocity = self.pso_optim.constrain_velocity(self.velocity)
+
+    def move(self):
+        self.position += self.velocity
+        # constrain the position in a range
+        self.position = self.pso_optim.constrain(self.position)
+
+
+        fit_res = self.pso_optim.fitness(self.position)
+        value = fit_res[0]
+
+        if value > self.best_value:
+            self.best_position = self.position.clone()
+            self.best_value = value
 
 class OptimBase:
 

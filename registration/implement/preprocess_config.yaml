@@ -6,7 +6,7 @@ cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 1
+sample_bse_index : 2
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # ct图像采样间隔区间
@@ -30,8 +30,8 @@ data_save_root : "D:/workspace/ml-workspace/registration/datasets"
 
 # region 裁剪图像配置
 # 中心点偏移量(遮罩的)+右移动，-左移动，+下移动，-上移动
-center_offset_x : 10
-center_offset_y : -58
+center_offset_x : 40
+center_offset_y : -90
 crop_radius : 580
 
 # 矩形裁剪配置
@@ -45,7 +45,7 @@ rect_roi_width : 624
 rect_roi_height : 512
 
 # 裁剪时偏移量 +右移动，-左移动，-下移动，+上移动
-roi_cropped_offset : [-25, -30]
+roi_cropped_offset : [-3, -25]
 # 裁剪时的增强算法配置
 bse_clipLimit : 3.0
 bse_tileGridSize : [8, 8]

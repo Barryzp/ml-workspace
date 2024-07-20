@@ -33,3 +33,16 @@ print(comparison_mask)
 print(np.where(comparison_mask, random_pairs[:, 0], random_pairs[:, 1]))
 
 print(test_indeces[np.random.permutation(8) % 4])
+
+t = np.array([1, 2, 3, 4, 5])
+idx = np.array([0, 2])
+print(t[:3])
+
+separator = 10  # 假设separator为10
+permuted_sequence = np.random.permutation(separator)
+
+# 从permuted_sequence中随机选择5个数，不放回
+selected_numbers = np.random.choice(permuted_sequence, size=5, replace=False)
+
+print("Permuted sequence:", permuted_sequence)
+print("Selected numbers:", selected_numbers)

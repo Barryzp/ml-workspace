@@ -1,26 +1,10 @@
-import torch, math, random
 import numpy as np
-from scipy.stats import qmc
 from utils.tools import Tools
-from optim_base import OptimBase
-from pso_optim import PSO_optim
+from optims.optim_base import Particle
+from optims.pso_optim import PSO_optim
 
 # Particle class
-class Particle:
-    def __init__(self, x0, pso_optim, id):
-        self.id = id
-        self.position = x0
-        self.pso_optim = pso_optim
-
-        self.current_fitness = -1000
-        self.velocity = torch.rand_like(x0)
-        self.best_position = torch.clone(x0)
-        
-        self.debug = False
-
-        fit_res = pso_optim.fitness(x0)
-        self.best_value = fit_res[0]
-
+class Particle_PPSO(Particle):
     # winner更新速度
     def update_velocity_winner(self, upper_best, global_best, is_top = False):
         random_coeff1 = np.random.rand()
@@ -80,6 +64,7 @@ class PPSO_optim(PSO_optim):
 
         # 初始化layer配置，数组形式:[4, 8, 20, 32]
         self.layer_cfg = config.layer_config
+        self.phi = config.phi
         
     # 基本参数的初始化
     def init_basic_params(self):
@@ -88,8 +73,13 @@ class PPSO_optim(PSO_optim):
         self.particle_num = np.sum(self.layer_cfg)
 
     def sorted_particles(self, particles, reverse=False):
-        particles = sorted(particles, key=lambda particle:particle.current_fitness, reverse=reverse)
-        return particles
+        coeff = 1
+        if reverse : coeff = -1
+        # 或者，直接使用负数索引和步长-1来反转
+        sorted_indices_desc = np.argsort(coeff * np.array([particle.current_fitness for particle in particles]))
+        # 使用排序索引重新排序数组
+        sorted_objects_desc = particles[sorted_indices_desc]
+        return sorted_objects_desc
 
     # 记录哪些数据：1. 迭代次数；2.当前迭代的全局最佳粒子；2.
     def recording_data_item(self, iterations, current_best_particle):
@@ -116,7 +106,7 @@ class PPSO_optim(PSO_optim):
     # 核心算法逻辑
     # PSO algorithm
     def _algorithm(self, particle_vals, num_iterations):
-        particles = [Particle(particle_vals[i], self, i) for i in range(len(particle_vals))]
+        particles = np.array([Particle_PPSO(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
         # 逻辑：排序，分层，选择，更新
@@ -128,16 +118,20 @@ class PPSO_optim(PSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
+            self.recording_data_item(_, particles[0])
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
-
             # 配对：金字塔从底层开始往上面回溯
             current_moved_particles = 0
             for layer_idx in range(layers_num - 1, -1, -1):
                 layer_size = self.layer_cfg[layer_idx]
 
                 # 索引对应层数的粒子
-                layer_particles = particles[-layer_size:-current_moved_particles]
+                if current_moved_particles == 0:
+                    layer_particles = particles[-layer_size:]
+                else:
+                    start_idx = layer_size + current_moved_particles
+                    layer_particles = particles[-start_idx:-current_moved_particles]
                 current_moved_particles += layer_size
 
                 rand_indeces = np.random.permutation(layer_size)
@@ -149,37 +143,40 @@ class PPSO_optim(PSO_optim):
                     layer_particles[rand_pairs[i, 0]].current_fitness > layer_particles[rand_pairs[i, 1]].current_fitness
                     for i in range(len(rand_pairs))]
                 
-                loser_indeces = np.where(comparison_mask, rand_pairs[:, 0], rand_pairs[:, 1])
-                winner_indeces = np.where(~comparison_mask, rand_pairs[:, 0], rand_pairs[:, 1])
+                winner_indeces = np.where(comparison_mask, rand_pairs[:, 0], rand_pairs[:, 1])
+                loser_indeces = np.where(comparison_mask, rand_pairs[:, 1], rand_pairs[:, 0])
                 losers = layer_particles[loser_indeces]
                 winners = layer_particles[winner_indeces]
 
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
-                top_layer_particles = particles[0:top_layer_size-1]
+                top_layer_particles = particles[0:top_layer_size]
                 top_indeces = np.random.permutation(separator) % top_layer_size
                 aim_top_particles = top_layer_particles[top_indeces]
 
-                is_top_layer = layer_idx != 0
+                is_top_layer = layer_idx == 0
 
                 # 由于非顶层的winner会和上层的粒子进行混合，这里还需要得到上一层的粒子
                 if not is_top_layer:
                     upper_layer_size = self.layer_cfg[layer_idx - 1]
                     start_idx = np.sum(self.layer_cfg[layer_idx-1:])
-                    upper_layer_particles = particles[-start_idx:-upper_layer_size]
+                    # 应该索引到当前的粒子数量
+                    upper_layer_particles = particles[-start_idx:-layer_size]
                     upper_indeces = np.random.permutation(separator) % upper_layer_size
                     aim_upper_particles = upper_layer_particles[upper_indeces]
 
                 # 更新粒子
-                for index in range(layer_size):
+                for index in range(separator):
                     winner = winners[index]
                     loser = losers[index]
-                    upper_best = None
-                    if not is_top_layer : upper_best = aim_upper_particles[index]
-                    global_best = aim_top_particles[index]
                     # 先更新loser
                     loser.update_velocity_loser(winner.position)
-                    winner.update_velocity_winner(upper_best.position, global_best.position, is_top_layer)
-
+                    # winner根据情况更新
+                    if is_top_layer : winner.update_velocity_winner(None, None, is_top_layer)
+                    else:
+                        upper_best = aim_upper_particles[index]
+                        global_best = aim_top_particles[index]
+                        winner.update_velocity_winner(upper_best.position, global_best.position, is_top_layer)
+                    
         # self.save_psos_parameters(particles, "end")
         return self.best_solution

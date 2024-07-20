@@ -1,7 +1,7 @@
 import torch, math, random, cma
 import numpy as np
 from utils.tools import Tools
-from optim_base import OptimBase
+from optims.optim_base import OptimBase
 
 class CMAES(OptimBase):
 
