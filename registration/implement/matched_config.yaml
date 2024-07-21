@@ -1,6 +1,6 @@
 
-record_id : "matched-sample4-S2-1(pso)-3dct-pso-interval-8" # -fiter_bigsize
-remark : "ppso 4 s2"
+record_id : "matched-sample4-S2-1(ppso1)-3dct-pso-interval-8" # -fiter_bigsize
+remark : "ppso1 4 s2"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -110,7 +110,7 @@ ct_2d_index : 32
 # 粒子个数
 particle_num : 512
 # 迭代次数
-iteratons : 60
+iteratons : 100
 # HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
 weight_inertia : 0.729  # Inertia weight
 # 个体学习因子，朝着个体最佳方向

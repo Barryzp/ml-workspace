@@ -13,9 +13,9 @@ class Particle:
         self.best_position = torch.clone(x0)
         
         self.debug = False
-
         fit_res = pso_optim.fitness(x0)
         self.best_value = fit_res[0]
+        self.current_fitness = self.best_value
 
     def update_velocity(self, global_best_position):
         r1 = random.random()
