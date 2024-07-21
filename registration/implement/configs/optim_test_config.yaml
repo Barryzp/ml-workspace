@@ -1,0 +1,51 @@
+
+# 这是专门用于验证函数的优化效果的
+
+record_id : "ppso-verify" # -fiter_bigsize
+remark : "ppso1 4 s2"
+data_save_path : "D:/workspace/ml-workspace/registration/result/optim"
+mode : "test"
+
+fun_id : "griewank"
+
+# 迭代次数
+iteratons : 100
+# 随机种子
+rand_seed : 10
+# 解的维度
+solution_dimension : 30
+
+
+# 用来记录第几次覆盖
+repeat_count : 1
+# PSO 参数
+# 粒子个数
+particle_num : 512
+
+# HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
+weight_inertia : 0.729  # Inertia weight
+# 个体学习因子，朝着个体最佳方向
+individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
+# 群体学习因子，朝着全局最佳方向
+global_w : 2.78    # Social (swarm's best) weight [0, 4]
+# 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
+speed_param_ratio : 0.18 # 0.1 ~ 0.2
+
+
+# CMA-ES 参数
+# 初始多维高斯分布标准差
+sigma0 : 45
+# 种群数量
+pop_size : 256
+# 最大迭代数目
+max_iter : 50
+
+# ppso参数
+layer_config : [4, 8, 20, 32]
+phi : 0.008
+#     if dimensions == 50:
+#         phi = 0.04
+#     elif dimensions == 30:
+#         phi = 0.02
+#     else:
+#         phi = 0.008

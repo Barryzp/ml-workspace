@@ -73,7 +73,6 @@ class OptimBase:
         self.rotation_delta = self.config.rotation_delta
         self.rot_z_delta = self.config.rot_z_delta
 
-
         # 设置匹配过程对应3d块的唯一索引
         if self.config.mode == "matched":
             self.matched_3dct_id = matched_3dct_id

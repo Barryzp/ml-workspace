@@ -499,6 +499,12 @@ class Registration:
         dice = Tools.dice_coefficient(cropped_image, self.bse_img)
         return dice, cropped_image, latent_z, 0, 0, 0
 
+    def griewank(x):
+        xs = x ** 2
+        sum_term = np.sum(xs, axis=1) / 4000
+        prod_term = np.prod(np.cos(x / np.sqrt(np.arange(1, x.shape[1] + 1))), axis=1)
+        return sum_term - prod_term + 1
+
     def similarity_jaccard(self, x):
         rotation_center_xy = self.config.rotation_center_xy
         image = self.ct_img
@@ -591,13 +597,14 @@ class Registration:
             return getattr(self, self.config.debug_simiarity)(x)
             # if self.config.debug_simiarity == "similarity_dice":
             #     return self.similarity_dice(x)
-
         if self.config.mode == "2d":
             return self.similarity_2d(x)
         elif self.config.mode == "3d":
             return self.similarity_3d(x)
         elif self.config.mode == "matched":
             return self.similarity_matched_dice(x, match3dct_idx)
+        elif self.config.mode == "test":
+            pass
 
     def save_matched_result(self, position):
         # 对于重采样的重新处理，旋转角度不需要操作的
