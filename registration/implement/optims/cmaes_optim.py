@@ -1,4 +1,4 @@
-import torch, math, random, cma
+import cma
 import numpy as np
 from utils.tools import Tools
 from optims.optim_base import OptimBase
@@ -35,7 +35,7 @@ class CMAES(OptimBase):
 
     # 定义目标函数，主义CMA-ES优化目标是最小值，我们想要求得最大值需要取个负号
     def objective_function(self, x):
-        x = torch.tensor(x)
+        x = np.array(x)
         res = self.fitness(x)
         fitness = -res[0]
         if fitness < self.best_value:

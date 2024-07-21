@@ -14,7 +14,9 @@ iteratons : 100
 rand_seed : 10
 # 解的维度
 solution_dimension : 30
-
+# 解的区间
+solution_bound_min : -600
+solution_bound_max : 600
 
 # 用来记录第几次覆盖
 repeat_count : 1

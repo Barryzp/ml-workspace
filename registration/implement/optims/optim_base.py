@@ -1,4 +1,6 @@
-import torch, math, random
+import math, random
+from scipy.stats import qmc
+
 import numpy as np
 from utils.tools import Tools
 
@@ -9,8 +11,8 @@ class Particle:
         self.position = x0
         self.pso_optim = pso_optim
 
-        self.velocity = torch.rand_like(x0)
-        self.best_position = torch.clone(x0)
+        self.velocity = np.random.random(x0.shape)
+        self.best_position = np.copy(x0)
         
         self.debug = False
         fit_res = pso_optim.fitness(x0)
@@ -58,13 +60,16 @@ class OptimBase:
         self.current_iterations = 0
         self.config = config
         self.records = []
+        # 随机生成的粒子的初始值
+        self.particle_vals = []
 
         # 最优解
         self.best_solution = None
         self.best_value = -10000
-        self.best_match_img = None
         self.best_result_per_iter = None
 
+        # 配准的相关结果
+        self.best_match_img = None
         # 设置初始位移以及旋转角度
         self.init_translate = self.config.init_translate
         self.translate_delta = self.config.translate_delta
@@ -141,7 +146,6 @@ class OptimBase:
                                       rotation_delta_y, 
                                       rotation_delta_z]
 
-
     # 基本参数的初始化
     def init_basic_params(self):
         self.particle_num = self.config.particle_num
@@ -155,12 +159,12 @@ class OptimBase:
         rotation_delta = self.rotation_delta[-1]
 
         # 生成初始参数规定范围，
-        self.minV = torch.tensor([
+        self.minV = np.array([
                 self.init_translate[0],
                 self.init_translate[1],
                 init_rotation,
         ])
-        self.maxV = torch.tensor([
+        self.maxV = np.array([
                 self.init_translate[0] + self.translate_delta[0], 
                 self.init_translate[1] + self.translate_delta[1],
                 init_rotation + rotation_delta, 
@@ -184,7 +188,7 @@ class OptimBase:
         translate_delta = self.translate_delta
         rotation_delta = self.rotation_delta
         # 生成初始参数规定范围，
-        self.minV = torch.tensor([
+        self.minV = np.array([
             init_translate[0], 
                 init_translate[1],
                 init_translate[2],
@@ -192,7 +196,7 @@ class OptimBase:
                 init_rotation[1],
                 init_rotation_z,
         ])
-        self.maxV = torch.tensor([
+        self.maxV = np.array([
             init_translate[0] + translate_delta[0], 
                 init_translate[1] + translate_delta[1],
                 init_translate[2] + translate_delta[2],
@@ -260,10 +264,6 @@ class OptimBase:
 
         if self.config.mode != "matched": self.save_iteration_best_reg_img(__, iter)
 
-    # 具体算法，返回最优值
-    def _algorithm(self, particle_vals, num_iterations, record):
-        pass
-
     # 用于判断匹配是否完成，从而及时跳出循环
     def check_match_finished(self):
         if self.config.mode != "matched": return False
@@ -311,3 +311,51 @@ class OptimBase:
     def run_matched_with_loops(self):
         loop_times = self.config.match_loop_times
         self.run_matched(loop_times)
+
+
+    # 使用此方法粒子数的数量必须是2^n
+    def spawn_uniform_particles(self):
+        """
+        使用Sobol序列生成在给定边界内均匀分布的点
+        :param num_points: 点的数量
+        :param bounds: 每个维度的边界，格式为 [(min_x, max_x), (min_y, max_y), (min_z, max_z)]
+        :return: numpy array of points
+        """
+        num_points = self.particle_num
+        dimension = self.parameters_num
+        bounds = np.array((self.minV, self.maxV)).transpose()
+
+        sampler = qmc.Sobol(d=dimension, scramble=True)
+        sample = sampler.random_base2(m=int(np.log2(num_points)))
+        scaled_sample = qmc.scale(sample, [b[0] for b in bounds], [b[1] for b in bounds])
+
+        return np.array(scaled_sample)
+    
+    # 随机生成粒子数量
+    def spawn_random_particles(self):
+        self.particle_vals = [np.random.uniform(self.minV, self.maxV) for i in range(self.particle_num)]
+
+    def spawn_random_particles_for_test_optim(self):
+        lower_bound = self.config.solution_bound_min
+        upper_bound = self.config.solution_bound_max
+        d = self.config.solution_dimension
+        self.particle_vals = [np.random.uniform(lower_bound, upper_bound, d) for i in range(self.particle_num)]
+
+    # 具体算法，返回最优值
+    def _algorithm(self):
+        pass
+
+    # 生成随机粒子
+    def _spawn_particles(self):
+        if self.config.mode == "test":
+            self.spawn_random_particles_for_test_optim()
+        else:
+            self.spawn_random_particles()
+
+    # 运行标准优化测试函数
+    def run_std_optim(self):
+        # 随机生成粒子
+        self._spawn_particles()
+        # 运行算法
+        self._algorithm()
+        return self.best_value, self.best_solution

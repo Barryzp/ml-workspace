@@ -1,6 +1,4 @@
-import torch, math, random
 import numpy as np
-from scipy.stats import qmc
 from utils.tools import Tools
 from optims.optim_base import OptimBase, Particle
 
@@ -27,7 +25,7 @@ class PSO_optim(OptimBase):
         speed_x = translate_delta[0] * self.speed_param_ratio
         speed_y = translate_delta[1] * self.speed_param_ratio
         speed_rotation = rotation_delta * self.speed_param_ratio
-        self.speed = torch.tensor([speed_x, speed_y, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
+        self.speed = np.array([speed_x, speed_y, speed_rotation]) # 粒子移动的速度为参数范围的10%~20%
 
     def init_with_3d_params(self):
         super(PSO_optim, self).init_with_3d_params()
@@ -45,7 +43,7 @@ class PSO_optim(OptimBase):
         speed_rot_y = rotation_delta[1] * 2 * self.speed_param_ratio
         speed_rot_z = rotation_delta[2] * self.speed_param_ratio
 
-        self.speed = torch.tensor([speed_x, speed_y, speed_z, speed_rot_x, speed_rot_y, speed_rot_z]) # 粒子移动的速度为参数范围的10%~20%
+        self.speed = np.array([speed_x, speed_y, speed_z, speed_rot_x, speed_rot_y, speed_rot_z]) # 粒子移动的速度为参数范围的10%~20%
 
     # 需要进行调参，惯性权重，个体最优系数，种群最有系数
     # 采用环形边界的方式将点限制在一个范围内，
@@ -57,7 +55,7 @@ class PSO_optim(OptimBase):
     # 循环边界处理
     def loop_boundary_constrain(self, t):
         range_size = self.maxV - self.minV
-        position = self.minV + torch.remainder(t - self.minV, range_size)
+        position = self.minV + np.remainder(t - self.minV, range_size)
         return position
 
     # 反射边界处理，改变粒子的运动方向，镜像反射
@@ -87,11 +85,11 @@ class PSO_optim(OptimBase):
         return t
 
     # 随机重置边界
-    def random_reset_constrain(self, t):
-        for i in range(len(t)):
-            if t[i] < self.minV[i] or t[i] > self.maxV[i]:
-                t[i] = self.minV[i] + torch.rand(1).item() * (self.maxV[i] - self.minV[i])
-        return t
+    # def random_reset_constrain(self, t):
+    #     for i in range(len(t)):
+    #         if t[i] < self.minV[i] or t[i] > self.maxV[i]:
+    #             t[i] = self.minV[i] + XX.rand(1).item() * (self.maxV[i] - self.minV[i])
+    #     return t
 
     def constrain(self, t):
         return self.loop_boundary_constrain(t)
@@ -113,7 +111,7 @@ class PSO_optim(OptimBase):
     # 将速度限制在最大范围内
     def constrain_velocity(self, velocity):
         max_velocity = self.speed
-        return torch.clip(velocity, -max_velocity, max_velocity)
+        return np.clip(velocity, -max_velocity, max_velocity)
 
     # PSO algorithm
     def _algorithm(self, particle_vals, num_iterations):
@@ -176,38 +174,16 @@ class PSO_optim(OptimBase):
         for particle in psos:
             position = particle.position
             velocity = particle.velocity
-            data_item = torch.concat((position, velocity), dim=0)
+            data_item = np.concatenate((position, velocity), axis=0)
             records.append(data_item.tolist())
             
         Tools.save_params2df(records, columns, file_path, file_name)
-
-    # 使用此方法粒子数的数量必须是2^n
-    def spawn_uniform_particles(self):
-        """
-        使用Sobol序列生成在给定边界内均匀分布的点
-        :param num_points: 点的数量
-        :param bounds: 每个维度的边界，格式为 [(min_x, max_x), (min_y, max_y), (min_z, max_z)]
-        :return: numpy array of points
-        """
-        num_points = self.particle_num
-        dimension = self.parameters_num
-        bounds = np.array((self.minV, self.maxV)).transpose()
-
-        sampler = qmc.Sobol(d=dimension, scramble=True)
-        sample = sampler.random_base2(m=int(np.log2(num_points)))
-        scaled_sample = qmc.scale(sample, [b[0] for b in bounds], [b[1] for b in bounds])
-
-        return torch.tensor(scaled_sample)
-    
-    # 随机生成粒子数量
-    def spawn_random_particles(self):
-        return [torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
 
         # 进行优化
     def run(self):
         super(PSO_optim, self).run()
 
-        poses = self.spawn_random_particles()#[torch.tensor([random.random() * (self.maxV[j] - self.minV[j]) + self.minV[j] for j in range(self.parameters_num)]) for i in range(self.particle_num)]
+        poses = self.spawn_random_particles()
         # Running PSO
         iter_best_position = self._algorithm(poses, self.iteratons)
         fit_res = self.fitness(iter_best_position)

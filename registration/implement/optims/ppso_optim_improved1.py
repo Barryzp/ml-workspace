@@ -1,4 +1,3 @@
-import torch, math, random
 import numpy as np
 from utils.tools import Tools
 from optims.ppso_optim import PPSO_optim, Particle_PPSO

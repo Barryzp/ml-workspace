@@ -46,3 +46,11 @@ selected_numbers = np.random.choice(permuted_sequence, size=5, replace=False)
 
 print("Permuted sequence:", permuted_sequence)
 print("Selected numbers:", selected_numbers)
+
+# 测试代码
+
+minV = np.array([0, 0])
+maxV = np.array([10, 10])
+
+t2 = [np.random.uniform(minV, maxV) for i in range(5)]
+print(t2)
