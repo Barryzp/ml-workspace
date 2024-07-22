@@ -125,8 +125,9 @@ class PSO_optim(OptimBase):
         global_best_position = global_best_particle.best_position
         self.set_best(global_best_value, global_best_position)
 
-        for _ in range(num_iterations):
+        fes = 0
 
+        for _ in range(num_iterations):
             check = self.check_match_finished()
             if check : return global_best_position
 
@@ -140,6 +141,8 @@ class PSO_optim(OptimBase):
                     global_best_value = particle.best_value
                     global_best_position = particle.position
                     self.set_best(global_best_value, global_best_position)
+                self.recording_data_item_FEs(fes)
+                fes+=1
 
         # self.save_psos_parameters(particles, "end")
         return global_best_position

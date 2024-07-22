@@ -92,6 +92,7 @@ class PPSO_optim(PSO_optim):
         
         layers_num = len(self.layer_cfg)
 
+        fes = 0
         # 逻辑：排序，分层，选择，更新
         for _ in range(num_iterations):
             check = self.check_match_finished()
@@ -159,10 +160,11 @@ class PPSO_optim(PSO_optim):
                         upper_best = aim_upper_particles[index]
                         global_best = aim_top_particles[index]
                         winner.update_velocity_winner(upper_best.position, global_best.position, is_top_layer)
-                    
+                    fes += 2
                     # 比较粒子的最大适应值，然后保存
                     self.set_best(winner.best_value, winner.best_position) if winner.best_value > loser.best_value \
                     else self.set_best(loser.best_value, loser.best_position)
+                    self.recording_data_item_FEs(fes)
 
             # 这里需要注意了，PPSO使用的粒子的当前适应值来进行排序的，那么历史最优就不是当前的这个粒子的最优了
             self.recording_data_item(_)
