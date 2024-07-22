@@ -1,4 +1,4 @@
-import math, random
+import math
 from scipy.stats import qmc
 
 import numpy as np
@@ -16,12 +16,21 @@ class Particle:
         
         self.debug = False
         fit_res = pso_optim.fitness(x0)
-        self.best_value = fit_res[0]
+
+        if pso_optim.config.mode == "test":
+            self.best_value = fit_res
+        else: self.best_value = fit_res[0]
+        
         self.current_fitness = self.best_value
 
+    def uppack_fitness(self, fit_res):
+        if self.pso_optim.config.mode == "test":
+            return fit_res
+        else: return fit_res[0]
+
     def update_velocity(self, global_best_position):
-        r1 = random.random()
-        r2 = random.random()
+        r1 = np.random.rand()
+        r2 = np.random.rand()
         individual_w = self.pso_optim.individual_w
         global_w = self.pso_optim.global_w
         weight_inertia = self.pso_optim.weight_inertia
@@ -43,10 +52,10 @@ class Particle:
 
 
         fit_res = self.pso_optim.fitness(self.position)
-        value = fit_res[0]
+        value = self.uppack_fitness(fit_res)
 
         if value > self.best_value:
-            self.best_position = self.position.clone()
+            self.best_position = np.copy(self.position)
             self.best_value = value
 
 class OptimBase:
@@ -59,7 +68,11 @@ class OptimBase:
 
         self.current_iterations = 0
         self.config = config
+        # 用于保存迭代过程中寻找到的最优fitness
         self.records = []
+        # 用于保存评估过程中寻找到的最优fitness
+        self.records_fes = []
+
         # 随机生成的粒子的初始值
         self.particle_vals = []
 
@@ -67,43 +80,51 @@ class OptimBase:
         self.best_solution = None
         self.best_value = -10000
         self.best_result_per_iter = None
+        self.run_id = -1
 
         # 配准的相关结果
         self.best_match_img = None
-        # 设置初始位移以及旋转角度
-        self.init_translate = self.config.init_translate
-        self.translate_delta = self.config.translate_delta
-        
-        self.init_rotation = self.config.init_rotation
-        self.rotation_delta = self.config.rotation_delta
-        self.rot_z_delta = self.config.rot_z_delta
+
+        if self.config.mode != "test":
+            # 设置初始位移以及旋转角度
+            self.init_translate = self.config.init_translate
+            self.translate_delta = self.config.translate_delta
+
+            self.init_rotation = self.config.init_rotation
+            self.rotation_delta = self.config.rotation_delta
+            self.rot_z_delta = self.config.rot_z_delta
 
         # 设置匹配过程对应3d块的唯一索引
         if self.config.mode == "matched":
             self.matched_3dct_id = matched_3dct_id
 
+    # 用来区别每一次运行保存的值
+    def set_runid(self, run_id):
+        self.run_id = run_id
+
     def clear_datas(self):
         self.records = []
+        self.records_fes = []
 
     def set_best(self, value, solution):
         if value > self.best_value:
             self.best_value = value
-            self.best_solution = solution
+            self.best_solution = np.copy(solution)
 
     # 全局的数据
     def put_best_data_in_share(self, ct3d_index, position, fitness, best_slice):
         if self.config.mode != "matched": return
         if self.global_share_obj == None: return
 
-        pos_np = position.numpy()
+        pos_np = position
         pos_np = np.insert(pos_np, 0, best_slice)
         pos_np = np.insert(pos_np, 0, ct3d_index)
         pos_np = np.insert(pos_np, pos_np.size, fitness)
         self.global_share_obj.put_in_share_objects(pos_np.tolist())
 
-    def set_init_params(self, reg_similarity, reg_obj):
+    def set_init_params(self, fitness_fun, reg_obj):
         self.init_basic_params()
-        self.reg_similarity = reg_similarity
+        self.fitness_fun = fitness_fun
         if self.config.mode == "matched" : self.init_match_params(reg_obj)
     
     # 对于不同的ct块还不一样
@@ -211,12 +232,9 @@ class OptimBase:
         return 1 / (1 + np.exp(-k * (x - a)))
 
     def fitness(self, position):
-        sp_lambda = 1
-        if self.config.auto_lambda:
-            sp_lambda = self.auto_nonlinear_sp_lambda()
         if self.config.mode == "matched":
-            return self.reg_similarity(position, self.matched_3dct_id)
-        return self.reg_similarity(position)
+            return self.fitness_fun(position, self.matched_3dct_id)
+        return self.fitness_fun(position)
 
     # 保存迭代过程中的参数
     def save_iteration_params(self):
@@ -240,6 +258,39 @@ class OptimBase:
 
         Tools.save_params2df(self.records, columns, file_path, file_name)
 
+    # 保存迭代中的适应值以及最优解
+    def save_iteration_fitness_for_test_optim(self):
+        if len(self.records) == 0: return
+
+        file_path = Tools.get_save_path(self.config)
+        file_name = f"{self.config.record_id}_optim_iter_{self.run_id}.csv"
+        columns = ["iterations", "fitness"]
+        
+        # best solution 也需要保存一下
+        solution_item = self.best_solution.tolist()
+        solution_keys = [f"x_{i}" for i in range(len(solution_item))]
+        solution_file_name = f"{self.config.record_id}_solution_{self.run_id}.csv"
+        Tools.save_params2df([solution_item], solution_keys, file_path, solution_file_name)
+
+        Tools.save_params2df(self.records, columns, file_path, file_name)
+
+    # 保存评估中的适应值以及最优解
+    def save_iteration_fes_for_test_optim(self):
+        if len(self.records_fes) == 0: return
+
+        file_path = Tools.get_save_path(self.config)
+        file_name = f"{self.config.record_id}_optim_fes_{self.run_id}.csv"
+        columns = ["FEs", "fitness"]
+        
+        # best solution 也需要保存一下
+        solution_item = self.best_solution.tolist()
+        solution_keys = [f"x_{i}" for i in range(len(solution_item))]
+        solution_file_name = f"{self.config.record_id}_solution_{self.run_id}.csv"
+        Tools.save_params2df([solution_item], solution_keys, file_path, solution_file_name)
+
+        Tools.save_params2df(self.records_fes, columns, file_path, file_name)
+
+
     def save_iteration_best_reg_img(self, img_array, iterations):
         file_path = Tools.get_save_path(self.config)
         file_name = f"iter{iterations}_best_reg.bmp"
@@ -256,7 +307,7 @@ class OptimBase:
         mi_value = fit_res[-3]
         sp = fit_res[-2]
 
-        data_item = self.best_solution.numpy()
+        data_item = self.best_solution
         data_item = np.insert(data_item, 0, slice_index)
         data_item = np.insert(data_item, 0, iter)
         data_item = np.insert(data_item, data_item.size, global_best_val)
@@ -313,6 +364,53 @@ class OptimBase:
         self.run_matched(loop_times)
 
 
+    def recording_data_item(self, iterations):
+        if self.config.mode == "matched":
+            self.recording_data_item_for_reg(iterations)
+        elif self.config.mode == "test":
+            self.recording_data_item_for_std_optim(iterations)
+
+    def recording_data_item_for_std_optim(self, iterations):
+        cur_iter_best = self.best_value
+
+        print(f"iterations: {iterations}, fitness: {cur_iter_best}")
+
+        data_item = [iterations, cur_iter_best]
+        self.records.append(data_item)
+
+    # 记录当前
+    def recording_data_item_FEs(self, eval_times):
+        iter_best_position = self.best_solution
+        cur_iter_best = self.best_value
+
+        print(f"eval_times: {eval_times}, fitness: {cur_iter_best}")
+
+        data_item = [eval_times, cur_iter_best]
+        self.records_fes.append(data_item)
+        self.set_best(cur_iter_best, iter_best_position)
+
+    # 记录哪些数据：1. 迭代次数；2.当前迭代的全局最佳粒子；2.
+    def recording_data_item_for_reg(self, iterations):
+        # 记录当前迭代最佳粒子,global也需要记录一下        
+        iter_best_position = self.best_solution
+        fit_res = self.fitness(iter_best_position)
+
+        cur_iter_best = fit_res[0]
+        __ = fit_res[1]
+        data_item = iter_best_position
+
+        if self.config.mode == "matched":
+            z_index = fit_res[2]
+            data_item = np.insert(data_item, 0, z_index)
+            self.save_iteration_best_reg_img(__, iterations)
+            print(f"iterations: {iterations}, fitness: {cur_iter_best}, params: {iter_best_position}")
+            self.set_global_best_datas(cur_iter_best, iter_best_position, __, z_index, self.matched_3dct_id)
+
+        data_item = np.insert(data_item, 0, iterations)
+        data_item = np.insert(data_item, data_item.size, cur_iter_best)
+        self.records.append(data_item.tolist())
+
+
     # 使用此方法粒子数的数量必须是2^n
     def spawn_uniform_particles(self):
         """
@@ -339,6 +437,10 @@ class OptimBase:
         lower_bound = self.config.solution_bound_min
         upper_bound = self.config.solution_bound_max
         d = self.config.solution_dimension
+
+        self.minV = np.full(d, lower_bound)
+        self.maxV = np.full(d, upper_bound)
+
         self.particle_vals = [np.random.uniform(lower_bound, upper_bound, d) for i in range(self.particle_num)]
 
     # 具体算法，返回最优值
@@ -358,4 +460,8 @@ class OptimBase:
         self._spawn_particles()
         # 运行算法
         self._algorithm()
+        # 保存迭代中的fitness
+        self.save_iteration_fitness_for_test_optim()
+        # 保存FEs
+        self.save_iteration_fes_for_test_optim()
         return self.best_value, self.best_solution

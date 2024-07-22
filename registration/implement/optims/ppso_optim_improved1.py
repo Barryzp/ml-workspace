@@ -45,7 +45,9 @@ class Particle_PPSO1(Particle_PPSO):
 class PPSO_optim1(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
-    def _algorithm(self, particle_vals, num_iterations):
+    def _algorithm(self):
+        particle_vals = self.particle_vals
+        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
@@ -58,7 +60,7 @@ class PPSO_optim1(PPSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_, particles[0])
+            self.recording_data_item(_)
 
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
@@ -129,7 +131,9 @@ class PPSO_optim1(PPSO_optim):
 class PPSO_optim1_1(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
-    def _algorithm(self, particle_vals, num_iterations):
+    def _algorithm(self):
+        particle_vals = self.particle_vals
+        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
@@ -142,7 +146,7 @@ class PPSO_optim1_1(PPSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_, particles[0])
+            self.recording_data_item(_)
 
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
@@ -216,7 +220,9 @@ class PPSO_optim1_1(PPSO_optim):
 class PPSO_optim2(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
-    def _algorithm(self, particle_vals, num_iterations):
+    def _algorithm(self):
+        particle_vals = self.particle_vals
+        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
@@ -229,7 +235,7 @@ class PPSO_optim2(PPSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_, particles[0])
+            self.recording_data_item(_)
 
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
@@ -317,7 +323,9 @@ class Particle_PPSO3(Particle_PPSO):
 class PPSO_optim3(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
-    def _algorithm(self, particle_vals, num_iterations):
+    def _algorithm(self):
+        particle_vals = self.particle_vals
+        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO3(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
@@ -330,7 +338,7 @@ class PPSO_optim3(PPSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_, particles[0])
+            self.recording_data_item(_)
 
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了

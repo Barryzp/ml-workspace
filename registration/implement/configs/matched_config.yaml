@@ -1,5 +1,5 @@
 
-record_id : "matched-sample4-S2-1(ppso1)-3dct-pso-interval-8" # -fiter_bigsize
+record_id : "matched-sample4-S2-1(ppso2)-3dct-pso-interval-8" # -fiter_bigsize
 remark : "ppso1 4 s2"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 

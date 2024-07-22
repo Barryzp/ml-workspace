@@ -387,7 +387,8 @@ class Registration:
 
     def crop_slice_from_3dct_match(self, x, volume_index, volume, interpolation = "None"):
         ct_index_array = self.get_3dct_index_array(volume_index)
-        position = x.clone().numpy()
+        position = np.copy(x)
+
         translation = position[:3]
         rotation = position[3:]
 
@@ -420,7 +421,7 @@ class Registration:
 
     # 从ct图像中根据索引切片
     def crop_slice_from_3dct(self, x, volume, interpolation = "None"):
-        position = x.clone().numpy()
+        position = np.copy(x)
         translation = position[:3]
         rotation = position[3:]
 
@@ -603,8 +604,6 @@ class Registration:
             return self.similarity_3d(x)
         elif self.config.mode == "matched":
             return self.similarity_matched_dice(x, match3dct_idx)
-        elif self.config.mode == "test":
-            pass
 
     def save_matched_result(self, position):
         # 对于重采样的重新处理，旋转角度不需要操作的

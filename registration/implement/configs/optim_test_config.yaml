@@ -11,12 +11,14 @@ fun_id : "griewank"
 # 迭代次数
 iteratons : 100
 # 随机种子
-rand_seed : 10
+rand_seed : 45
 # 解的维度
 solution_dimension : 30
 # 解的区间
 solution_bound_min : -600
 solution_bound_max : 600
+# 最大化目标函数还是最小化
+target_max : False
 
 # 用来记录第几次覆盖
 repeat_count : 1

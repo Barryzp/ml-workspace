@@ -47,10 +47,14 @@ selected_numbers = np.random.choice(permuted_sequence, size=5, replace=False)
 print("Permuted sequence:", permuted_sequence)
 print("Selected numbers:", selected_numbers)
 
-# 测试代码
 
-minV = np.array([0, 0])
-maxV = np.array([10, 10])
+np.random.seed(42)
+# 生成一些随机数
+random_numbers_1 = np.random.rand(5)
+print("Random numbers 1:", random_numbers_1)
 
-t2 = [np.random.uniform(minV, maxV) for i in range(5)]
-print(t2)
+# 生成另外一些随机数
+random_numbers_2 = np.random.rand(5)
+print("Random numbers 2:", random_numbers_2)
+
+print(np.random.uniform(-1, 20, 2))

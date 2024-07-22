@@ -50,10 +50,10 @@ class Particle_PPSO(Particle):
 
     def fitness_check(self):
         fit_res = self.pso_optim.fitness(self.position)
-        value = fit_res[0]
+        value = self.uppack_fitness(fit_res)
         self.current_fitness = value
         if value > self.best_value:
-            self.best_position = self.position.clone()
+            self.best_position = np.copy(self.position)
             self.best_value = value
 
 # 定义PPSO类，之后再将其改进
@@ -81,32 +81,15 @@ class PPSO_optim(PSO_optim):
         sorted_objects_desc = particles[sorted_indices_desc]
         return sorted_objects_desc
 
-    # 记录哪些数据：1. 迭代次数；2.当前迭代的全局最佳粒子；2.
-    def recording_data_item(self, iterations, current_best_particle):
-        # 记录当前迭代最佳粒子,global也需要记录一下        
-        iter_best_position = current_best_particle.position
-        fit_res = self.fitness(iter_best_position)
-
-        cur_iter_best = fit_res[0]
-        __ = fit_res[1]
-        data_item = iter_best_position.numpy()
-
-        if self.config.mode == "matched":
-            z_index = fit_res[2]
-            data_item = np.insert(data_item, 0, z_index)
-            self.save_iteration_best_reg_img(__, iterations)
-            print(f"iterations: {iterations}, fitness: {cur_iter_best}, params: {iter_best_position}")
-            self.set_global_best_datas(cur_iter_best, iter_best_position, __, z_index, self.matched_3dct_id)
-
-        data_item = np.insert(data_item, 0, iterations)
-        data_item = np.insert(data_item, data_item.size, cur_iter_best)
-        self.records.append(data_item.tolist())
-        self.set_best(cur_iter_best, iter_best_position)
-
     # 核心算法逻辑
     # PSO algorithm
-    def _algorithm(self, particle_vals, num_iterations):
+    def _algorithm(self):
+        particle_vals = self.particle_vals
+        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO(particle_vals[i], self, i) for i in range(len(particle_vals))])
+        global_best_particle = max(particles, key=lambda p: p.best_value)
+        self.set_best(global_best_particle.best_value, global_best_particle.best_position)
+        
         layers_num = len(self.layer_cfg)
 
         # 逻辑：排序，分层，选择，更新
@@ -118,7 +101,6 @@ class PPSO_optim(PSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_, particles[0])
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
             # 配对：金字塔从底层开始往上面回溯
@@ -178,5 +160,12 @@ class PPSO_optim(PSO_optim):
                         global_best = aim_top_particles[index]
                         winner.update_velocity_winner(upper_best.position, global_best.position, is_top_layer)
                     
+                    # 比较粒子的最大适应值，然后保存
+                    self.set_best(winner.best_value, winner.best_position) if winner.best_value > loser.best_value \
+                    else self.set_best(loser.best_value, loser.best_position)
+
+            # 这里需要注意了，PPSO使用的粒子的当前适应值来进行排序的，那么历史最优就不是当前的这个粒子的最优了
+            self.recording_data_item(_)
+
         # self.save_psos_parameters(particles, "end")
         return self.best_solution

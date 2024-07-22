@@ -110,15 +110,20 @@ class PSO_optim(OptimBase):
 
     # 将速度限制在最大范围内
     def constrain_velocity(self, velocity):
+        if self.config.mode == "test" : return velocity
         max_velocity = self.speed
         return np.clip(velocity, -max_velocity, max_velocity)
 
     # PSO algorithm
-    def _algorithm(self, particle_vals, num_iterations):
+    def _algorithm(self):
+        particle_vals = self.particle_vals
+        num_iterations = self.config.iteratons
         particles = [Particle(particle_vals[i], self, i) for i in range(len(particle_vals))]
-        global_best_position = max(particles, key=lambda p: p.best_value).position.clone()
-        
+        global_best_particle = max(particles, key=lambda p: p.best_value)
         # self.save_psos_parameters(particles, "start")
+        global_best_value = global_best_particle.best_value
+        global_best_position = global_best_particle.best_position
+        self.set_best(global_best_value, global_best_position)
 
         for _ in range(num_iterations):
 
@@ -126,39 +131,15 @@ class PSO_optim(OptimBase):
             if check : return global_best_position
 
             self.current_iterations = _
-
-            fit_res = self.fitness(global_best_position)
-            global_best_val = fit_res[0]
-
-            __ = fit_res[1]
-            weighted_sp = fit_res[-1]
-            mi_value = fit_res[-3]
-            sp = fit_res[-2]
-
-            # HACK 调试专用
-            # if self.ct_matching_slice_index == 605 and _ % 5 == 0:
-            #     print("debug here...")
-
-            data_item = global_best_position.numpy()
-            local_best = global_best_val
-            if self.config.mode == "matched":
-                z_index = fit_res[2]
-                data_item = np.insert(data_item, 0, z_index)
-                self.save_iteration_best_reg_img(__, _)
-                print(f"iterations: {_}, fitness: {global_best_val}, params: {global_best_position}")
-                self.set_global_best_datas(global_best_val, global_best_position, __, z_index, self.matched_3dct_id)
-
-            data_item = np.insert(data_item, 0, _)
-            data_item = np.insert(data_item, data_item.size, global_best_val)
-            self.records.append(data_item.tolist())
+            self.recording_data_item(_)
 
             for particle in particles:
                 particle.update_velocity(global_best_position)
                 particle.move()
-                if particle.best_value > local_best:
-                    local_best = particle.best_value
-                    global_best_position = particle.best_position.clone()
-                    self.set_best(local_best, global_best_position)
+                if particle.best_value > global_best_value:
+                    global_best_value = particle.best_value
+                    global_best_position = particle.position
+                    self.set_best(global_best_value, global_best_position)
 
         # self.save_psos_parameters(particles, "end")
         return global_best_position
@@ -183,9 +164,9 @@ class PSO_optim(OptimBase):
     def run(self):
         super(PSO_optim, self).run()
 
-        poses = self.spawn_random_particles()
+        self.spawn_random_particles()
         # Running PSO
-        iter_best_position = self._algorithm(poses, self.iteratons)
+        iter_best_position = self._algorithm()
         fit_res = self.fitness(iter_best_position)
 
         val, best_regi_img, best_slice = fit_res[0], fit_res[1],fit_res[2]
