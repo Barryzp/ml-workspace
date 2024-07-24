@@ -6,57 +6,54 @@ from utils.tools import Tools
 
 # 粒子类也抽象一下，先不抽象，之后再说
 class Particle:
-    def __init__(self, x0, pso_optim, id):
+    def __init__(self, pso_optim, id):
         self.id = id
-        self.position = x0
+        self.debug = False
+
+        dim = len(pso_optim.minV)
+        position = np.random.uniform(pso_optim.minV, pso_optim.maxV)
+        self.position = position
         self.pso_optim = pso_optim
 
-        self.velocity = np.random.random(x0.shape)
-        self.best_position = np.copy(x0)
+        self.velocity = np.random.uniform(-1, 1, dim)
+        self.pbest_position = position.copy()
         
-        self.debug = False
-        fit_res = pso_optim.fitness(x0)
-
-        if pso_optim.config.mode == "test":
-            self.best_value = fit_res
-        else: self.best_value = fit_res[0]
-        
-        self.current_fitness = self.best_value
+        fit_res = pso_optim.fitness(position)
+        self.pbest_value = self.uppack_fitness(fit_res)
+        self.current_fitness = self.pbest_value
 
     def uppack_fitness(self, fit_res):
         if self.pso_optim.config.mode == "test":
             return fit_res
         else: return fit_res[0]
 
-    def update_velocity(self, global_best_position):
-        r1 = np.random.rand()
-        r2 = np.random.rand()
+    def update(self, global_best_position):
+        dim = self.pbest_position.shape[0]
+        r1 = np.random.rand(dim)
+        r2 = np.random.rand(dim)
         individual_w = self.pso_optim.individual_w
         global_w = self.pso_optim.global_w
         weight_inertia = self.pso_optim.weight_inertia
 
-        cog_delta = (self.best_position - self.position)
+        cog_delta = (self.pbest_position - self.position)
         cognitive_velocity = individual_w * r1 * cog_delta
-
 
         soc_delta = (global_best_position - self.position)
         social_velocity = global_w * r2 * soc_delta
         
         self.velocity = weight_inertia * self.velocity + cognitive_velocity + social_velocity
         self.velocity = self.pso_optim.constrain_velocity(self.velocity)
-
-    def move(self):
         self.position += self.velocity
-        # constrain the position in a range
         self.position = self.pso_optim.constrain(self.position)
 
-
+    def evaluate(self):
         fit_res = self.pso_optim.fitness(self.position)
         value = self.uppack_fitness(fit_res)
+        self.current_fitness = value
 
-        if value > self.best_value:
-            self.best_position = np.copy(self.position)
-            self.best_value = value
+        if value > self.pbest_value:
+            self.pbest_position = np.copy(self.position)
+            self.pbest_value = value
 
 class OptimBase:
 
@@ -72,9 +69,6 @@ class OptimBase:
         self.records = []
         # 用于保存评估过程中寻找到的最优fitness
         self.records_fes = []
-
-        # 随机生成的粒子的初始值
-        self.particle_vals = []
 
         # 最优解
         self.best_solution = None
@@ -262,15 +256,17 @@ class OptimBase:
     def save_iteration_fitness_for_test_optim(self):
         if len(self.records) == 0: return
 
+        method_name = self.__class__.__name__
+
         file_path = Tools.get_save_path(self.config)
-        file_name = f"{self.config.record_id}_optim_iter_{self.run_id}.csv"
+        file_name = f"{method_name}_iter_{self.run_id}.csv"
         columns = ["iterations", "fitness"]
         
         # best solution 也需要保存一下
         solution_item = self.best_solution.tolist()
         solution_keys = [f"x_{i}" for i in range(len(solution_item))]
-        solution_file_name = f"{self.config.record_id}_solution_{self.run_id}.csv"
-        Tools.save_params2df([solution_item], solution_keys, file_path, solution_file_name)
+        solution_file_name = f"{method_name}_solution_{self.run_id}.csv"
+        # Tools.save_params2df([solution_item], solution_keys, file_path, solution_file_name)
 
         Tools.save_params2df(self.records, columns, file_path, file_name)
 
@@ -278,15 +274,17 @@ class OptimBase:
     def save_iteration_fes_for_test_optim(self):
         if len(self.records_fes) == 0: return
 
+        method_name = self.__class__.__name__
+
         file_path = Tools.get_save_path(self.config)
-        file_name = f"{self.config.record_id}_optim_fes_{self.run_id}.csv"
+        file_name = f"{method_name}_fes_{self.run_id}.csv"
         columns = ["FEs", "fitness"]
         
         # best solution 也需要保存一下
         solution_item = self.best_solution.tolist()
         solution_keys = [f"x_{i}" for i in range(len(solution_item))]
-        solution_file_name = f"{self.config.record_id}_solution_{self.run_id}.csv"
-        Tools.save_params2df([solution_item], solution_keys, file_path, solution_file_name)
+        solution_file_name = f"{method_name}_solution_{self.run_id}.csv"
+        # Tools.save_params2df([solution_item], solution_keys, file_path, solution_file_name)
 
         Tools.save_params2df(self.records_fes, columns, file_path, file_name)
 
@@ -371,7 +369,7 @@ class OptimBase:
             self.recording_data_item_for_std_optim(iterations)
 
     def recording_data_item_for_std_optim(self, iterations):
-        cur_iter_best = self.best_value
+        cur_iter_best = abs(self.best_value)
 
         print(f"iterations: {iterations}, fitness: {cur_iter_best}")
 
@@ -380,14 +378,12 @@ class OptimBase:
 
     # 记录当前
     def recording_data_item_FEs(self, eval_times):
-        iter_best_position = self.best_solution
-        cur_iter_best = self.best_value
+        cur_iter_best = abs(self.best_value)
 
         print(f"eval_times: {eval_times}, fitness: {cur_iter_best}")
 
         data_item = [eval_times, cur_iter_best]
         self.records_fes.append(data_item)
-        self.set_best(cur_iter_best, iter_best_position)
 
     # 记录哪些数据：1. 迭代次数；2.当前迭代的全局最佳粒子；2.
     def recording_data_item_for_reg(self, iterations):
@@ -443,21 +439,21 @@ class OptimBase:
 
         self.particle_vals = [np.random.uniform(lower_bound, upper_bound, d) for i in range(self.particle_num)]
 
+    # 设置取值的区间范围
+    def _set_bound(self):
+        lower_bound = self.config.solution_bound_min
+        upper_bound = self.config.solution_bound_max
+        d = self.config.solution_dimension
+        self.minV = np.full(d, lower_bound)
+        self.maxV = np.full(d, upper_bound)
+
     # 具体算法，返回最优值
     def _algorithm(self):
         pass
 
-    # 生成随机粒子
-    def _spawn_particles(self):
-        if self.config.mode == "test":
-            self.spawn_random_particles_for_test_optim()
-        else:
-            self.spawn_random_particles()
-
     # 运行标准优化测试函数
     def run_std_optim(self):
-        # 随机生成粒子
-        self._spawn_particles()
+        self._set_bound()
         # 运行算法
         self._algorithm()
         # 保存迭代中的fitness

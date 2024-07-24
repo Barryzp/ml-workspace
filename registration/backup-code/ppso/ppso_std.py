@@ -229,7 +229,7 @@ def main():
 
     for run_index in range(runs):
         results[run_index], fitness, positions, best_fitness_history = ppso(layers, dimensions, lower_bound, upper_bound, max_fes, func_id)
-        print(f'{run_index + 1} : {results[run_index]:e}')
+        print(f'{run_index + 1} : {results[run_index]:e} : {positions}')
     
     print('\n\n====================\n\n')
     print(f'FID:{func_id} mean result: {np.mean(results):e}')

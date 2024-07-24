@@ -20,11 +20,8 @@ class OptimFunTest:
         optim.set_init_params(fitness_fun, self)
 
     # 非并行化的方法，单个粒子，原测试函数是一个张量进行计算的
-    # 此外这个基准函数目标是最小值，这个地方需要改一改
+    # 此外这个基准函数目标是最小值，这个地方需要改一改，基准函数没问题
     def griewank(x):
-        D = x.shape[0]
-        xs = x ** 2
-        sum_term = np.sum(xs) / 4000
-        prod_term = np.prod(np.cos(x / np.sqrt(np.arange(1, D+1))))
-        f = sum_term - prod_term + 1
-        return f
+        sum_sq = np.sum(x ** 2) / 4000
+        cos_product = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
+        return 1 + sum_sq - cos_product

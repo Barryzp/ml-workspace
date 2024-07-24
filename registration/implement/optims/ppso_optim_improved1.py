@@ -51,6 +51,7 @@ class PPSO_optim1(PPSO_optim):
         particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
+        fes = 0
         # 逻辑：排序，分层，选择，更新
         for _ in range(num_iterations):
             check = self.check_match_finished()
@@ -61,7 +62,8 @@ class PPSO_optim1(PPSO_optim):
             # 排序
             particles = self.sorted_particles(particles, True)
             self.recording_data_item(_)
-
+            self.recording_data_item_FEs(fes)
+            fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
@@ -137,6 +139,7 @@ class PPSO_optim1_1(PPSO_optim):
         particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
+        fes = 0
         # 逻辑：排序，分层，选择，更新
         for _ in range(num_iterations):
             check = self.check_match_finished()
@@ -147,7 +150,9 @@ class PPSO_optim1_1(PPSO_optim):
             # 排序
             particles = self.sorted_particles(particles, True)
             self.recording_data_item(_)
-
+            self.recording_data_item_FEs(fes)
+            fes += len(particles)
+            
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
@@ -226,6 +231,7 @@ class PPSO_optim2(PPSO_optim):
         particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
+        fes = 0
         # 逻辑：排序，分层，选择，更新
         for _ in range(num_iterations * 2):
             check = self.check_match_finished()
@@ -236,7 +242,8 @@ class PPSO_optim2(PPSO_optim):
             # 排序
             particles = self.sorted_particles(particles, True)
             self.recording_data_item(_)
-
+            self.recording_data_item_FEs(fes)
+            fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
@@ -329,6 +336,7 @@ class PPSO_optim3(PPSO_optim):
         particles = np.array([Particle_PPSO3(particle_vals[i], self, i) for i in range(len(particle_vals))])
         layers_num = len(self.layer_cfg)
 
+        fes = 0
         # 逻辑：排序，分层，选择，更新
         for _ in range(num_iterations * 2):
             check = self.check_match_finished()
@@ -339,7 +347,8 @@ class PPSO_optim3(PPSO_optim):
             # 排序
             particles = self.sorted_particles(particles, True)
             self.recording_data_item(_)
-
+            self.recording_data_item_FEs(fes)
+            fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组

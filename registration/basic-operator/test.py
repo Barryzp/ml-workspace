@@ -42,7 +42,7 @@ separator = 10  # 假设separator为10
 permuted_sequence = np.random.permutation(separator)
 
 # 从permuted_sequence中随机选择5个数，不放回
-selected_numbers = np.random.choice(permuted_sequence, size=5, replace=False)
+selected_numbers = np.random.choice(permuted_sequence, size=5, replace=True)
 
 print("Permuted sequence:", permuted_sequence)
 print("Selected numbers:", selected_numbers)
@@ -57,4 +57,4 @@ print("Random numbers 1:", random_numbers_1)
 random_numbers_2 = np.random.rand(5)
 print("Random numbers 2:", random_numbers_2)
 
-print(np.random.uniform(-1, 20, 2))
+print("rand min maxV", np.random.uniform([1, 1], [2, 2]))

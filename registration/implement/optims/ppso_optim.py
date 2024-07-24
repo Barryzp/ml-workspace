@@ -5,20 +5,22 @@ from optims.pso_optim import PSO_optim
 
 # Particle class
 class Particle_PPSO(Particle):
+
     # winner更新速度
     def update_velocity_winner(self, upper_best, global_best, is_top = False):
-        random_coeff1 = np.random.rand()
-        random_coeff2 = np.random.rand()
-        random_coeff3 = np.random.rand()
+        dim = self.position.shape[0]
+        random_coeff1 = np.random.rand(dim)
+        random_coeff2 = np.random.rand(dim)
+        random_coeff3 = np.random.rand(dim)
         
         updated_velocity = None
         updated_position = None
         # 非顶层更新速度
         if not is_top :
-            random_coeff4 = np.random.rand()   
+            random_coeff4 = np.random.rand(dim)   
             updated_velocity = (random_coeff1 * self.velocity +
                         random_coeff2 * (upper_best - self.position) +
-                        random_coeff3 * (self.best_position - self.position) +
+                        random_coeff3 * (self.pbest_position - self.position) +
                         self.pso_optim.phi * random_coeff4 * (global_best - self.position))
             updated_position = self.position + updated_velocity
         else:
@@ -31,12 +33,13 @@ class Particle_PPSO(Particle):
     
     # loser更新速度
     def update_velocity_loser(self, winner_pos):
-        random_coeff1 = np.random.rand()
-        random_coeff2 = np.random.rand()
-        random_coeff3 = np.random.rand()
+        dim = self.position.shape[0]
+        random_coeff1 = np.random.rand(dim)
+        random_coeff2 = np.random.rand(dim)
+        random_coeff3 = np.random.rand(dim)
         updated_loser_velocities = (random_coeff1 * self.velocity +
                                         random_coeff2 * (winner_pos - self.position) +
-                                        random_coeff3 * (self.best_position - self.position))
+                                        random_coeff3 * (self.pbest_position - self.position))
         updated_loser_positions = self.position + updated_loser_velocities
         self.velocity = updated_loser_velocities
         self.position = updated_loser_positions
@@ -46,15 +49,14 @@ class Particle_PPSO(Particle):
     def check(self):
         self.velocity = self.pso_optim.constrain_velocity(self.velocity)
         self.position = self.pso_optim.constrain(self.position)
-        self.fitness_check()
 
-    def fitness_check(self):
+    def evaluate(self):
         fit_res = self.pso_optim.fitness(self.position)
         value = self.uppack_fitness(fit_res)
         self.current_fitness = value
-        if value > self.best_value:
-            self.best_position = np.copy(self.position)
-            self.best_value = value
+        if value > self.pbest_value:
+            self.pbest_position = np.copy(self.position)
+            self.pbest_value = value
 
 # 定义PPSO类，之后再将其改进
 class PPSO_optim(PSO_optim):
@@ -84,11 +86,11 @@ class PPSO_optim(PSO_optim):
     # 核心算法逻辑
     # PSO algorithm
     def _algorithm(self):
-        particle_vals = self.particle_vals
+        particle_num = self.config.particle_num
         num_iterations = self.config.iteratons
-        particles = np.array([Particle_PPSO(particle_vals[i], self, i) for i in range(len(particle_vals))])
-        global_best_particle = max(particles, key=lambda p: p.best_value)
-        self.set_best(global_best_particle.best_value, global_best_particle.best_position)
+        particles = np.array([Particle_PPSO(self, i) for i in range(particle_num)])
+        global_best_particle = max(particles, key=lambda p: p.pbest_value)
+        self.set_best(global_best_particle.pbest_value, global_best_particle.pbest_position)
         
         layers_num = len(self.layer_cfg)
 
@@ -99,6 +101,11 @@ class PPSO_optim(PSO_optim):
             if check : return self.best_solution
 
             self.current_iterations = _
+
+            # 这里需要注意了，PPSO使用的粒子的当前适应值来进行排序的，那么历史最优就不是当前的这个粒子的最优了
+            self.recording_data_item(_)
+            self.recording_data_item_FEs(fes)
+            fes += len(particles)
 
             # 排序
             particles = self.sorted_particles(particles, True)
@@ -154,20 +161,17 @@ class PPSO_optim(PSO_optim):
                     loser = losers[index]
                     # 先更新loser
                     loser.update_velocity_loser(winner.position)
+                    loser.evaluate()
                     # winner根据情况更新
                     if is_top_layer : winner.update_velocity_winner(None, None, is_top_layer)
                     else:
                         upper_best = aim_upper_particles[index]
                         global_best = aim_top_particles[index]
                         winner.update_velocity_winner(upper_best.position, global_best.position, is_top_layer)
-                    fes += 2
+                    winner.evaluate()
                     # 比较粒子的最大适应值，然后保存
-                    self.set_best(winner.best_value, winner.best_position) if winner.best_value > loser.best_value \
-                    else self.set_best(loser.best_value, loser.best_position)
-                    self.recording_data_item_FEs(fes)
-
-            # 这里需要注意了，PPSO使用的粒子的当前适应值来进行排序的，那么历史最优就不是当前的这个粒子的最优了
-            self.recording_data_item(_)
+                    self.set_best(winner.pbest_value, winner.pbest_position) if winner.pbest_value > loser.pbest_value \
+                    else self.set_best(loser.pbest_value, loser.pbest_position)
 
         # self.save_psos_parameters(particles, "end")
         return self.best_solution

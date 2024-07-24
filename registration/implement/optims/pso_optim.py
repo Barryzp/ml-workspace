@@ -91,8 +91,11 @@ class PSO_optim(OptimBase):
     #             t[i] = self.minV[i] + XX.rand(1).item() * (self.maxV[i] - self.minV[i])
     #     return t
 
+    def force_clip_position(self, t):
+        return np.clip(t, self.minV, self.maxV)
+
     def constrain(self, t):
-        return self.loop_boundary_constrain(t)
+        return self.force_clip_position(t)
         # item_num = t.numel()
         # def judge(i):
         #     return t[i] < self.minV[i] or t[i] > self.maxV[i]
@@ -116,36 +119,35 @@ class PSO_optim(OptimBase):
 
     # PSO algorithm
     def _algorithm(self):
-        particle_vals = self.particle_vals
         num_iterations = self.config.iteratons
-        particles = [Particle(particle_vals[i], self, i) for i in range(len(particle_vals))]
-        global_best_particle = max(particles, key=lambda p: p.best_value)
-        # self.save_psos_parameters(particles, "start")
-        global_best_value = global_best_particle.best_value
-        global_best_position = global_best_particle.best_position
-        self.set_best(global_best_value, global_best_position)
+        particle_num = self.config.particle_num
+        particles = [Particle(self, i) for i in range(particle_num)]
+        gbest_particle = max(particles, key=lambda p: p.pbest_value)
+        gbest_value = gbest_particle.pbest_value
+        gbest_position = gbest_particle.pbest_position
+        self.set_best(gbest_value, gbest_position)
 
         fes = 0
 
         for _ in range(num_iterations):
             check = self.check_match_finished()
-            if check : return global_best_position
+            if check : return gbest_position
 
             self.current_iterations = _
             self.recording_data_item(_)
+            self.recording_data_item_FEs(fes)
+            fes+=len(particles)
 
             for particle in particles:
-                particle.update_velocity(global_best_position)
-                particle.move()
-                if particle.best_value > global_best_value:
-                    global_best_value = particle.best_value
-                    global_best_position = particle.position
-                    self.set_best(global_best_value, global_best_position)
-                self.recording_data_item_FEs(fes)
-                fes+=1
+                particle.update(gbest_position)
+                particle.evaluate()
+                if particle.pbest_value > gbest_value:
+                    gbest_value = particle.pbest_value
+                    gbest_position = particle.pbest_position
+                    self.set_best(gbest_value, gbest_position)
 
         # self.save_psos_parameters(particles, "end")
-        return global_best_position
+        return gbest_position
 
     # 保存pso的所有参数
     def save_psos_parameters(self, psos, prefix = ""):
