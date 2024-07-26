@@ -62,6 +62,7 @@ print("rand min maxV", np.random.uniform([1, 1], [2, 2]))
 arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
 print(arr[::3])
 
+num = 4.21231241521
 
-print(3 // 2)
+print(f"{num:.4e}")
 

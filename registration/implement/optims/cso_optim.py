@@ -5,15 +5,18 @@ from optims.ppso_optim import PPSO_optim
 
 # 顶层loser只向winner学习
 class Particle_CSO(Particle):
-    def update_velocity(self, winner_pos):
+    def update_velocity(self, winner_pos, swarm_mean_pos):
+        # 还有一项，那就是平均位置
         dim = self.pbest_position.shape[0]
         random_coeff1 = np.random.rand(dim)
         random_coeff2 = np.random.rand(dim)
         random_coeff3 = np.random.rand(dim)
+        random_coeff4 = np.random.rand(dim)
+        # 原始CSO并不需要个体最优
         updated_loser_velocities = (random_coeff1 * self.velocity +
                                         random_coeff2 * (winner_pos - self.position) +
-                                        random_coeff3 * (self.pbest_position - self.position))
-        
+                                        # random_coeff3 * (self.pbest_position - self.position) +
+                                        random_coeff4 * (swarm_mean_pos - self.position))
 
         updated_loser_positions = self.position + updated_loser_velocities
         self.velocity = updated_loser_velocities
@@ -58,11 +61,17 @@ class CSO_optim(PPSO_optim):
             losers = particles[loser_indeces]
             winners = particles[winner_indeces]
             
+            # 得到种群的平均位置
+            mean_pos = np.zeros((self.config.solution_dimension))
+            for particle in particles:
+                mean_pos += particle.position 
+            mean_pos = mean_pos / particle_num            
+
             # 更新粒子
             for index in range(separator):
                 winner = winners[index]
                 loser = losers[index]
-                loser.update_velocity(winner.position)
+                loser.update_velocity(winner.position, mean_pos)
                 loser.evaluate()
                 # 比较最大值
                 self.set_best(winner, loser)

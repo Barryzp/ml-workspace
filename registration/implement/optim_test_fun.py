@@ -97,7 +97,7 @@ class OptimFunTest:
             "fes" : fes
         }
         if self.config.show_log:
-            print(f"{optim_method}, {fun_id}, mean: {mean_best_fit}, std: {std_best_fit}")
+            print(f"{optim_method}, {fun_id}, mean: {mean_best_fit:.4e}, std: {std_best_fit:.4e}")
         return data_dict
 
     def read_optims_fitness_FEs(self, methods_name):
