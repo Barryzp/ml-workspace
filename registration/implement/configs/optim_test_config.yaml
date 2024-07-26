@@ -12,15 +12,12 @@ show_log : True
 fun_id : "griewank"
 # 测试函数集
 fun_ids : ["griewank"]
-
-# 这个测试函数的配置应该是这样：
-# {name: "xx", min_bound: x, max_bound: x, best_fit:,}
-
-# 测试函数的目标值
-fun_best : [0.0]
-# 解的区间
-solution_bound_min : -600
-solution_bound_max : 600
+# 测试函数配置
+fun_configs : {
+  griewank : {
+      min_bound: -600, max_bound: 600, best_fit: 0.0
+      }
+  } 
 
 # 独立运行次数
 run_times : 10
@@ -66,7 +63,6 @@ phi : 0.008
 #         phi = 0.02
 #     else:
 #         phi = 0.008
-
 
 # 图像绘制标记
 markers : ['o', 'v', '^', '<', '>', '1', '2', '3', '4', 

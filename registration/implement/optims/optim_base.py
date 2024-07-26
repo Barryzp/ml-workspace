@@ -119,6 +119,7 @@ class OptimBase:
     def set_init_params(self, fitness_fun, reg_obj, fun_id = None):
         self.init_basic_params()
         self.fun_id = fun_id
+
         self.fitness_fun = fitness_fun
         if self.config.mode == "matched" : self.init_match_params(reg_obj)
     
@@ -432,8 +433,10 @@ class OptimBase:
         self.particle_vals = [np.random.uniform(self.minV, self.maxV) for i in range(self.particle_num)]
 
     def spawn_random_particles_for_test_optim(self):
-        lower_bound = self.config.solution_bound_min
-        upper_bound = self.config.solution_bound_max
+        test_fun_cfg = self.config.fun_configs[self.fun_id]
+        lower_bound = test_fun_cfg.min_bound
+        upper_bound = test_fun_cfg.max_bound
+
         d = self.config.solution_dimension
 
         self.minV = np.full(d, lower_bound)
@@ -443,8 +446,9 @@ class OptimBase:
 
     # 设置取值的区间范围
     def _set_bound(self):
-        lower_bound = self.config.solution_bound_min
-        upper_bound = self.config.solution_bound_max
+        test_fun_cfg = self.config.fun_configs[self.fun_id]
+        lower_bound = test_fun_cfg.min_bound
+        upper_bound = test_fun_cfg.max_bound
         d = self.config.solution_dimension
         self.minV = np.full(d, lower_bound)
         self.maxV = np.full(d, upper_bound)
