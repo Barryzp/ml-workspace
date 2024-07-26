@@ -6,24 +6,24 @@ from utils.tools import Tools
 
 # 粒子类也抽象一下，先不抽象，之后再说
 class Particle:
-    def __init__(self, pso_optim, id):
+    def __init__(self, optim, id):
         self.id = id
         self.debug = False
 
-        dim = len(pso_optim.minV)
-        position = np.random.uniform(pso_optim.minV, pso_optim.maxV)
+        dim = len(optim.minV)
+        position = np.random.uniform(optim.minV, optim.maxV)
         self.position = position
-        self.pso_optim = pso_optim
+        self.optim = optim
 
         self.velocity = np.random.uniform(-1, 1, dim)
         self.pbest_position = position.copy()
         
-        fit_res = pso_optim.fitness(position)
+        fit_res = optim.fitness(position)
         self.pbest_value = self.uppack_fitness(fit_res)
         self.current_fitness = self.pbest_value
 
     def uppack_fitness(self, fit_res):
-        if self.pso_optim.config.mode == "test":
+        if self.optim.config.mode == "test":
             return fit_res
         else: return fit_res[0]
 
@@ -31,9 +31,9 @@ class Particle:
         dim = self.pbest_position.shape[0]
         r1 = np.random.rand(dim)
         r2 = np.random.rand(dim)
-        individual_w = self.pso_optim.individual_w
-        global_w = self.pso_optim.global_w
-        weight_inertia = self.pso_optim.weight_inertia
+        individual_w = self.optim.individual_w
+        global_w = self.optim.global_w
+        weight_inertia = self.optim.weight_inertia
 
         cog_delta = (self.pbest_position - self.position)
         cognitive_velocity = individual_w * r1 * cog_delta
@@ -42,12 +42,12 @@ class Particle:
         social_velocity = global_w * r2 * soc_delta
         
         self.velocity = weight_inertia * self.velocity + cognitive_velocity + social_velocity
-        self.velocity = self.pso_optim.constrain_velocity(self.velocity)
+        self.velocity = self.optim.constrain_velocity(self.velocity)
         self.position += self.velocity
-        self.position = self.pso_optim.constrain(self.position)
+        self.position = self.optim.constrain(self.position)
 
     def evaluate(self):
-        fit_res = self.pso_optim.fitness(self.position)
+        fit_res = self.optim.fitness(self.position)
         value = self.uppack_fitness(fit_res)
         self.current_fitness = value
 
