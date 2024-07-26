@@ -434,8 +434,8 @@ class OptimBase:
 
     def spawn_random_particles_for_test_optim(self):
         test_fun_cfg = self.config.fun_configs[self.fun_id]
-        lower_bound = test_fun_cfg.min_bound
-        upper_bound = test_fun_cfg.max_bound
+        lower_bound = test_fun_cfg["min_bound"]
+        upper_bound = test_fun_cfg["max_bound"]
 
         d = self.config.solution_dimension
 
@@ -447,8 +447,8 @@ class OptimBase:
     # 设置取值的区间范围
     def _set_bound(self):
         test_fun_cfg = self.config.fun_configs[self.fun_id]
-        lower_bound = test_fun_cfg.min_bound
-        upper_bound = test_fun_cfg.max_bound
+        lower_bound = test_fun_cfg["min_bound"]
+        upper_bound = test_fun_cfg["max_bound"]
         d = self.config.solution_dimension
         self.minV = np.full(d, lower_bound)
         self.maxV = np.full(d, upper_bound)

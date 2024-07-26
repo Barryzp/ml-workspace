@@ -20,7 +20,7 @@ fun_configs : {
   } 
 
 # 独立运行次数
-run_times : 10
+run_times : 30
 # 迭代次数
 iteratons : 4687
 # 随机种子

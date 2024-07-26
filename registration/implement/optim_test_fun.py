@@ -53,6 +53,8 @@ class OptimFunTest:
 
     # 测试所有的优化函数和优化算法
     def test_all_optims_funs(self, optim_classes):
+        # HACK 把打印开关关一下，不然一直出现记录会导致崩溃
+        self.config.show_log = False
         for optim in optim_classes:
             self._test_optim_funs(optim)
 
@@ -86,10 +88,12 @@ class OptimFunTest:
         mean_best_fit = np.mean(iter_best)
         std_best_fit = np.std(iter_best)
         med = np.median(np_arr, axis=0)
+        mean_fes = np.mean(np_arr, axis=0)
         data_dict = {
             "mean_best" : mean_best_fit, 
             "std_best_fit" : std_best_fit, 
-            "median_fes" : med, 
+            "median_fes" : med,
+            "mean_fes" : mean_fes, 
             "fes" : fes
         }
         if self.config.show_log:
@@ -109,8 +113,8 @@ class OptimFunTest:
             data_dict.setdefault(method_name, item1)
         return data_dict
 
-    # 展示收敛曲线，这个total_mark代表的是显示多少个mark，在折线上
-    def show_convergence_line(self, data_dict, methods_name, fun_id, total_mark = None):
+    # 展示收敛曲线，这个total_mark代表的是显示多少个mark，在折线上（展示的是中位数）
+    def show_median_convergence_line(self, data_dict, methods_name, fun_id, total_mark = None):
         step = 1
         
         total_fes = self.config.iteratons
@@ -128,8 +132,34 @@ class OptimFunTest:
             plt.plot(fes, median, label=method_name,
                      color=self.config.colors[j], marker=self.config.markers[j])
             j+=1
-        plt.xlabel('Fes')
-        # plt.ylabel('Fitness')
+        plt.xlabel('FEs')
+        plt.ylabel('f(x)-f(x*)')
         plt.legend()
         # 显示图像
         plt.show()
+
+    # 展示收敛曲线，这个total_mark代表的是显示多少个mark，在折线上（展示的是均值），纵轴上是以log10的对数
+    def show_mean_convergence_line(self, data_dict, methods_name, fun_id, total_mark = None):
+            step = 1
+
+            fun_config = self.config.fun_configs[fun_id]
+            total_fes = self.config.iteratons
+            if total_mark != None:
+                step = total_fes // total_mark
+
+            j = 0
+            for method_name in methods_name:
+                optim_item = data_dict[method_name]
+                data_item = optim_item[fun_id]
+                mean = data_item["mean_fes"]
+                mean = np.log10(mean[::step] - fun_config["best_fit"])
+                fes = data_item["fes"]
+                fes = fes[::step]
+                plt.plot(fes, mean, label=method_name,
+                         color=self.config.colors[j], marker=self.config.markers[j])
+                j+=1
+            plt.xlabel('FEs')
+            plt.ylabel('f(x)-f(x*)log10')
+            plt.legend()
+            # 显示图像
+            plt.show()
