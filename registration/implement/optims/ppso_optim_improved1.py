@@ -7,15 +7,18 @@ class Particle_PPSO1(Particle_PPSO):
 
     # winner更新速度, 只需要upper_best
     def update_velocity_winner(self, upper_best, is_top = False):
-        random_coeff1 = np.random.rand()
-        random_coeff2 = np.random.rand()
-        random_coeff3 = np.random.rand()
+        dim = self.position.shape[0]
+        random_coeff1 = np.random.rand(dim)
+        random_coeff2 = np.random.rand(dim)
+        random_coeff3 = np.random.rand(dim)
         
         updated_velocity = None
         updated_position = None
         # 非顶层更新速度
         if not is_top :
-            updated_velocity = random_coeff1 * self.velocity + random_coeff2 * (upper_best - self.position) + random_coeff3 * (self.best_position - self.position)
+            updated_velocity = random_coeff1 * self.velocity + \
+            random_coeff2 * (upper_best - self.position) + \
+            random_coeff3 * (self.pbest_position - self.position)
             updated_position = self.position + updated_velocity
         else:
             # 顶层不更新
@@ -23,22 +26,21 @@ class Particle_PPSO1(Particle_PPSO):
             updated_position = self.position
         self.position = updated_position
         self.velocity = updated_velocity
-        self.check()
 
     # loser更新速度，loser不仅朝着winner学，还朝着上层的winner学
     def update_velocity_loser(self, winner_pos, upper_pos):
-        random_coeff1 = np.random.rand()
-        random_coeff2 = np.random.rand()
-        random_coeff3 = np.random.rand()
-        random_coeff4 = np.random.rand()
+        dim = self.position.shape[0]
+        random_coeff1 = np.random.rand(dim)
+        random_coeff2 = np.random.rand(dim)
+        random_coeff3 = np.random.rand(dim)
+        random_coeff4 = np.random.rand(dim)
         updated_loser_velocities = (random_coeff1 * self.velocity +
                                         random_coeff2 * (winner_pos - self.position) +
-                                        random_coeff3 * (self.best_position - self.position) +
+                                        random_coeff3 * (self.pbest_position - self.position) +
                                         random_coeff4 * (upper_pos - self.position))
         updated_loser_positions = self.position + updated_loser_velocities
         self.velocity = updated_loser_velocities
         self.position = updated_loser_positions
-        self.check()
 
 
 # 定义PPSO类，之后再将其改进，改进方案，loser和winner都往上层学习
@@ -46,9 +48,12 @@ class PPSO_optim1(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
     def _algorithm(self):
-        particle_vals = self.particle_vals
+        particle_num = self.config.particle_num
         num_iterations = self.config.iteratons
-        particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
+        particles = np.array([Particle_PPSO1(self, i) for i in range(particle_num)])
+        gbest_particle = max(particles, key=lambda p: p.pbest_value)
+        self.set_best(gbest_particle, gbest_particle)
+        
         layers_num = len(self.layer_cfg)
 
         fes = 0
@@ -124,19 +129,24 @@ class PPSO_optim1(PPSO_optim):
                         upper_best_loser = upper_particles_loser[index]
                         loser.update_velocity_loser(winner.position, upper_best_loser.position)
                         winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
-                    
+                    loser.evaluate()
+                    winner.evaluate()
+                    self.set_best(winner, loser)
+
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
 
 
-# 定义PPSO类，之后再将其改进，改进方案，loser和winner都往上层学习，但是只往上层学习，这样如何
+# 定义PPSO类，在PPSO_optim1基础上再将其改进，改进方案，loser和winner都往上层学习，但是只往上层学习，其他层不参与
 class PPSO_optim1_1(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
     def _algorithm(self):
-        particle_vals = self.particle_vals
+        particle_num = self.config.particle_num
         num_iterations = self.config.iteratons
-        particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
+        particles = np.array([Particle_PPSO1(self, i) for i in range(particle_num)])
+        gbest_particle = max(particles, key=lambda p: p.pbest_value)
+        self.set_best(gbest_particle, gbest_particle)
         layers_num = len(self.layer_cfg)
 
         fes = 0
@@ -215,10 +225,11 @@ class PPSO_optim1_1(PPSO_optim):
                         upper_best_loser = upper_particles_loser[index]
                         loser.update_velocity_loser(winner.position, upper_best_loser.position)
                         winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
-                    
+                    loser.evaluate()
+                    winner.evaluate()
+                    self.set_best(winner, loser)
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
-
 
 
 # loser不学习， winner学习，winner朝着上方学习，顶层winner不动
@@ -226,9 +237,11 @@ class PPSO_optim2(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
     def _algorithm(self):
-        particle_vals = self.particle_vals
+        particle_num = self.config.particle_num
         num_iterations = self.config.iteratons
-        particles = np.array([Particle_PPSO1(particle_vals[i], self, i) for i in range(len(particle_vals))])
+        particles = np.array([Particle_PPSO1(self, i) for i in range(particle_num)])
+        gbest_particle = max(particles, key=lambda p: p.pbest_value)
+        self.set_best(gbest_particle, gbest_particle)
         layers_num = len(self.layer_cfg)
 
         fes = 0
@@ -241,8 +254,11 @@ class PPSO_optim2(PPSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_)
-            self.recording_data_item_FEs(fes)
+
+            if _ % 2 == 1 :
+                self.recording_data_item(_//2)
+                self.recording_data_item_FEs(fes//2)
+
             fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
@@ -304,36 +320,40 @@ class PPSO_optim2(PPSO_optim):
                         global_best = aim_top_particles[index]
                         # loser.update_velocity_loser(upper_best_loser.position, global_best.position)
                         winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
-                    
+                    loser.evaluate()
+                    winner.evaluate()
+                    self.set_best(winner, loser)
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
 
-# 顶层loser只像winner学习
+# 顶层loser只向winner学习
 class Particle_PPSO3(Particle_PPSO):
     def update_velocity_loser(self, winner_pos, upper_pos):
-        random_coeff1 = np.random.rand()
-        random_coeff2 = np.random.rand()
-        random_coeff3 = np.random.rand()
-        random_coeff4 = np.random.rand()
+        dim = self.pbest_position.shape[0]
+        random_coeff1 = np.random.rand(dim)
+        random_coeff2 = np.random.rand(dim)
+        random_coeff3 = np.random.rand(dim)
+        random_coeff4 = np.random.rand(dim)
         updated_loser_velocities = (random_coeff1 * self.velocity +
                                         random_coeff2 * (winner_pos - self.position) +
-                                        random_coeff3 * (self.best_position - self.position))
+                                        random_coeff3 * (self.pbest_position - self.position))
         
         if upper_pos is not None : updated_loser_velocities = updated_loser_velocities + random_coeff4 * (upper_pos - self.position)
 
         updated_loser_positions = self.position + updated_loser_velocities
         self.velocity = updated_loser_velocities
         self.position = updated_loser_positions
-        self.check()
 
 # loser学习， winner不学习，loser朝上方学习
 class PPSO_optim3(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
     def _algorithm(self):
-        particle_vals = self.particle_vals
+        particle_num = self.config.particle_num
         num_iterations = self.config.iteratons
-        particles = np.array([Particle_PPSO3(particle_vals[i], self, i) for i in range(len(particle_vals))])
+        particles = np.array([Particle_PPSO3(self, i) for i in range(particle_num)])
+        gbest_particle = max(particles, key=lambda p: p.pbest_value)
+        self.set_best(gbest_particle, gbest_particle)
         layers_num = len(self.layer_cfg)
 
         fes = 0
@@ -346,8 +366,12 @@ class PPSO_optim3(PPSO_optim):
 
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_)
-            self.recording_data_item_FEs(fes)
+            
+            # 主要是和其它算法比较这个少了一次的更新
+            if _ % 2 == 1 :
+                self.recording_data_item(_//2)
+                self.recording_data_item_FEs(fes//2)
+            
             fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
@@ -409,6 +433,8 @@ class PPSO_optim3(PPSO_optim):
                         global_best = aim_top_particles[index]
                         loser.update_velocity_loser(winner.position, upper_best_loser.position)
                         # winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
-                    
+                    loser.evaluate()
+                    winner.evaluate()
+                    self.set_best(winner, loser)
         # self.save_psos_parameters(particles, "end")
         return self.best_solution

@@ -58,3 +58,10 @@ random_numbers_2 = np.random.rand(5)
 print("Random numbers 2:", random_numbers_2)
 
 print("rand min maxV", np.random.uniform([1, 1], [2, 2]))
+
+arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+print(arr[::3])
+
+
+print(3 // 2)
+

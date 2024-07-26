@@ -6,19 +6,30 @@ remark : "ppso1 4 s2"
 data_save_path : "D:/workspace/ml-workspace/registration/result/optim"
 mode : "test"
 
+show_log : True
+
+# 测试函数
 fun_id : "griewank"
+# 测试函数集
+fun_ids : ["griewank"]
+
+# 这个测试函数的配置应该是这样：
+# {name: "xx", min_bound: x, max_bound: x, best_fit:,}
+
+# 测试函数的目标值
+fun_best : [0.0]
+# 解的区间
+solution_bound_min : -600
+solution_bound_max : 600
 
 # 独立运行次数
-run_times : 1
+run_times : 10
 # 迭代次数
 iteratons : 4687
 # 随机种子
 rand_seed : 45
 # 解的维度
 solution_dimension : 30
-# 解的区间
-solution_bound_min : -600
-solution_bound_max : 600
 # 最大化目标函数还是最小化
 target_max : False
 

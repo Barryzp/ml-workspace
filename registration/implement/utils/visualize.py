@@ -104,7 +104,6 @@ class VisualizeData:
         if x_label is not None : plt.xlabel('Particle Size')
         if y_label is not None : plt.ylabel('Frequency')
 
-
     # delta代表在多大范围内进行的， interval代表的是步长
     def spawn_datas(self, delta, interval, csv_prefix = "visualize_data"):
         x_delta, y_delta = delta[0], delta[1]
@@ -161,6 +160,7 @@ class VisualizeData:
 
         # azimuth = 45  # 方位角，水平旋转的度数
         # elevation = 45  # 仰角，垂直旋转的度数
+    
     def show_datas(self, key, azimuth=45, elevation=45):
         x = self.mi_datas['x']
         y = self.mi_datas['y']
@@ -184,3 +184,4 @@ class VisualizeData:
         ax.view_init(elev=elevation, azim=azimuth)
 
         plt.show()
+

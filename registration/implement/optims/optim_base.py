@@ -116,8 +116,9 @@ class OptimBase:
         pos_np = np.insert(pos_np, pos_np.size, fitness)
         self.global_share_obj.put_in_share_objects(pos_np.tolist())
 
-    def set_init_params(self, fitness_fun, reg_obj):
+    def set_init_params(self, fitness_fun, reg_obj, fun_id = None):
         self.init_basic_params()
+        self.fun_id = fun_id
         self.fitness_fun = fitness_fun
         if self.config.mode == "matched" : self.init_match_params(reg_obj)
     
@@ -258,7 +259,7 @@ class OptimBase:
 
         method_name = self.__class__.__name__
 
-        file_path = Tools.get_save_path(self.config)
+        file_path = f"{Tools.get_save_path(self.config)}/{self.fun_id}"
         file_name = f"{method_name}_iter_{self.run_id}.csv"
         columns = ["iterations", "fitness"]
         
@@ -276,7 +277,7 @@ class OptimBase:
 
         method_name = self.__class__.__name__
 
-        file_path = Tools.get_save_path(self.config)
+        file_path = f"{Tools.get_save_path(self.config)}/{self.fun_id}"
         file_name = f"{method_name}_fes_{self.run_id}.csv"
         columns = ["FEs", "fitness"]
         
@@ -369,6 +370,7 @@ class OptimBase:
             self.recording_data_item_for_std_optim(iterations)
 
     def recording_data_item_for_std_optim(self, iterations):
+        # 不保存迭代次数了，没意思
         cur_iter_best = abs(self.best_value)
 
         print(f"iterations: {iterations}, fitness: {cur_iter_best}")
@@ -457,7 +459,7 @@ class OptimBase:
         # 运行算法
         self._algorithm()
         # 保存迭代中的fitness
-        self.save_iteration_fitness_for_test_optim()
+        # self.save_iteration_fitness_for_test_optim()
         # 保存FEs
         self.save_iteration_fes_for_test_optim()
         return self.best_value, self.best_solution

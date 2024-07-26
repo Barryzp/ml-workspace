@@ -89,8 +89,8 @@ class PPSO_optim(PSO_optim):
         particle_num = self.config.particle_num
         num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO(self, i) for i in range(particle_num)])
-        global_best_particle = max(particles, key=lambda p: p.pbest_value)
-        self.set_best(global_best_particle.pbest_value, global_best_particle.pbest_position)
+        gbest_particle = max(particles, key=lambda p: p.pbest_value)
+        super().set_best(gbest_particle.pbest_value, gbest_particle.pbest_position)
         
         layers_num = len(self.layer_cfg)
 
@@ -170,8 +170,13 @@ class PPSO_optim(PSO_optim):
                         winner.update_velocity_winner(upper_best.position, global_best.position, is_top_layer)
                     winner.evaluate()
                     # 比较粒子的最大适应值，然后保存
-                    self.set_best(winner.pbest_value, winner.pbest_position) if winner.pbest_value > loser.pbest_value \
-                    else self.set_best(loser.pbest_value, loser.pbest_position)
+                    self.set_best(winner, loser)
 
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
+
+    def set_best(self, winner, loser):
+        if winner.pbest_value > loser.pbest_value:
+            super().set_best(winner.pbest_value, winner.pbest_position)
+        else:
+            super().set_best(loser.pbest_value, loser.pbest_position)
