@@ -61,8 +61,10 @@ class OptimFunTest:
 
     def cec2013_fitness(self, optim, fun_id):
         fitness_coeff = 1 if self.config.target_max else -1
+        best_fitness = self.config.fun_configs["cec2013"][fun_id]["best_fit"]
+
         def fitness_fun(x):
-            return fitness_coeff * self.cec2013.Y(x, fun_id)
+            return fitness_coeff * (self.cec2013.Y(x, fun_id) - best_fitness)
         optim.set_init_params(fitness_fun, self, fun_id)
 
     # 设置适应值评估函数，根据optim的配置中的funid来
@@ -105,8 +107,6 @@ class OptimFunTest:
 
     # 测试所有的优化函数和优化算法
     def test_all_optims_funs(self, optim_classes):
-        # HACK 把打印开关关一下，不然一直出现记录会导致崩溃
-        self.config.show_log = False
         for optim in optim_classes:
             self._test_optim_funs(optim)
 

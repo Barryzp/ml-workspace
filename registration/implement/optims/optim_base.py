@@ -371,8 +371,10 @@ class OptimBase:
             self.recording_data_item_for_std_optim(iterations)
 
     def recording_data_item_for_std_optim(self, iterations):
+        # HACK 能够绝对值化的前提在于已经平移到原点了
+
         # 不保存迭代次数了，没意思
-        cur_iter_best = self.best_value
+        cur_iter_best = abs(self.best_value)
 
         if iterations % 50 == 0:
             print(f"iterations: {iterations}, fitness: {cur_iter_best}")
@@ -382,7 +384,7 @@ class OptimBase:
 
     # 记录当前
     def recording_data_item_FEs(self, eval_times):
-        cur_iter_best = self.best_value
+        cur_iter_best = abs(self.best_value)
 
         if eval_times % 5000 == 0:
             print(f"eval_times: {eval_times}, fitness: {cur_iter_best}")
