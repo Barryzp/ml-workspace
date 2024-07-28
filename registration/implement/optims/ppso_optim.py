@@ -21,7 +21,7 @@ class Particle_PPSO(Particle):
             updated_velocity = (random_coeff1 * self.velocity +
                         random_coeff2 * (upper_best - self.position) +
                         random_coeff3 * (self.pbest_position - self.position) +
-                        self.pso_optim.phi * random_coeff4 * (global_best - self.position))
+                        self.optim.phi * random_coeff4 * (global_best - self.position))
             updated_position = self.position + updated_velocity
         else:
             # 顶层不更新
@@ -47,11 +47,11 @@ class Particle_PPSO(Particle):
 
     # 检查速度和position是否在范围内
     def check(self):
-        self.velocity = self.pso_optim.constrain_velocity(self.velocity)
-        self.position = self.pso_optim.constrain(self.position)
+        self.velocity = self.optim.constrain_velocity(self.velocity)
+        self.position = self.optim.constrain(self.position)
 
     def evaluate(self):
-        fit_res = self.pso_optim.fitness(self.position)
+        fit_res = self.optim.fitness(self.position)
         value = self.uppack_fitness(fit_res)
         self.current_fitness = value
         if value > self.pbest_value:

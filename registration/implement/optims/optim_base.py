@@ -72,7 +72,7 @@ class OptimBase:
 
         # 最优解
         self.best_solution = None
-        self.best_value = -10000
+        self.best_value = -np.inf
         self.best_result_per_iter = None
         self.run_id = -1
 
@@ -372,18 +372,20 @@ class OptimBase:
 
     def recording_data_item_for_std_optim(self, iterations):
         # 不保存迭代次数了，没意思
-        cur_iter_best = abs(self.best_value)
+        cur_iter_best = self.best_value
 
-        print(f"iterations: {iterations}, fitness: {cur_iter_best}")
+        if iterations % 50 == 0:
+            print(f"iterations: {iterations}, fitness: {cur_iter_best}")
 
         data_item = [iterations, cur_iter_best]
         self.records.append(data_item)
 
     # 记录当前
     def recording_data_item_FEs(self, eval_times):
-        cur_iter_best = abs(self.best_value)
+        cur_iter_best = self.best_value
 
-        print(f"eval_times: {eval_times}, fitness: {cur_iter_best}")
+        if eval_times % 5000 == 0:
+            print(f"eval_times: {eval_times}, fitness: {cur_iter_best}")
 
         data_item = [eval_times, cur_iter_best]
         self.records_fes.append(data_item)
@@ -446,7 +448,10 @@ class OptimBase:
 
     # 设置取值的区间范围
     def _set_bound(self):
-        test_fun_cfg = self.config.fun_configs[self.fun_id]
+        if self.config.test_type == "normal":
+            test_fun_cfg = self.config.fun_configs[self.fun_id]
+        elif self.config.test_type == "cec2013":
+            test_fun_cfg = self.config.fun_configs["cec2013"][self.fun_id]
         lower_bound = test_fun_cfg["min_bound"]
         upper_bound = test_fun_cfg["max_bound"]
         d = self.config.solution_dimension

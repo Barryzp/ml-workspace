@@ -1,24 +1,76 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from cec2013.cec2013 import CEC_functions
+
+class Test_Fun:
+    # 非并行化的方法，单个粒子，原测试函数是一个张量进行计算的
+    # 此外这个基准函数目标是最小值，这个地方需要改一改，基准函数没问题
+    def griewank(x):
+        sum_sq = np.sum(x ** 2) / 4000
+        cos_product = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
+        return 1 + sum_sq - cos_product
+    
+    def generate_random_rotation_matrix(dim):
+        """生成随机正交矩阵"""
+        random_matrix = np.random.randn(dim, dim)
+        q, _ = np.linalg.qr(random_matrix)
+        return q
+
+    def weierstrass(x, a=0.5, b=3, k_max=20):
+        """原始Weierstrass函数"""
+        n = len(x)
+        sum1 = 0
+        sum2 = 0
+        for i in range(n):
+            sum1 += sum(a**k * np.cos(2 * np.pi * b**k * (x[i] + 0.5)) for k in range(k_max + 1))
+        sum2 = n * sum(a**k * np.cos(2 * np.pi * b**k * 0.5) for k in range(k_max + 1))
+        return sum1 - sum2
+
+    def rotated_weierstrass(x, rotation_matrix):
+        """旋转后的Weierstrass函数"""
+        rotated_x = np.dot(rotation_matrix, x)
+        return Test_Fun.weierstrass(rotated_x)
+
+    def sphere(x):
+        """Sphere函数"""
+        return np.sum(x**2)
 
 class OptimFunTest:
 
     def __init__(self, config) -> None:
         self.config = config
+        self.cec2013 = CEC_functions(config.solution_dimension)
 
+    def custom_fitness_obj(self, optim, fun_id):
+        rotation_mat = None
+        dim = self.config.solution_dimension
+        if fun_id == "rotated_weierstrass":
+            rotation_mat = Test_Fun.generate_random_rotation_matrix(dim)
 
-    # 设置适应值评估函数，根据optim的配置中的funid来
-    def set_fitness_obj(self, optim, fun_id):
-        fun = getattr(OptimFunTest, fun_id)
+        fun = getattr(Test_Fun, fun_id)
 
         fitness_coeff = 1 if self.config.target_max else -1
 
         # 目标是最小化函数
         def fitness_fun(x):
-            return fun(x) * fitness_coeff
+            if rotation_mat is None : return fun(x) * fitness_coeff 
+            return fun(x, rotation_mat) * fitness_coeff
 
         optim.set_init_params(fitness_fun, self, fun_id)
+
+    def cec2013_fitness(self, optim, fun_id):
+        fitness_coeff = 1 if self.config.target_max else -1
+        def fitness_fun(x):
+            return fitness_coeff * self.cec2013.Y(x, fun_id)
+        optim.set_init_params(fitness_fun, self, fun_id)
+
+    # 设置适应值评估函数，根据optim的配置中的funid来
+    def set_fitness_obj(self, optim, fun_id):
+        if self.config.test_type == "normal":
+            return self.custom_fitness_obj(optim, fun_id)
+        elif self.config.test_type == "cec2013":
+            return self.cec2013_fitness(optim, fun_id)
 
     # 默认测试单一优化算法，目标函数对应config中的funid, random为true，不固定随机种子
     def test_single_optim(self, optim_class, random = True):
@@ -57,13 +109,6 @@ class OptimFunTest:
         self.config.show_log = False
         for optim in optim_classes:
             self._test_optim_funs(optim)
-
-    # 非并行化的方法，单个粒子，原测试函数是一个张量进行计算的
-    # 此外这个基准函数目标是最小值，这个地方需要改一改，基准函数没问题
-    def griewank(x):
-        sum_sq = np.sum(x ** 2) / 4000
-        cos_product = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
-        return 1 + sum_sq - cos_product
 
     # 读取优化算法对应的相关数据
     # optim_method：对应优化算法
