@@ -117,18 +117,21 @@ class PSO_optim(OptimBase):
         max_velocity = self.speed
         return np.clip(velocity, -max_velocity, max_velocity)
 
-    # PSO algorithm
-    def _algorithm(self):
-        num_iterations = self.config.iteratons
+    def _get_init_gbest(self):
         particle_num = self.config.particle_num
         particles = [Particle(self, i) for i in range(particle_num)]
         gbest_particle = max(particles, key=lambda p: p.pbest_value)
         gbest_value = gbest_particle.pbest_value
         gbest_position = gbest_particle.pbest_position
         self.set_best(gbest_value, gbest_position)
+        return gbest_position, gbest_value, particles
+
+    # PSO algorithm
+    def _algorithm(self):
+        num_iterations = self.config.iteratons
+        gbest_position, gbest_value, particles = self._get_init_gbest()
 
         fes = 0
-
         for _ in range(num_iterations):
             check = self.check_match_finished()
             if check : return gbest_position

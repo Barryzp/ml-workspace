@@ -26,6 +26,7 @@ class Particle_PPSO1(Particle_PPSO):
             updated_position = self.position
         self.position = updated_position
         self.velocity = updated_velocity
+        self.check()
 
     # loser更新速度，loser不仅朝着winner学，还朝着上层的winner学
     def update_velocity_loser(self, winner_pos, upper_pos):
@@ -41,6 +42,7 @@ class Particle_PPSO1(Particle_PPSO):
         updated_loser_positions = self.position + updated_loser_velocities
         self.velocity = updated_loser_velocities
         self.position = updated_loser_positions
+        self.check()
 
 
 # 定义PPSO类，之后再将其改进，改进方案，loser和winner都往上层学习
@@ -293,7 +295,7 @@ class PPSO_optim2(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.permutation(separator) % top_layer_size
+                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -344,7 +346,7 @@ class Particle_PPSO3(Particle_PPSO):
         self.velocity = updated_loser_velocities
         self.position = updated_loser_positions
 
-# loser学习， winner不学习，loser朝上方学习
+# loser学习， winner不学习，loser朝winner学习
 class PPSO_optim3(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
@@ -406,7 +408,7 @@ class PPSO_optim3(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.permutation(separator) % top_layer_size
+                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0

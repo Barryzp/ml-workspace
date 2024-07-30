@@ -1,7 +1,7 @@
 
 # 这是专门用于验证函数的优化效果的
 
-record_id : "fun1" # -fiter_bigsize
+record_id : "fun2" # -fiter_bigsize
 remark : "ppso1 4 s2"
 data_save_path : "D:/workspace/ml-workspace/registration/result/optim"
 mode : "test"
@@ -59,8 +59,7 @@ fun_configs : {
     27 : {min_bound: -100, max_bound: 100, best_fit: 1300.0},
     28 : {min_bound: -100, max_bound: 100, best_fit: 1400.0},
   }
-  } 
-
+  }
 
 
 # 独立运行次数
@@ -71,6 +70,8 @@ iteratons : 4687
 rand_seed : 45
 # 解的维度
 solution_dimension : 30
+# 最大FEs评估次数
+max_fes : 0
 # 最大化目标函数还是最小化
 target_max : False
 

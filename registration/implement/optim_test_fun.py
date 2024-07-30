@@ -75,7 +75,7 @@ class OptimFunTest:
             return self.cec2013_fitness(optim, fun_id)
 
     # 默认测试单一优化算法，目标函数对应config中的funid, random为true，不固定随机种子
-    def test_single_optim(self, optim_class, random = True):
+    def test_single_optim_fun_id(self, optim_class, random = True):
         run_id = -1
         fun_id = self.config.fun_id
         rand_seed = self.config.rand_seed
@@ -99,8 +99,8 @@ class OptimFunTest:
             self.set_fitness_obj(optim, fun_id)
             optim.run_std_optim()
 
-    # 测试一系列的测试函数
-    def _test_optim_funs(self, optim_class):
+    # 测试优化算法的一系列的测试函数
+    def test_optim_funs(self, optim_class):
         fun_ids = self.config.fun_ids
         for fun_id in fun_ids:
             self.test_single_optim_fun(optim_class, fun_id)
@@ -108,7 +108,7 @@ class OptimFunTest:
     # 测试所有的优化函数和优化算法
     def test_all_optims_funs(self, optim_classes):
         for optim in optim_classes:
-            self._test_optim_funs(optim)
+            self.test_optim_funs(optim)
 
     # 读取优化算法对应的相关数据
     # optim_method：对应优化算法
@@ -187,7 +187,12 @@ class OptimFunTest:
     def show_mean_convergence_line(self, data_dict, methods_name, fun_id, total_mark = None):
             step = 1
 
-            fun_config = self.config.fun_configs[fun_id]
+            best_fit = 0.0
+            if self.config.test_type == "normal":
+                fun_config = self.config.fun_configs[fun_id]
+                best_fit = fun_config["fun_config"]
+            elif self.config.test_type == "cec2013":
+                fun_config = self.config.fun_configs["cec2013"][fun_id]
             total_fes = self.config.iteratons
             if total_mark != None:
                 step = total_fes // total_mark
@@ -197,7 +202,7 @@ class OptimFunTest:
                 optim_item = data_dict[method_name]
                 data_item = optim_item[fun_id]
                 mean = data_item["mean_fes"]
-                mean = np.log10(mean[::step] - fun_config["best_fit"])
+                mean = np.log10(mean[::step] - best_fit)
                 fes = data_item["fes"]
                 fes = fes[::step]
                 plt.plot(fes, mean, label=method_name,

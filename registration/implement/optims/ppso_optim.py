@@ -141,7 +141,7 @@ class PPSO_optim(PSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.permutation(separator) % top_layer_size
+                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -152,7 +152,7 @@ class PPSO_optim(PSO_optim):
                     start_idx = np.sum(self.layer_cfg[layer_idx-1:])
                     # 应该索引到当前的粒子数量
                     upper_layer_particles = particles[-start_idx:-layer_size]
-                    upper_indeces = np.random.permutation(separator) % upper_layer_size
+                    upper_indeces = np.random.choice(np.random.permutation(upper_layer_size), size=separator)
                     aim_upper_particles = upper_layer_particles[upper_indeces]
 
                 # 更新粒子
