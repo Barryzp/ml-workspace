@@ -306,8 +306,9 @@ class PPSO_optim2(PPSO_optim):
                         winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
                         winner.evaluate()
                         self.add_fes()
-                    self.set_best(winner, loser)
-                    self.recording_data_item_FEs()
+                        self.set_best(winner, loser)
+                        self.recording_data_item_FEs()
+
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
 
