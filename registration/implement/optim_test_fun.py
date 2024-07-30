@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import threading, os, multiprocessing
 import matplotlib.pyplot as plt
 from cec2013.cec2013 import CEC_functions
 
@@ -109,6 +110,18 @@ class OptimFunTest:
     def test_all_optims_funs(self, optim_classes):
         for optim in optim_classes:
             self.test_optim_funs(optim)
+
+    # 测试所有的优化函数和优化算法，多线程，每个优化算法单独占用一个线程进行优化
+    def test_all_optims_multi_process(self, optim_classes):
+        processes = []
+        for optim in optim_classes:
+            process = multiprocessing.Process(target=self.test_optim_funs, args=(optim,))
+            processes.append(process)
+            process.start()
+
+        # 等待所有进程完成
+        for process in processes:
+            process.join()
 
     # 读取优化算法对应的相关数据
     # optim_method：对应优化算法

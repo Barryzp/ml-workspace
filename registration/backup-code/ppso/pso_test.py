@@ -29,6 +29,14 @@ class Particle:
             if self.position[i] < bounds[0]:
                 self.position[i] = bounds[0]
 
+def shifted_sphere(x, o):
+    """Shifted Sphere 函数"""
+    return np.sum((x - o)**2)
+
+def shifted_sphere_1(x):
+    """Shifted Sphere 函数"""
+    return np.sum(x**2)
+
 def griewank_function(x):
     sum_sq = np.sum(x ** 2) / 4000
     cos_product = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
@@ -55,12 +63,43 @@ def pso(objective_function, dim, bounds, num_particles, max_iter):
 
 # PSO参数
 dim = 30  # 问题的维度
-bounds = (-600, 600)  # 搜索空间的边界
+bounds = (-100, 100)  # 搜索空间的边界
 num_particles = 64  # 粒子数量
 max_iter = 4687  # 最大迭代次数
 np.random.seed(45)
 
+# 生成偏移向量o
+o = np.array([-21.98480969,  11.55499693, -36.01068093,  69.37273235,
+       -37.60887075, -48.53629215,  53.7647669 ,  13.71856864,
+        69.82858747, -18.62781124,  29.30660868, -70.21691829,
+       -51.7402846 ,  71.73758557, -57.09778849,  74.86839208,
+         7.55890615,  60.3877141 ,  15.72331187,  31.66238351,
+       -49.3407677 ,  55.03788271, -52.66414674, -26.05238299,
+        54.04788928, -77.47142157,  64.60508511, -17.71212496,
+       -11.57427923, -42.59138623])
+
+def f1(x):
+    return shifted_sphere(x, o)
+
+
+lb = np.full((dim), bounds[0])
+ub = np.full((dim), bounds[1])
+# %% Do PSO
+from sko.PSO import PSO
+
+pso = PSO(func=f1, n_dim=dim, pop=num_particles, max_iter=max_iter, lb=lb, ub=ub, w=0.5, c1=1, c2=2)
+pso.run()
+
+pso.gbest_x
+
+import matplotlib.pyplot as plt
+plt.xlabel("iterators", size=11)
+plt.ylabel("fitness", size=11)
+plt.plot(pso.gbest_y_hist)
+# plt.plot(pso.gbest_y_hist, color='b', linewidth=2)
+plt.show()
+
 # 运行PSO优化Griewank函数
-best_position, best_value = pso(griewank_function, dim, bounds, num_particles, max_iter)
-print("Best Position:", best_position)
-print("Best Value:", best_value)
+# best_position, best_value = pso(f1, dim, bounds, num_particles, max_iter)
+# print("Best Position:", best_position)
+# print("Best Value:", best_value)

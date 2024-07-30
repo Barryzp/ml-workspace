@@ -72,6 +72,9 @@ rand_seed : 45
 solution_dimension : 30
 # 最大FEs评估次数
 max_fes : 0
+# 每隔100次评估保存一次当前最优值
+# 注意：需要是偶数，考虑到CSO和PPSO这种要配对的算法
+save_fes_interval : 100
 # 最大化目标函数还是最小化
 target_max : False
 

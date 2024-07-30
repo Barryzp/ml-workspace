@@ -21,6 +21,7 @@ class Particle_CSO(Particle):
         updated_loser_positions = self.position + updated_loser_velocities
         self.velocity = updated_loser_velocities
         self.position = updated_loser_positions
+        self.check()
 
 # loser学习， winner不学习
 class CSO_optim(PPSO_optim):
@@ -32,21 +33,13 @@ class CSO_optim(PPSO_optim):
         particles = np.array([Particle_CSO(self, i) for i in range(particle_num)])
         gbest_particle = max(particles, key=lambda p: p.pbest_value)
         self.set_best(gbest_particle, gbest_particle)
+        self.recording_data_item_FEs()
 
-        fes = 0
         # 逻辑：排序，分层，选择，更新
-        for _ in range(num_iterations * 2):
+        while not self.check_end():
             check = self.check_match_finished()
             if check : return self.best_solution
 
-            self.current_iterations = _
-
-            # 主要是和其它算法比较这个少了一次的更新
-            if _ % 2 == 1 :
-                self.recording_data_item(_//2)
-                self.recording_data_item_FEs(fes//2)
-            
-            fes += len(particles)
             # 配对
             rand_indeces = np.random.permutation(particle_num)
             # 分成俩部分
@@ -73,8 +66,10 @@ class CSO_optim(PPSO_optim):
                 loser = losers[index]
                 loser.update_velocity(winner.position, mean_pos)
                 loser.evaluate()
+                self.add_fes()
                 # 比较最大值
                 self.set_best(winner, loser)
+                self.recording_data_item_FEs()
 
         # self.save_psos_parameters(particles, "end")
         return self.best_solution

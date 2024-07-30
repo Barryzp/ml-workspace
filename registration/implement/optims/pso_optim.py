@@ -128,26 +128,22 @@ class PSO_optim(OptimBase):
 
     # PSO algorithm
     def _algorithm(self):
-        num_iterations = self.config.iteratons
         gbest_position, gbest_value, particles = self._get_init_gbest()
 
-        fes = 0
-        for _ in range(num_iterations):
+        while not self.check_end():
             check = self.check_match_finished()
             if check : return gbest_position
-
-            self.current_iterations = _
-            self.recording_data_item(_)
-            self.recording_data_item_FEs(fes)
-            fes+=len(particles)
-
             for particle in particles:
+                self.recording_data_item_FEs()
                 particle.update(gbest_position)
                 particle.evaluate()
                 if particle.pbest_value > gbest_value:
                     gbest_value = particle.pbest_value
                     gbest_position = particle.pbest_position
                     self.set_best(gbest_value, gbest_position)
+                self.add_fes()
+                if self.check_end():
+                    break
 
         # self.save_psos_parameters(particles, "end")
         return gbest_position

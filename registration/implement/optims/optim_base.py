@@ -1,6 +1,6 @@
 import math
 from scipy.stats import qmc
-
+import logging
 import numpy as np
 from utils.tools import Tools
 
@@ -42,8 +42,12 @@ class Particle:
         social_velocity = global_w * r2 * soc_delta
         
         self.velocity = weight_inertia * self.velocity + cognitive_velocity + social_velocity
-        self.velocity = self.optim.constrain_velocity(self.velocity)
         self.position += self.velocity
+        self.check()
+
+    # 检查速度和position是否在范围内
+    def check(self):
+        self.velocity = self.optim.constrain_velocity(self.velocity)
         self.position = self.optim.constrain(self.position)
 
     def evaluate(self):
@@ -65,6 +69,10 @@ class OptimBase:
 
         self.current_iterations = 0
         self.config = config
+
+        self.current_fes = 0
+        self.max_fes = config.max_fes
+
         # 用于保存迭代过程中寻找到的最优fitness
         self.records = []
         # 用于保存评估过程中寻找到的最优fitness
@@ -91,6 +99,19 @@ class OptimBase:
         # 设置匹配过程对应3d块的唯一索引
         if self.config.mode == "matched":
             self.matched_3dct_id = matched_3dct_id
+    
+
+    # 检测当前评估次数是否到达最大
+    def check_end(self):
+        return self.current_fes > self.max_fes
+
+    # 增加评估次数
+    def add_fes(self):
+        self.current_fes+=1
+
+    # 获取当前评估次数
+    def get_fes(self):
+        return self.current_fes
 
     # 用来区别每一次运行保存的值
     def set_runid(self, run_id):
@@ -383,12 +404,16 @@ class OptimBase:
         self.records.append(data_item)
 
     # 记录当前
-    def recording_data_item_FEs(self, eval_times):
+    def recording_data_item_FEs(self):
+        eval_times = self.get_fes()
+        # 每隔一段次数记录一下
+        if eval_times % self.config.save_fes_interval != 0: return
+
         cur_iter_best = abs(self.best_value)
 
         if eval_times % 5000 == 0:
-            print(f"eval_times: {eval_times}, fitness: {cur_iter_best}")
-
+            print(f"{self.__class__.__name__}, eval_times: {eval_times}, fitness: {cur_iter_best}", flush=True)
+            # logging.info(f"{self.__class__.__name__}, eval_times: {eval_times}, fitness: {cur_iter_best}")
         data_item = [eval_times, cur_iter_best]
         self.records_fes.append(data_item)
 

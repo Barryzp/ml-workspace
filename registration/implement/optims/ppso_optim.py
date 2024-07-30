@@ -45,19 +45,6 @@ class Particle_PPSO(Particle):
         self.position = updated_loser_positions
         self.check()
 
-    # 检查速度和position是否在范围内
-    def check(self):
-        self.velocity = self.optim.constrain_velocity(self.velocity)
-        self.position = self.optim.constrain(self.position)
-
-    def evaluate(self):
-        fit_res = self.optim.fitness(self.position)
-        value = self.uppack_fitness(fit_res)
-        self.current_fitness = value
-        if value > self.pbest_value:
-            self.pbest_position = np.copy(self.position)
-            self.pbest_value = value
-
 # 定义PPSO类，之后再将其改进
 class PPSO_optim(PSO_optim):
     # 没有惯性权重，个体权重，群体权重系数
@@ -87,26 +74,19 @@ class PPSO_optim(PSO_optim):
     # PSO algorithm
     def _algorithm(self):
         particle_num = self.config.particle_num
-        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO(self, i) for i in range(particle_num)])
         gbest_particle = max(particles, key=lambda p: p.pbest_value)
         super().set_best(gbest_particle.pbest_value, gbest_particle.pbest_position)
-        
+        self.recording_data_item_FEs()
+
         layers_num = len(self.layer_cfg)
 
-        fes = 0
         # 逻辑：排序，分层，选择，更新
-        for _ in range(num_iterations):
+        while not self.check_end():
             check = self.check_match_finished()
             if check : return self.best_solution
 
-            self.current_iterations = _
-
             # 这里需要注意了，PPSO使用的粒子的当前适应值来进行排序的，那么历史最优就不是当前的这个粒子的最优了
-            self.recording_data_item(_)
-            self.recording_data_item_FEs(fes)
-            fes += len(particles)
-
             # 排序
             particles = self.sorted_particles(particles, True)
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
@@ -162,15 +142,20 @@ class PPSO_optim(PSO_optim):
                     # 先更新loser
                     loser.update_velocity_loser(winner.position)
                     loser.evaluate()
+                    self.add_fes()
+
                     # winner根据情况更新
                     if is_top_layer : winner.update_velocity_winner(None, None, is_top_layer)
                     else:
                         upper_best = aim_upper_particles[index]
                         global_best = aim_top_particles[index]
                         winner.update_velocity_winner(upper_best.position, global_best.position, is_top_layer)
-                    winner.evaluate()
+                        winner.evaluate()
+                        self.add_fes()
+
                     # 比较粒子的最大适应值，然后保存
                     self.set_best(winner, loser)
+                    self.recording_data_item_FEs()
 
         # self.save_psos_parameters(particles, "end")
         return self.best_solution

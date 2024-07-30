@@ -44,33 +44,26 @@ class Particle_PPSO1(Particle_PPSO):
         self.position = updated_loser_positions
         self.check()
 
-
 # 定义PPSO类，之后再将其改进，改进方案，loser和winner都往上层学习
 class PPSO_optim1(PPSO_optim):
     # 核心算法逻辑
     # PSO algorithm
     def _algorithm(self):
         particle_num = self.config.particle_num
-        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO1(self, i) for i in range(particle_num)])
         gbest_particle = max(particles, key=lambda p: p.pbest_value)
         self.set_best(gbest_particle, gbest_particle)
-        
+        self.recording_data_item_FEs()
+
         layers_num = len(self.layer_cfg)
 
-        fes = 0
         # 逻辑：排序，分层，选择，更新
-        for _ in range(num_iterations):
+        while not self.check_end():
             check = self.check_match_finished()
             if check : return self.best_solution
 
-            self.current_iterations = _
-
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_)
-            self.recording_data_item_FEs(fes)
-            fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
@@ -104,7 +97,7 @@ class PPSO_optim1(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.permutation(separator) % top_layer_size
+                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -131,13 +124,15 @@ class PPSO_optim1(PPSO_optim):
                         upper_best_loser = upper_particles_loser[index]
                         loser.update_velocity_loser(winner.position, upper_best_loser.position)
                         winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
+                        winner.evaluate()
+                        self.add_fes()
                     loser.evaluate()
-                    winner.evaluate()
+                    self.add_fes()
                     self.set_best(winner, loser)
+                    self.recording_data_item_FEs()
 
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
-
 
 # 定义PPSO类，在PPSO_optim1基础上再将其改进，改进方案，loser和winner都往上层学习，但是只往上层学习，其他层不参与
 class PPSO_optim1_1(PPSO_optim):
@@ -145,26 +140,19 @@ class PPSO_optim1_1(PPSO_optim):
     # PSO algorithm
     def _algorithm(self):
         particle_num = self.config.particle_num
-        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO1(self, i) for i in range(particle_num)])
         gbest_particle = max(particles, key=lambda p: p.pbest_value)
         self.set_best(gbest_particle, gbest_particle)
+        self.recording_data_item_FEs()
         layers_num = len(self.layer_cfg)
 
-        fes = 0
         # 逻辑：排序，分层，选择，更新
-        for _ in range(num_iterations):
+        while not self.check_end():
             check = self.check_match_finished()
             if check : return self.best_solution
-
-            self.current_iterations = _
-
             # 排序
             particles = self.sorted_particles(particles, True)
-            self.recording_data_item(_)
-            self.recording_data_item_FEs(fes)
-            fes += len(particles)
-            
+
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
@@ -198,7 +186,7 @@ class PPSO_optim1_1(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.permutation(separator) % top_layer_size
+                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -227,12 +215,14 @@ class PPSO_optim1_1(PPSO_optim):
                         upper_best_loser = upper_particles_loser[index]
                         loser.update_velocity_loser(winner.position, upper_best_loser.position)
                         winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
+                        winner.evaluate()
+                        self.add_fes()
                     loser.evaluate()
-                    winner.evaluate()
+                    self.add_fes()
                     self.set_best(winner, loser)
+                    self.recording_data_item_FEs()
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
-
 
 # loser不学习， winner学习，winner朝着上方学习，顶层winner不动
 class PPSO_optim2(PPSO_optim):
@@ -240,28 +230,20 @@ class PPSO_optim2(PPSO_optim):
     # PSO algorithm
     def _algorithm(self):
         particle_num = self.config.particle_num
-        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO1(self, i) for i in range(particle_num)])
         gbest_particle = max(particles, key=lambda p: p.pbest_value)
         self.set_best(gbest_particle, gbest_particle)
+        self.recording_data_item_FEs()
         layers_num = len(self.layer_cfg)
 
-        fes = 0
         # 逻辑：排序，分层，选择，更新
-        for _ in range(num_iterations * 2):
+        while not self.check_end():
             check = self.check_match_finished()
             if check : return self.best_solution
-
-            self.current_iterations = _
 
             # 排序
             particles = self.sorted_particles(particles, True)
 
-            if _ % 2 == 1 :
-                self.recording_data_item(_//2)
-                self.recording_data_item_FEs(fes//2)
-
-            fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
@@ -322,9 +304,10 @@ class PPSO_optim2(PPSO_optim):
                         global_best = aim_top_particles[index]
                         # loser.update_velocity_loser(upper_best_loser.position, global_best.position)
                         winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
-                    loser.evaluate()
-                    winner.evaluate()
+                        winner.evaluate()
+                        self.add_fes()
                     self.set_best(winner, loser)
+                    self.recording_data_item_FEs()
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
 
@@ -345,6 +328,7 @@ class Particle_PPSO3(Particle_PPSO):
         updated_loser_positions = self.position + updated_loser_velocities
         self.velocity = updated_loser_velocities
         self.position = updated_loser_positions
+        self.check()
 
 # loser学习， winner不学习，loser朝winner学习
 class PPSO_optim3(PPSO_optim):
@@ -352,29 +336,21 @@ class PPSO_optim3(PPSO_optim):
     # PSO algorithm
     def _algorithm(self):
         particle_num = self.config.particle_num
-        num_iterations = self.config.iteratons
         particles = np.array([Particle_PPSO3(self, i) for i in range(particle_num)])
         gbest_particle = max(particles, key=lambda p: p.pbest_value)
         self.set_best(gbest_particle, gbest_particle)
+        self.recording_data_item_FEs()
+
         layers_num = len(self.layer_cfg)
 
-        fes = 0
         # 逻辑：排序，分层，选择，更新
-        for _ in range(num_iterations * 2):
+        while not self.check_end():
             check = self.check_match_finished()
             if check : return self.best_solution
-
-            self.current_iterations = _
 
             # 排序
             particles = self.sorted_particles(particles, True)
             
-            # 主要是和其它算法比较这个少了一次的更新
-            if _ % 2 == 1 :
-                self.recording_data_item(_//2)
-                self.recording_data_item_FEs(fes//2)
-            
-            fes += len(particles)
             # 在这之后就有best了
             # 分层：适应值的倒序数组就是分层结构，咱们看成就行了
             # 构造金字塔，咱们这个结构不是并行化就没有必要进行原始代码中的构造数组
@@ -436,7 +412,8 @@ class PPSO_optim3(PPSO_optim):
                         loser.update_velocity_loser(winner.position, upper_best_loser.position)
                         # winner.update_velocity_winner(upper_best_winner.position, is_top_layer)
                     loser.evaluate()
-                    winner.evaluate()
+                    self.add_fes()
                     self.set_best(winner, loser)
+                    self.recording_data_item_FEs()
         # self.save_psos_parameters(particles, "end")
         return self.best_solution

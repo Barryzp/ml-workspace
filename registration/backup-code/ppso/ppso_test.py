@@ -9,13 +9,14 @@ class Particle:
         self.personal_best_fitness = fitness
 
 class PSO:
-    def __init__(self, layers, dimensions, lower_bound, upper_bound, max_fes, func_id):
+    def __init__(self, layers, dimensions, lower_bound, upper_bound, max_fes, o,func_id):
         self.layers = layers
         self.dimensions = dimensions
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
         self.max_fes = max_fes
         self.func_id = func_id
+        self.o = o
 
         self.num_layers = len(layers)
         self.cumulative_layers = np.cumsum(layers)
@@ -46,7 +47,7 @@ class PSO:
 
     def evaluate(self, position):
         if self.func_id == 1:
-            return self.griewank(position)
+            return self.shifted_sphere(position, self.o)
         else:
             raise ValueError("Unsupported func_id")
 
@@ -55,6 +56,11 @@ class PSO:
         sum_term = np.sum(x ** 2) / 4000
         prod_term = np.prod(np.cos(x / np.sqrt(np.arange(1, x.shape[0] + 1))))
         return sum_term - prod_term + 1
+    
+    @staticmethod
+    def shifted_sphere(x, o):
+        """Shifted Sphere 函数"""
+        return np.sum((x - o)**2)
 
     def optimize(self):
         generation = 0
@@ -136,9 +142,10 @@ def main():
     lower_bound = -600
     upper_bound = 600
     results = np.ones(runs) * 99999999999
-
+    # 生成偏移向量o
+    o = np.random.uniform(lower_bound, upper_bound, dimensions)
     for run_index in range(runs):
-        pso = PSO(layers, dimensions, lower_bound, upper_bound, max_fes, func_id)
+        pso = PSO(layers, dimensions, lower_bound, upper_bound, max_fes, o, func_id)
         best_fitness, fitness, particles, best_fitness_history = pso.optimize()
         results[run_index] = best_fitness
         print(f'{run_index + 1} : {results[run_index]:e}')
