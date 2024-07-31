@@ -97,7 +97,7 @@ class PPSO_optim1(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
+                top_indeces = self.random_choice_indeces(top_layer_size, separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -106,8 +106,8 @@ class PPSO_optim1(PPSO_optim):
                 if not is_top_layer:
                     all_upper_particle_size = np.sum(self.layer_cfg[:layer_idx])
                     upper_particles = particles[0:all_upper_particle_size]
-                    upper_indeces_winner = np.random.choice(np.random.permutation(all_upper_particle_size), size=separator)
-                    upper_indeces_loser = np.random.choice(np.random.permutation(all_upper_particle_size), size=separator)
+                    upper_indeces_winner = self.random_choice_indeces(all_upper_particle_size, separator)
+                    upper_indeces_loser = self.random_choice_indeces(all_upper_particle_size, separator)
                     upper_particles_winner = upper_particles[upper_indeces_winner]
                     upper_particles_loser = upper_particles[upper_indeces_loser]
 
@@ -186,7 +186,7 @@ class PPSO_optim1_1(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
+                top_indeces = self.random_choice_indeces(top_layer_size, separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -197,8 +197,8 @@ class PPSO_optim1_1(PPSO_optim):
                     start_idx = -np.sum(self.layer_cfg[layer_idx-1:])
                     end_idx = start_idx + upper_layer_size
                     upper_layer_particles = particles[start_idx:end_idx]
-                    upper_indeces_winner = np.random.choice(np.random.permutation(upper_layer_size), size=separator)
-                    upper_indeces_loser = np.random.choice(np.random.permutation(upper_layer_size), size=separator)
+                    upper_indeces_winner = self.random_choice_indeces(upper_layer_size, separator)
+                    upper_indeces_loser = self.random_choice_indeces(upper_layer_size, separator)
                     upper_particles_winner = upper_layer_particles[upper_indeces_winner]
                     upper_particles_loser = upper_layer_particles[upper_indeces_loser]
 
@@ -277,7 +277,7 @@ class PPSO_optim2(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
+                top_indeces = self.random_choice_indeces(top_layer_size, separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -286,8 +286,8 @@ class PPSO_optim2(PPSO_optim):
                 if not is_top_layer:
                     all_upper_particle_size = np.sum(self.layer_cfg[:layer_idx])
                     upper_particles = particles[0:all_upper_particle_size]
-                    upper_indeces_winner = np.random.choice(np.random.permutation(all_upper_particle_size), size=separator)
-                    upper_indeces_loser = np.random.choice(np.random.permutation(all_upper_particle_size), size=separator)
+                    upper_indeces_winner = self.random_choice_indeces(all_upper_particle_size, separator)
+                    upper_indeces_loser = self.random_choice_indeces(all_upper_particle_size, separator)
                     upper_particles_winner = upper_particles[upper_indeces_winner]
                     upper_particles_loser = upper_particles[upper_indeces_loser]
 
@@ -385,7 +385,7 @@ class PPSO_optim3(PPSO_optim):
                 # 获取最顶层粒子
                 top_layer_size = self.layer_cfg[0]
                 top_layer_particles = particles[0:top_layer_size]
-                top_indeces = np.random.choice(np.random.permutation(top_layer_size), size=separator)
+                top_indeces = self.random_choice_indeces(top_layer_size, separator)
                 aim_top_particles = top_layer_particles[top_indeces]
 
                 is_top_layer = layer_idx == 0
@@ -394,8 +394,8 @@ class PPSO_optim3(PPSO_optim):
                 if not is_top_layer:
                     all_upper_particle_size = np.sum(self.layer_cfg[:layer_idx])
                     upper_particles = particles[0:all_upper_particle_size]
-                    upper_indeces_winner = np.random.choice(np.random.permutation(all_upper_particle_size), size=separator)
-                    upper_indeces_loser = np.random.choice(np.random.permutation(all_upper_particle_size), size=separator)
+                    upper_indeces_winner = self.random_choice_indeces(all_upper_particle_size, separator)
+                    upper_indeces_loser = self.random_choice_indeces(all_upper_particle_size, separator)
                     upper_particles_winner = upper_particles[upper_indeces_winner]
                     upper_particles_loser = upper_particles[upper_indeces_loser]
 

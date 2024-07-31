@@ -163,12 +163,42 @@ class OptimFunTest:
         record_id = self.config.record_id
         fun_ids = self.config.fun_ids
         run_times = self.config.run_times
+
+        fun_fit_sort = {}
+        for fun_id in fun_ids:
+            fun_fit_sort.setdefault(fun_id, [])
+        # 进行排名，排名之后进行平均
+        optim_rank = {}
         for method_name in methods_name:
+            optim_rank.setdefault(method_name, {})
             item1 = {}
             for fun_id in fun_ids:
                 item2 = self._read_optims_data(method_name, record_id, fun_id, run_times)
                 item1.setdefault(fun_id, item2)
+                sort_item = {}
+                sort_item.setdefault("class", method_name)
+                sort_item.setdefault("fitness", item2["mean_best"])
+                fun_fit_sort.get(fun_id).append(sort_item)
             data_dict.setdefault(method_name, item1)
+    
+        for fun_id in fun_ids:
+            sort_arr = fun_fit_sort.get(fun_id)
+            sort_arr = sorted(sort_arr, key=lambda x: x["fitness"])
+            for i in range(len(sort_arr)):
+                rank = i+1
+                sort_item = sort_arr[i]
+                optim_rank.get(sort_item["class"]).setdefault(fun_id, rank)
+
+        for cls, ranks in optim_rank.items():
+            mean_rank = 0
+            fun_num = 0
+            for fun_id, rank in ranks.items():
+                mean_rank += rank
+                fun_num += 1
+            mean_rank = mean_rank / fun_num
+            ranks.setdefault('mean_rank', mean_rank)
+            print(f"{cls}, {ranks}")
+
         return data_dict
 
     # 展示收敛曲线，这个total_mark代表的是显示多少个mark，在折线上（展示的是中位数）
