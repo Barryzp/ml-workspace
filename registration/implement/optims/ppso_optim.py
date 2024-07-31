@@ -165,7 +165,7 @@ class PPSO_optim(PSO_optim):
         if permutation < size:
             indeces = np.random.choice(np.random.permutation(permutation), size=size)
         else:
-            indeces = np.random.choice(np.random.permutation(size), size=permutation, replace=False)
+            indeces = np.random.choice(np.random.permutation(permutation), size=size, replace=False)
         return indeces
 
     def set_best(self, winner, loser):
