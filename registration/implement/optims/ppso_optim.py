@@ -129,9 +129,9 @@ class PPSO_optim(PSO_optim):
                 # 由于非顶层的winner会和上层的粒子进行混合，这里还需要得到上一层的粒子
                 if not is_top_layer:
                     upper_layer_size = self.layer_cfg[layer_idx - 1]
-                    start_idx = np.sum(self.layer_cfg[layer_idx-1:])
-                    # 应该索引到当前的粒子数量
-                    upper_layer_particles = particles[-start_idx:-layer_size]
+                    start_idx = -np.sum(self.layer_cfg[layer_idx-1:])
+                    end_idx = start_idx + upper_layer_size
+                    upper_layer_particles = particles[start_idx:end_idx]
                     upper_indeces = np.random.choice(np.random.permutation(upper_layer_size), size=separator)
                     aim_upper_particles = upper_layer_particles[upper_indeces]
 

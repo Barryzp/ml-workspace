@@ -1,7 +1,7 @@
 
 # 这是专门用于验证函数的优化效果的
 
-record_id : "fun2" # -fiter_bigsize
+record_id : "fun3" # -fiter_bigsize
 remark : "ppso1 4 s2"
 data_save_path : "D:/workspace/ml-workspace/registration/result/optim"
 mode : "test"
