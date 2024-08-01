@@ -48,7 +48,7 @@ print("Permuted sequence:", permuted_sequence)
 print("Selected numbers:", selected_numbers)
 
 
-np.random.seed(42)
+np.random.seed(43)
 # 生成一些随机数
 random_numbers_1 = np.random.rand(5)
 print("Random numbers 1:", random_numbers_1)
@@ -60,9 +60,6 @@ print("Random numbers 2:", random_numbers_2)
 print("rand min maxV", np.random.uniform([1, 1], [2, 2]))
 
 arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
-t = {
-    "as" : 1
-}
 
-print(np.random.permutation(8))
-
+print(np.random.choice(range(5), size=1))
+print(np.random.random())

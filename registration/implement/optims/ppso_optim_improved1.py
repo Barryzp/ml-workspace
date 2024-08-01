@@ -312,7 +312,7 @@ class PPSO_optim2(PPSO_optim):
         # self.save_psos_parameters(particles, "end")
         return self.best_solution
 
-# 顶层loser只向winner学习
+# 顶层loser只向winner学习和上层学习
 class Particle_PPSO3(Particle_PPSO):
     def update_velocity_loser(self, winner_pos, upper_pos):
         dim = self.pbest_position.shape[0]

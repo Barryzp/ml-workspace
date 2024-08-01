@@ -1,7 +1,7 @@
 
 # 这是专门用于验证函数的优化效果的
 
-record_id : "fun3" # -fiter_bigsize
+record_id : "fun4" # -fiter_bigsize
 remark : "ppso1 4 s2"
 data_save_path : "D:/workspace/ml-workspace/registration/result/optim"
 mode : "test"
@@ -72,6 +72,8 @@ rand_seed : 45
 solution_dimension : 30
 # 最大FEs评估次数
 max_fes : 0
+# 切换搜索策略比率，当前FE占总FE的多少
+switch_strategy_ratio : 0.5
 # 每隔100次评估保存一次当前最优值
 # 注意：需要是偶数，考虑到CSO和PPSO这种要配对的算法
 save_fes_interval : 100
