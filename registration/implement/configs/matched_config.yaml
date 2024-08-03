@@ -1,6 +1,6 @@
 
-record_id : "matched-sample4-S2-1(ppso2)-3dct-pso-interval-8" # -fiter_bigsize
-remark : "ppso1 4 s2"
+record_id : "matched-sample4-S1-1(ppso)-3dct-pso-interval-8" # -fiter_bigsize
+remark : "ppso1 4 s1"
 data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
 
 
@@ -16,7 +16,7 @@ cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 2
+sample_bse_index : 1
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # endregion
@@ -37,15 +37,16 @@ ct_mask_suffix : "mask_ct"
 # 3d代表2d/3d配准，进行目标配准，流程的最后一步
 # matched代表匹配
 mode : "matched"
+# 匹配的对象，分为三类
+#（1）原始的：divided分成若干个组，若干个块儿，每个算法在每个块儿内运行
+#（2）整体的：comp_one用一个算法跑，一个整体的块儿
+#（3）整体然后分层：comp_hierarchy（2）结果不行时就采用（3）
+match_unit : "comp_one"
+
 # 新的方法，这个颗粒大小的下限和上限需要根据BSE图像处理的配置中的来进行区别x-1-1-config
 # 需要去进行读取这个配置
 # 设置一定的阈值范围，正式的水泥粒径大小应该在[min/ratio, max*ratio]
 size_threshold_ratio : 1.2 #[0.8, 1.5, 2.5]
-
-# endregion
-
-# 用来记录第几次覆盖
-repeat_count : 1
 
 # 直方图划分
 bins : 256
@@ -102,9 +103,17 @@ start_index : 10
 # ct图像终止索引
 end_index : 49
 
-
 # 2d索引
 ct_2d_index : 32
+
+
+# region 优化参数
+rand_seed : 45
+solution_dimension : 6
+# 切换搜索策略比率，当前FE占总FE的多少
+switch_strategy_ratio : 0.5
+# 注意：需要是偶数，考虑到CSO和PPSO这种要配对的算法
+save_fes_interval : 100
 
 # PSO 参数
 # 粒子个数
@@ -130,7 +139,7 @@ pop_size : 256
 max_iter : 50
 
 # ppso参数
-layer_config : [4, 8, 20, 32]
+layer_config : [4, 8, 20, 32] #[8, 24, 32, 48]
 phi : 0.008
 #     if dimensions == 50:
 #         phi = 0.04
@@ -138,3 +147,4 @@ phi : 0.008
 #         phi = 0.02
 #     else:
 #         phi = 0.008
+# endregion

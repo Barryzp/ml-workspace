@@ -59,7 +59,8 @@ print("Random numbers 2:", random_numbers_2)
 
 print("rand min maxV", np.random.uniform([1, 1], [2, 2]))
 
-arr = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+arr1 = np.array([[1, 2,], [3, 4]])
+arr2 = np.array([[5, 6] , [7, 8]])
 
-print(np.random.choice(range(5), size=1))
-print(np.random.random())
+stack = np.vstack([arr1, arr2])
+print(stack)

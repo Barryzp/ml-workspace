@@ -116,10 +116,12 @@ phi : 0.008
 
 # cso参数
 cso_phi : 0.1
+# 胜利者随机游走的权重
+random_part_weight : 0.0
 
 # 图像绘制标记
 markers : ['o', 'v', '^', '<', '>', '1', '2', '3', '4', 
            's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_', ',', '.', ]
-colors : ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'white',
+colors : ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'maroon',
           'gray', 'orange', 'pink', 'brown', 'purple', 'lime', 'olive', 'navy', 
-          'teal', 'aqua', 'fuchsia', 'maroon', 'silver', 'gold']
+          'teal', 'aqua', 'fuchsia', 'white', 'silver', 'gold']

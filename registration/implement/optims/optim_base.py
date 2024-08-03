@@ -66,6 +66,7 @@ class OptimBase:
         self.ct_matching_slice_index = None
         # 用于匹配过程中的全局数据共享
         self.global_share_obj = global_share_datas
+        self.matched_3dct_id = -1
 
         self.current_iterations = 0
         self.config = config
@@ -100,6 +101,9 @@ class OptimBase:
         if self.config.mode == "matched":
             self.matched_3dct_id = matched_3dct_id
     
+    def gen_random_position(self):
+        position = np.random.uniform(self.minV, self.maxV)
+        return position
 
     # 检测当前评估次数是否到达最大
     def check_end(self):
@@ -147,6 +151,7 @@ class OptimBase:
     # 对于不同的ct块还不一样
     def init_match_params(self, reg_obj):
         ct_index_array = reg_obj.get_3dct_index_array(self.matched_3dct_id)
+
         ct_depth = len(ct_index_array)
         # Z轴上也进行了下采样，向上取整以防超出区域，这个角度其实也可以用原始的尺寸算，但是难得取，就这样也可以
         downsamp_times = self.config.downsample_times
@@ -256,7 +261,7 @@ class OptimBase:
     # 保存迭代过程中的参数
     def save_iteration_params(self):
         file_path = Tools.get_save_path(self.config)
-        file_name = f"{self.config.repeat_count}_pso_params_{self.config.mode}.csv"
+        file_name = f"pso_params_{self.config.mode}.csv"
 
         if self.config.mode == "2d" :
             columns = ["iterations", "x", "y", "rotation", "fitness", "weighted_sp", "mi", "sp"]
@@ -271,7 +276,7 @@ class OptimBase:
                        "translate_x", "translate_y", "translate_z", 
                        "rotation_x", "rotation_y", "rotation_z", 
                        "fitness"]
-            file_name = f"{self.matched_3dct_id}_pso_params_3d_ct.csv"
+            file_name = f"{self.run_id}_{self.matched_3dct_id}_pso_params_3d_ct.csv"
 
         Tools.save_params2df(self.records, columns, file_path, file_name)
 
@@ -312,9 +317,9 @@ class OptimBase:
         Tools.save_params2df(self.records_fes, columns, file_path, file_name)
 
 
-    def save_iteration_best_reg_img(self, img_array, iterations):
+    def save_iteration_best_reg_img(self, img_array, fes):
         file_path = Tools.get_save_path(self.config)
-        file_name = f"iter{iterations}_best_reg.bmp"
+        file_name = f"fes_{fes}_best_reg.bmp"
         if self.config.mode == "matched": file_name = f"best_reg_3dct.bmp"
         Tools.save_img(file_path, file_name, img_array)
 
@@ -348,23 +353,12 @@ class OptimBase:
 
     # 在匹配过程中不太一样，我们将角度化成若干份，再进行优化，主要是减少搜索空间
     def run_matched(self, total_runtimes):
-        start_rot_z = self.init_rotation[-1]
-        # 分成若干段
-        rot_z_delta = self.rot_z_delta
-        loop_times = int(360 // rot_z_delta)
-
-        total_iterations = total_runtimes * loop_times
         g_iter = 0
-
-        for i in range(loop_times):
-            self.init_rotation[-1] = start_rot_z + rot_z_delta * i
-            if self.init_rotation[-1] >= 360.0 : self.init_rotation[-1] = 0
-            print(f"================================rotation: {rot_z_delta * i}=====================================\n")
-            for j in range(total_runtimes):
-                self.run()
-                g_iter+=1
-                if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
-                print(f"================================{(g_iter/total_iterations) * 100}%================================")
+        for j in range(total_runtimes):
+            self.run()
+            g_iter+=1
+            if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
+            print(f"================================{(g_iter/total_runtimes) * 100}%================================")
 
         self.save_iteration_params()
         print(f"The maximum value of the function is: {self.best_value}")
@@ -384,13 +378,6 @@ class OptimBase:
         loop_times = self.config.match_loop_times
         self.run_matched(loop_times)
 
-
-    def recording_data_item(self, iterations):
-        if self.config.mode == "matched":
-            self.recording_data_item_for_reg(iterations)
-        elif self.config.mode == "test":
-            self.recording_data_item_for_std_optim(iterations)
-
     def recording_data_item_for_std_optim(self, iterations):
         # HACK 能够绝对值化的前提在于已经平移到原点了
 
@@ -405,6 +392,13 @@ class OptimBase:
 
     # 记录当前
     def recording_data_item_FEs(self):
+        if self.config.mode == "matched":
+            self.recording_data_item_for_reg()
+        elif self.config.mode == "test":
+            self.recording_data_item_for_optim_test()
+
+    # 记录当前
+    def recording_data_item_for_optim_test(self):
         eval_times = self.get_fes()
         # 每隔一段次数记录一下
         if eval_times % self.config.save_fes_interval != 0: return
@@ -418,7 +412,11 @@ class OptimBase:
         self.records_fes.append(data_item)
 
     # 记录哪些数据：1. 迭代次数；2.当前迭代的全局最佳粒子；2.
-    def recording_data_item_for_reg(self, iterations):
+    def recording_data_item_for_reg(self):
+        current_fes = self.get_fes()
+        if current_fes % 100 != 0:
+            return
+
         # 记录当前迭代最佳粒子,global也需要记录一下        
         iter_best_position = self.best_solution
         fit_res = self.fitness(iter_best_position)
@@ -430,11 +428,12 @@ class OptimBase:
         if self.config.mode == "matched":
             z_index = fit_res[2]
             data_item = np.insert(data_item, 0, z_index)
-            self.save_iteration_best_reg_img(__, iterations)
-            print(f"iterations: {iterations}, fitness: {cur_iter_best}, params: {iter_best_position}")
+            if current_fes / 10000 == 0:
+                self.save_iteration_best_reg_img(__, current_fes)
+            print(f"fes: {current_fes}, fitness: {cur_iter_best}, params: {iter_best_position}")
             self.set_global_best_datas(cur_iter_best, iter_best_position, __, z_index, self.matched_3dct_id)
 
-        data_item = np.insert(data_item, 0, iterations)
+        data_item = np.insert(data_item, 0, current_fes)
         data_item = np.insert(data_item, data_item.size, cur_iter_best)
         self.records.append(data_item.tolist())
 

@@ -2,7 +2,7 @@ import numpy as np
 import torch, cv2, itk, math
 from functools import partial
 from utils.tools import Tools
-
+from enums.global_var import MatchUnit
 
 class Registration:
     def __init__(self, config, ct_slice_inteval = None, ct_index_array = None) -> None:
@@ -59,6 +59,9 @@ class Registration:
             self.config.translate_delta[0] = translate_x
             self.config.translate_delta[1] = translate_y
 
+    def get_ct_index_array(self):
+        return self.ct_index_array
+
     def get_3dct_index_array(self, index):
         return self.matched_3dct_indeces[index]
 
@@ -73,6 +76,11 @@ class Registration:
 
     # 设置匹配时的分块三维ct图像的切片索引
     def set_matched_3dct_indeces(self):
+        # 作为一个整体加入进去
+        if self.config.match_unit == MatchUnit.comp_one:
+            self.matched_3dct_indeces = [self.ct_index_array]
+            return
+
         downsample3dct_slices = int(self.config.matched_3dct_depth / self.config.downsample_times)
         ct_index_array = self.ct_index_array
 
@@ -157,6 +165,7 @@ class Registration:
 
     def _load_matched_ct3d_imgs(self):
         cts_index_array = self.matched_3dct_indeces
+
         for ct_index_array in cts_index_array:
             ct_matched_3d, ct_matched_msk_3d = self._load_matched_ct3d(ct_index_array)
             self.ct_matched_3d.append(ct_matched_3d)
@@ -387,6 +396,7 @@ class Registration:
 
     def crop_slice_from_3dct_match(self, x, volume_index, volume, interpolation = "None"):
         ct_index_array = self.get_3dct_index_array(volume_index)
+        
         position = np.copy(x)
 
         translation = position[:3]
@@ -635,3 +645,4 @@ class Registration:
         if self.config.mode == "2d" and self.config.debug:
             self.save_matched_result(best_position)
         return fitness, best_reg, best_position
+
