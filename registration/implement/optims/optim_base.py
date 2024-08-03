@@ -351,15 +351,8 @@ class OptimBase:
         if self.global_share_obj == None: return
         self.global_share_obj.set_best(best_val, best_position, best_img, ct_matching_slice_index, volume_index)
 
-    # 在匹配过程中不太一样，我们将角度化成若干份，再进行优化，主要是减少搜索空间
-    def run_matched(self, total_runtimes):
-        g_iter = 0
-        for j in range(total_runtimes):
-            self.run()
-            g_iter+=1
-            if self.check_match_finished() : return self.global_share_obj.global_best_value, self.global_share_obj.global_best_img
-            print(f"================================{(g_iter/total_runtimes) * 100}%================================")
-
+    def run_matched(self):
+        self.run()
         self.save_iteration_params()
         print(f"The maximum value of the function is: {self.best_value}")
         print(f"The best position found is: {self.best_solution}")
@@ -375,8 +368,7 @@ class OptimBase:
 
     # 反复进行循环run函数，目的是寻找最优
     def run_matched_with_loops(self):
-        loop_times = self.config.match_loop_times
-        self.run_matched(loop_times)
+        self.run_matched()
 
     def recording_data_item_for_std_optim(self, iterations):
         # HACK 能够绝对值化的前提在于已经平移到原点了

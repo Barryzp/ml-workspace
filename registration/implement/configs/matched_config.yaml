@@ -67,13 +67,11 @@ downsampled : True
 downsample_times : 8
 # 分层匹配的3dct原始深度
 matched_3dct_depth : 160
-
-# 每张图片循环多少次进行查找
-match_loop_times : 1
 matched_threshold: 0.8
 # 大于这个值的就保存一下
 matched_save_lower_threshold: 0.55
-
+# 进行多少次运行
+run_times : 20
 
 # 是否有遮罩
 masked : True
@@ -148,3 +146,14 @@ phi : 0.008
 #     else:
 #         phi = 0.008
 # endregion
+
+
+show_log : True
+
+
+# 图像绘制标记
+markers : ['o', 'v', '^', '<', '>', '1', '2', '3', '4', 
+           's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_', ',', '.', ]
+colors : ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'maroon',
+          'gray', 'orange', 'pink', 'brown', 'purple', 'lime', 'olive', 'navy', 
+          'teal', 'aqua', 'fuchsia', 'white', 'silver', 'gold']

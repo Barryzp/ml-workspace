@@ -163,6 +163,7 @@ class OptimFunTest:
         record_id = self.config.record_id
         fun_ids = self.config.fun_ids
         run_times = self.config.run_times
+        total_data_rows = 0
 
         fun_fit_sort = {}
         for fun_id in fun_ids:
@@ -178,6 +179,7 @@ class OptimFunTest:
                 sort_item = {}
                 sort_item.setdefault("class", method_name)
                 sort_item.setdefault("fitness", item2["mean_best"])
+                total_data_rows = len(item2["fes"])
                 fun_fit_sort.get(fun_id).append(sort_item)
             data_dict.setdefault(method_name, item1)
     
@@ -199,15 +201,17 @@ class OptimFunTest:
             ranks.setdefault('mean_rank', mean_rank)
             print(f"{cls}, {ranks}")
 
+        data_dict.setdefault("total_data_rows", total_data_rows)
         return data_dict
 
     # 展示收敛曲线，这个total_mark代表的是显示多少个mark，在折线上（展示的是中位数）
     def show_median_convergence_line(self, data_dict, methods_name, fun_id, total_mark = None):
         step = 1
         
-        total_fes = self.config.iteratons
+        # 需要获取总的列数
+        total_iters = data_dict["total_data_rows"]
         if total_mark != None:
-            step = total_fes // total_mark
+            step = total_iters // total_mark
 
         j = 0
         for method_name in methods_name:
@@ -228,31 +232,32 @@ class OptimFunTest:
 
     # 展示收敛曲线，这个total_mark代表的是显示多少个mark，在折线上（展示的是均值），纵轴上是以log10的对数
     def show_mean_convergence_line(self, data_dict, methods_name, fun_id, total_mark = None):
-            step = 1
+        step = 1
+        best_fit = 0.0
+        if self.config.test_type == "normal":
+            fun_config = self.config.fun_configs[fun_id]
+            best_fit = fun_config["fun_config"]
+        elif self.config.test_type == "cec2013":
+            fun_config = self.config.fun_configs["cec2013"][fun_id]
+        
+        # 需要获取总的列数
+        total_iters = data_dict["total_data_rows"]
+        if total_mark != None:
+            step = total_iters // total_mark
 
-            best_fit = 0.0
-            if self.config.test_type == "normal":
-                fun_config = self.config.fun_configs[fun_id]
-                best_fit = fun_config["fun_config"]
-            elif self.config.test_type == "cec2013":
-                fun_config = self.config.fun_configs["cec2013"][fun_id]
-            total_fes = self.config.iteratons
-            if total_mark != None:
-                step = total_fes // total_mark
-
-            j = 0
-            for method_name in methods_name:
-                optim_item = data_dict[method_name]
-                data_item = optim_item[fun_id]
-                mean = data_item["mean_fes"]
-                mean = np.log10(mean[::step] - best_fit)
-                fes = data_item["fes"]
-                fes = fes[::step]
-                plt.plot(fes, mean, label=method_name,
-                         color=self.config.colors[j], marker=self.config.markers[j])
-                j+=1
-            plt.xlabel('FEs')
-            plt.ylabel('f(x)-f(x*)log10')
-            plt.legend()
-            # 显示图像
-            plt.show()
+        j = 0
+        for method_name in methods_name:
+            optim_item = data_dict[method_name]
+            data_item = optim_item[fun_id]
+            mean = data_item["mean_fes"]
+            mean = np.log10(mean[::step] - best_fit)
+            fes = data_item["fes"]
+            fes = fes[::step]
+            plt.plot(fes, mean, label=method_name,
+                     color=self.config.colors[j], marker=self.config.markers[j])
+            j+=1
+        plt.xlabel('FEs')
+        plt.ylabel('f(x)-f(x*)log10')
+        plt.legend()
+        # 显示图像
+        plt.show()

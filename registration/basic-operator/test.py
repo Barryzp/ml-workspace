@@ -59,8 +59,6 @@ print("Random numbers 2:", random_numbers_2)
 
 print("rand min maxV", np.random.uniform([1, 1], [2, 2]))
 
-arr1 = np.array([[1, 2,], [3, 4]])
-arr2 = np.array([[5, 6] , [7, 8]])
-
-stack = np.vstack([arr1, arr2])
-print(stack)
+data = [[1, 2, 3], [2, 3, 4], [4, 1, 2], [9, 9, 8], [7, 7, 2]]
+sorted_data_desc = sorted(data, key=lambda x: x[-1], reverse=True)
+print(sorted_data_desc)

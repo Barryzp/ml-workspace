@@ -1,5 +1,7 @@
 import numpy as np
-import torch, cv2, itk, math
+import pandas as pd
+import matplotlib.pyplot as plt
+import cv2
 from functools import partial
 from utils.tools import Tools
 from enums.global_var import MatchUnit
@@ -646,3 +648,82 @@ class Registration:
             self.save_matched_result(best_position)
         return fitness, best_reg, best_position
 
+    def _read_iter_data(self, record_id):
+        # 先构造dict
+        csv_path = self.config.data_save_path
+        run_times = self.config.run_times
+
+        # 我还想得到最高fitness对应的相关数据
+        data_item = []
+        # 保存每次迭代的最佳参数
+        max_params_per_run = []
+
+        for i in range(run_times):
+            file_path = f"{csv_path}/{record_id}/{i}_0_pso_params_3d_ct.csv"
+            csv_datas = pd.read_csv(file_path)
+            fes = csv_datas['iterations'].values
+            fitness = csv_datas['fitness'].values
+            data_item.append(fitness)
+
+            last_row = csv_datas.iloc[-1]
+            max_params_per_run.append(last_row.to_list())
+        
+        np_arr = np.stack(data_item)
+        iter_best = np_arr[:, -1]
+        mean_best_fit = np.mean(iter_best)
+        std_best_fit = np.std(iter_best)
+        med = np.median(np_arr, axis=0)
+        mean_fes = np.mean(np_arr, axis=0)
+        data_dict = {
+            "mean_best" : mean_best_fit, 
+            "std_best_fit" : std_best_fit, 
+            "median_fes" : med,
+            "mean_fes" : mean_fes, 
+            "fes" : fes
+        }
+        
+        # 对max_params_per_run进行排序
+        max_params_per_run = sorted(max_params_per_run, key=lambda x: x[-1], reverse=True)
+        best_matched_params = max_params_per_run[0]
+        # 打印最佳参数
+        print(f"best_parameters: {best_matched_params}")
+
+        if self.config.show_log:
+            print(f"{record_id}, mean: {mean_best_fit:.4e}, std: {std_best_fit:.4e}")
+        return data_dict
+
+    def read_iter_data(self, record_ids):
+        total_data_rows = 0
+        record_dict = {}
+        for record_id in record_ids:
+            data_dict = self._read_iter_data(record_id)
+            record_dict.setdefault(record_id, data_dict)
+            total_data_rows = len(data_dict["fes"])
+
+        record_dict.setdefault("total_data_rows", total_data_rows)
+        return record_dict
+    
+    # 展示收敛曲线，这个total_mark代表的是显示多少个mark，在折线上（展示的是均值），纵轴上是以log10的对数
+    def show_mean_convergence_line(self, record_dict, record_ids, mark_label, total_mark = None):
+        step = 1
+        # 需要获取总的列数
+        total_iters = record_dict["total_data_rows"]
+        if total_mark != None:
+            step = total_iters // total_mark
+
+        j = 0
+        for record_id in record_ids:
+            data_item = record_dict[record_id]
+            mean = data_item["mean_fes"]
+            mean = mean[::step]
+            fes = data_item["fes"]
+            fes = fes[::step]
+            plt.plot(fes, mean, label=mark_label[j],
+                     color=self.config.colors[j], marker=self.config.markers[j])
+            j+=1
+            
+        plt.xlabel('FEs')
+        plt.ylabel('Fitness')
+        plt.legend()
+        # 显示图像
+        plt.show()

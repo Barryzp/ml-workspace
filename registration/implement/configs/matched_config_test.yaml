@@ -56,8 +56,6 @@ cropped_ct_size : [1024, 1024]
 sample_interval : 20
 downsampled : True
 downsample_times : 2
-# 每张图片循环多少次进行查找
-match_loop_times : 7
 matched_threshold: 0.1
 
 # 是否有遮罩
