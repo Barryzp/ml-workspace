@@ -7,7 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 
-import os, random
+import os, random, math
 
 import numpy as np
 
@@ -61,4 +61,13 @@ print("rand min maxV", np.random.uniform([1, 1], [2, 2]))
 
 data = [[1, 2, 3], [2, 3, 4], [4, 1, 2], [9, 9, 8], [7, 7, 2]]
 sorted_data_desc = sorted(data, key=lambda x: x[-1], reverse=True)
-print(sorted_data_desc)
+
+d1 = [1, 2, 3]
+d2 = [2, 2, 3]
+d3 = [3, 2, 3]
+
+a = [d1, d2, d3]
+a = np.vstack(a)
+
+t = np.array([1, 2, 3, 4, 5, 6])
+print(t[3:])

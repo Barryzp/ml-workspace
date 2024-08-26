@@ -1,0 +1,122 @@
+
+record_id : "reg-sample4-S1(16)" # -fiter_bigsize
+remark : "测试：不采用金字塔匹配结果，限制角度范围"
+data_save_path : "D:/workspace/ml-workspace/registration/result/fine"
+debug : False
+
+# region 水泥样品相关信息
+# 对应第几个水泥样本
+cement_sample_index : 4
+# bse放大倍数
+bse_zoom_times : 100
+# 样品第几个SEM成像
+sample_bse_index : 1
+# 对应bse放大某个倍数下，第几个BSE成像图像
+zoom_bse_index : 1
+# endregion
+
+# region 相关路径
+# 图像路径
+data_path : "D:/workspace/ml-workspace/registration/datasets"
+# 图像后缀
+# bse图像后缀，编号外的
+bse_suffix : "enhanced-roi"
+# bse mask图像后缀
+mask_suffix : "roi-mask"
+# ct 切片图像, 普通的是enhanced_ct，遮罩是mask_ct
+ct_slice_suffix: "enhanced_ct"
+ct_mask_suffix : "mask_ct"
+# 模式：
+# 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
+# 3d代表2d/3d配准，进行目标配准，流程的最后一步
+# matched代表匹配
+mode : "3d"
+
+# 直方图划分
+bins : 256
+
+downsampled : True
+matched_start_idx : 325
+matched_end_idx : 901
+matched_slice_index : 581
+downsample_times : 8
+latent_depth_area : 100
+enhanced : False
+# 潜在的bse图像能够代表的最大深度
+latent_bse_depth : 20
+
+# 进行多少次运行
+run_times : 2
+
+# 是否有遮罩
+masked : False
+
+ct_size : [1920, 1920]
+bse_size : [624, 512]
+# CT图像的XOY平面上的旋转中心
+rotation_center_xy : [512.0, 512.0]
+# 初始旋转角度
+init_rotation : [.0, .0, 0.0]
+# 初始位移，以图像的左上角为原点
+init_translate : [0.0, 0.0, 0.0]
+# 并没有涉及到上采样（乘以多少倍）
+# 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
+translate_delta : [40.0, 40.0, 8.0]
+# 基于初始旋转角度，允许的最大增量
+rotation_delta : [4, 4, 3]
+# 限制搜索范围，特别是对于位于中央区域的样本来说，中央区域的BSE图像显然就是1
+center_search_border : [1024.0, 1024.0, 0.0]
+
+
+# region 优化参数
+rand_seed : 45
+solution_dimension : 6
+# 切换搜索策略比率，当前FE占总FE的多少
+switch_strategy_ratio : 0.5
+# 注意：需要是偶数，考虑到CSO和PPSO这种要配对的算法
+save_fes_interval : 100
+
+# PSO 参数
+# 粒子个数
+particle_num : 512
+# 迭代次数
+iteratons : 100
+# HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
+weight_inertia : 0.729  # Inertia weight
+# 个体学习因子，朝着个体最佳方向
+individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
+# 群体学习因子，朝着全局最佳方向
+global_w : 2.78    # Social (swarm's best) weight [0, 4]
+# 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
+speed_param_ratio : 0.18 # 0.1 ~ 0.2
+
+
+# CMA-ES 参数
+# 初始多维高斯分布标准差
+sigma0 : 45
+# 种群数量
+pop_size : 256
+# 最大迭代数目
+max_iter : 50
+
+# ppso参数
+layer_config : [4, 8, 20, 32] #[8, 24, 32, 48]
+phi : 0.008
+#     if dimensions == 50:
+#         phi = 0.04
+#     elif dimensions == 30:
+#         phi = 0.02
+#     else:
+#         phi = 0.008
+# endregion
+
+
+show_log : True
+
+
+# 图像绘制标记
+markers : ['o', 'v', '^', '<', '>', '1', '2', '3', '4', 
+           's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_', ',', '.', ]
+colors : ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'maroon',
+          'gray', 'orange', 'pink', 'brown', 'purple', 'lime', 'olive', 'navy', 
+          'teal', 'aqua', 'fuchsia', 'white', 'silver', 'gold']

@@ -5,12 +5,18 @@ import cv2
 from functools import partial
 from utils.tools import Tools
 from enums.global_var import MatchUnit
+from dtos.pyramid_reg import PyramidCfg
 
 class Registration:
     def __init__(self, config, ct_slice_inteval = None, ct_index_array = None) -> None:
-
+        # 过时了，用的itk库
         self.itk_img = None
         
+        # fine registration, 精配准
+        self.reg_3dct = {}
+        # 对应配置
+        self.fine_reg_pyramids = {}
+
         # ct图像3d，这是一个数组噢
         self.ct_matched_3d = []
         # ctmask图像3d
@@ -107,6 +113,8 @@ class Registration:
         self.optim_framework = optim
         # 需要绑定实例对象
         similarity_fun = partial(self.similarity)
+        if self.config.mode == "3d":
+            similarity_fun = partial(self.similarity, pyramid = optim.pyramid_cfg)
         optim.set_init_params(similarity_fun, self)
 
     def get_bse_diameter_interval(self):
@@ -197,6 +205,44 @@ class Registration:
         # (height, width)(rows, column)
         return self.ct_img.shape
 
+    # 加载精配准的ct图像
+    def _load_fine_reg_ct(self):
+        # 由于要进行金字塔匹配，因此需要加载不同重采样下的图像
+        match_downsamples = self.config.downsample_times
+        max_downsample_pow = int(np.log2(match_downsamples))
+        
+        ct3d_intervals = []
+        for ds_pow in range(max_downsample_pow-1, -1, -1):
+            load_interval = 2**ds_pow
+            ct3d_intervals.insert(0, load_interval)
+            self.reg_3dct.setdefault(load_interval, [])
+
+        best_matched_slice = self.config.matched_slice_index
+        half_latent_depth = int(self.config.latent_depth_area * 0.5)
+        start_idx = best_matched_slice - half_latent_depth
+        end_idx = best_matched_slice + half_latent_depth
+
+        data_path = self.config.data_path
+        cement_sample_index = self.config.cement_sample_index
+        ct_path = f"{data_path}/sample{cement_sample_index}/ct/s{self.config.sample_bse_index}"
+        counter = 0
+        for slice_idx in range(start_idx, end_idx, 1):
+            ct_slice_path = f"{ct_path}/slice_{slice_idx}.bmp"
+            if self.config.enhanced : ct_slice_path = f"{ct_path}/{slice_idx}_enhanced.bmp"
+            ct_slice_img = cv2.imread(ct_slice_path, cv2.IMREAD_GRAYSCALE) 
+
+            # 叠上去，实际上这个interval就是downsample_times（下采样倍数），之后再叠在一块儿
+            for interval in ct3d_intervals:
+                if counter % interval == 0:
+                    ds_img = Tools.downsample_image(ct_slice_img, interval, interpolation=cv2.INTER_NEAREST)
+                    self.reg_3dct.get(interval).append(ds_img)
+            counter += 1
+
+        # 获得了完整的3d ct
+        for interval in self.reg_3dct:
+            ct3d = self.reg_3dct[interval]
+            self.reg_3dct[interval] = np.stack(ct3d, axis=0)
+
     # 加载itk图像序列
     def _load_itk(self):
         data_path = self.config.data_path
@@ -245,6 +291,8 @@ class Registration:
             bse_mask_path = f"{src_path}/{prefix}-{self.config.mask_suffix}.bmp"
             self.bse_img = cv2.imread(bse_mask_path, cv2.IMREAD_GRAYSCALE)
 
+        # 金字塔精配准就不进行下采样了
+
         if self.config.downsampled: self.bse_img = Tools.downsample_image(self.bse_img, self.config.downsample_times)
         r_img_height, r_img_width = self.bse_img.shape
         print(f"r_width: {r_img_width}, r_height: {r_img_height}")
@@ -283,10 +331,11 @@ class Registration:
         if self.config.mode == "2d":
             self._load_ct_img()
         elif self.config.mode == "3d":
-            self._load_itk()
+            self._load_fine_reg_ct()
         elif self.config.mode == "matched":
             self._load_matched_ct3d_imgs()
-            self.init_bse_indeces()
+            bse_height, bse_width = self.get_bse_img_shape()
+            self.bse_indeces_in_ct = self.init_bse_indeces((bse_width, bse_height))
 
     # 计算距离切片的偏移, size:[width, height]
     def compute_offset_from_ct(self, ct_size, slice_size):
@@ -295,8 +344,8 @@ class Registration:
         return [delta_x, delta_y]
 
     # 初始化好bse位于ct图像中的索引
-    def init_bse_indeces(self):
-        bse_height, bse_width = self.get_bse_img_shape()
+    def init_bse_indeces(self, bse_img_size):
+        bse_width, bse_height = bse_img_size
 
         # 这个还是不加上去，只作为参考的初始索引，左上角为原点，变换时索引则为：coordinates + optimized_position
         # bse_offset_from_origin = self.compute_offset_from_ct([ct_slice_width, ct_slice_height],
@@ -312,8 +361,7 @@ class Registration:
         constant_array = np.full(coordinates.shape[:-1] + (1,), 0)
 
         # 将 coordinates 和 constant_array 连接起来
-        self.bse_indeces_in_ct = np.concatenate((coordinates, constant_array), axis=-1)
-        
+        return np.concatenate((coordinates, constant_array), axis=-1)
 
     # 这个值越大越好 空间相关性
     def spatial_correlation(self, img1, img2):
@@ -388,6 +436,7 @@ class Registration:
 
         return mi
 
+    # 匹配切片相关
     def crop_slice_from_mask_3dct(self, x, volume_index,interpolation = "None"):
         volume = self.get_matched_3d_msk_ct(volume_index)
         return self.crop_slice_from_3dct_match(x, volume_index, volume, interpolation)
@@ -430,7 +479,6 @@ class Registration:
         
         return result, most_prob_slice_index
 
-
     # 从ct图像中根据索引切片
     def crop_slice_from_3dct(self, x, volume, interpolation = "None"):
         position = np.copy(x)
@@ -463,6 +511,38 @@ class Registration:
         
         return result, most_prob_slice_index
 
+    # 从ct图像中根据索引切片
+    def crop_slice_from_3dct_fine_reg(self, x, pyramid, interpolation = "None"):
+        volume = self.reg_3dct.get(pyramid.downsample_times)
+        
+        position = np.copy(x)
+        translation = position[:3]
+        rotation = position[3:]
+
+        bse_indeces_in_ct = pyramid.reg_bse_indeces
+
+        # 这个地方的bse_indeces_in_ct是不变的
+        indeces_in_ct = Tools.translate_points(translation, bse_indeces_in_ct)
+        height, width = pyramid.reg_bse_img_size[1], pyramid.reg_bse_img_size[0]
+        # 围绕切片中心旋转
+        rotation_center = indeces_in_ct[int(height // 2), int(width // 2)]
+        index_array = Tools.rotate_points(rotation_center, rotation, indeces_in_ct)
+        integer_indeces = Tools.force_convert_uint(index_array)
+
+        # 通过index_array来进行索引切片
+        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+        
+        # 获取这个切片中Z方向最多的元素，也就是找到起最多包含的断层面
+        most_prob_slice_index = Tools.most_frequent_element(integer_indeces[:, 2])
+        # 还需要做一个映射 HACK 有问题这里
+        most_prob_slice_index = pyramid.start_idx + most_prob_slice_index * pyramid.downsample_times
+
+        # HACK 用于后面的插值处理，目前看来还是不这样搞
+        if interpolation == "None":
+            pass
+        
+        return result, most_prob_slice_index
+
     # 只利用遮罩的空间信息
     def similarity_only_mask_spatial(self, x, ct_matching_slice_index):
         rotation_center_xy = self.config.rotation_center_xy
@@ -482,41 +562,16 @@ class Registration:
         spatial_info = self.spatial_correlation_with_mask(cropped_image, self.bse_img)
         return spatial_info, cropped_image
 
-    # 只利用遮罩的空间信息
-    def similarity_matched_mi(self, x, ct_matching_slice_index, sp_lambda):
-        rotation_center_xy = self.config.rotation_center_xy
-
-        image = self.matched_ct_imgs[ct_matching_slice_index]
-        r_height, r_width = self.get_bse_img_shape()
-        f_height = self.config.cropped_ct_size[0]
-        f_width = self.config.cropped_ct_size[1]
-
-        angle = x[2].item()
-        scale = 1.0
-        rotation_matrix = cv2.getRotationMatrix2D(rotation_center_xy, angle, scale)     
-        rotated_image = cv2.warpAffine(image, rotation_matrix, (f_width, f_height))     
-
-        pos_x, pos_y, w, h = int(x[0].item()), int(x[1].item()), r_width, r_height  # 裁剪位置和大小
-        cropped_image = rotated_image[pos_y:pos_y+h, pos_x:pos_x+w]
-        
-        mi = self.mutual_information(cropped_image, self.bse_img)
-
-        sp = self.spatial_correlation_with_mask(cropped_image, self.bse_img)
-        weightd_sp = self.config.lamda_mis * sp * sp_lambda
-        similar = mi + weightd_sp
-        # print(f"sp: {sp}, mi: {mi}, similar: {similar}")
-        return similar, cropped_image, mi, sp, weightd_sp 
-
     def similarity_matched_dice(self, x, match3dct_idx):
         cropped_image, latent_z = self.crop_slice_from_mask_3dct(x, match3dct_idx)
         dice = Tools.dice_coefficient(cropped_image, self.bse_img)
         return dice, cropped_image, latent_z, 0, 0, 0
 
-    def griewank(x):
-        xs = x ** 2
-        sum_term = np.sum(xs, axis=1) / 4000
-        prod_term = np.prod(np.cos(x / np.sqrt(np.arange(1, x.shape[1] + 1))), axis=1)
-        return sum_term - prod_term + 1
+    def similarity_3d(self, x, pyramid):
+        cropped_img, latent_z = self.crop_slice_from_3dct_fine_reg(x, pyramid)
+        bse_img = pyramid.bse_img
+        mi = self.mutual_information(cropped_img, bse_img)
+        return mi, cropped_img, latent_z
 
     def similarity_jaccard(self, x):
         rotation_center_xy = self.config.rotation_center_xy
@@ -588,23 +643,7 @@ class Registration:
         mis = mi_value + weighted_sp
         return mis, cropped_image, mi_value, spation_info, weighted_sp
 
-    def similarity_3d(self, x):
-        rotation_center_xy = self.config.rotation_center_xy
-        lamda_mis = self.config.lamda_mis
-
-        height, width = self.get_bse_img_shape()
-
-        rotation_center = (rotation_center_xy[0], rotation_center_xy[1], x[2].item())
-        rotation = (x[3].item(), x[4].item(), x[5].item())
-        slice_indeces = (int(x[0]), int(x[1]), int(x[2]))
-        slice_img = Tools.get_slice_from_itk(self.itk_img, rotation_center, rotation, slice_indeces, (width, height))
-
-        mi_value = self.mutual_information(slice_img, self.bse_img)
-        spation_info = self.spatial_correlation(slice_img, self.bse_img)
-        mis = mi_value + lamda_mis * spation_info
-        return mis, slice_img.reshape((width, height))
-
-    def similarity(self, x, match3dct_idx=None, sp_lambda=0):
+    def similarity(self, x, match3dct_idx=None, pyramid=None):
         if self.config.debug :
             # 反射机制：通过函数名字符串调用对象的成员方法
             return getattr(self, self.config.debug_simiarity)(x)
@@ -613,7 +652,7 @@ class Registration:
         if self.config.mode == "2d":
             return self.similarity_2d(x)
         elif self.config.mode == "3d":
-            return self.similarity_3d(x)
+            return self.similarity_3d(x, pyramid)
         elif self.config.mode == "matched":
             return self.similarity_matched_dice(x, match3dct_idx)
 
@@ -647,6 +686,128 @@ class Registration:
         if self.config.mode == "2d" and self.config.debug:
             self.save_matched_result(best_position)
         return fitness, best_reg, best_position
+
+    # 参数的重映射，主要还是对于位移，角度不存在的
+    def params_remapping(self, pyramid_pre, pyramid_new):
+        out_downsamples = pyramid_new.downsample_times
+
+        pre_ds_times = pyramid_pre.downsample_times
+        pre_start_idx = pyramid_pre.start_idx
+        pre_translation = pyramid_pre.translation
+
+        # 先转换到原始匹配的大CT块
+        translation_in_ori = pre_translation * pre_ds_times
+        # z轴上还要加上起始索引才得到原始大CT块的相对位置
+        translation_in_ori[-1] = translation_in_ori[-1] + pre_start_idx
+        best_matched_slice = self.config.matched_slice_index
+        half_latent_depth = int(self.config.latent_depth_area * 0.5)
+        new_start_idx = best_matched_slice - half_latent_depth
+
+        # 转换到新的块中的索引, 始终都是固定的，100那层嘛反正
+        translation_now = translation_in_ori.copy()
+        translation_now[-1] = translation_now[-1] - new_start_idx
+        translation_now = translation_now / out_downsamples
+        pyramid_new.start_idx = new_start_idx
+        pyramid_new.end_idx = new_start_idx + self.config.latent_depth_area
+        pyramid_new.rotation = pyramid_pre.rotation
+        pyramid_new.translation = translation_now
+
+    def build_pyramid_cfgs(self):
+        cement_id = self.config.cement_sample_index
+        bse_index = self.config.sample_bse_index
+        match_cfg_path = f"{self.config.data_path}/sample{cement_id}/ct/s{bse_index}/cement_{cement_id}_s{bse_index}.yaml"
+        matched_cfg = Tools.load_yaml_config(match_cfg_path)
+
+        match_downsamples = self.config.downsample_times
+        max_downsample_pow = int(np.log2(match_downsamples))
+        
+        ct_size = np.array(self.config.ct_size)
+        bse_size = np.array(self.config.bse_size)
+
+        ori_bse_img = self.bse_img_ori
+
+        pyramid_cfgs = []
+        # 1. 构建每层金字塔的配置
+        for ds_pow in range(max_downsample_pow, -1, -1):
+            if ds_pow == 3 or ds_pow == 0:
+                downsample_times = 2**ds_pow
+                cur_bse_size = bse_size / downsample_times
+                pyramid = PyramidCfg.buildPyramid(downsample_times, 
+                                                  cur_bse_size, 
+                                                  ct_size / downsample_times)
+                bse_indeces = self.init_bse_indeces((cur_bse_size[0], cur_bse_size[1]))
+                bse_img_dsp = Tools.downsample_image(ori_bse_img, downsample_times=downsample_times, interpolation=cv2.INTER_NEAREST)
+
+                pyramid.reg_bse_indeces = bse_indeces
+                pyramid.bse_img = bse_img_dsp
+                pyramid.start_idx = self.config.matched_start_idx
+                pyramid.end_idx = self.config.matched_end_idx
+                pyramid.translation = np.array(matched_cfg.matched_translate)
+                pyramid.rotation = np.array(matched_cfg.matched_rotation)
+                pyramid.delta_translation = np.array(self.config.translate_delta)
+                pyramid.delta_rotation = np.array(self.config.rotation_delta)
+                pyramid_cfgs.append(pyramid)
+        
+        return pyramid_cfgs
+
+    # 精配准
+    def fine_registrate(self, optim_class):
+        match_downsamples = self.config.downsample_times
+        max_downsample_pow = int(np.log2(match_downsamples))
+        pyramid_cfgs = self.build_pyramid_cfgs()
+        self.fine_reg_pyramids = pyramid_cfgs
+
+        translation_delta = np.array(self.config.translate_delta)
+        rotation_delta = np.array(self.config.rotation_delta)
+
+        for i in range(len(pyramid_cfgs)-1):
+            current_pyramid = self.fine_reg_pyramids[i+1]
+            last_pyramid = self.fine_reg_pyramids[i]
+            self.params_remapping(last_pyramid, current_pyramid)
+            current_pyramid.delta_translation = translation_delta * current_pyramid.downsample_times
+            current_pyramid.delta_rotation = rotation_delta
+            best_val, best_pos = self.run_fine_reg_optim(optim_class, current_pyramid)
+            current_pyramid.translation = best_pos[:3]
+            current_pyramid.rotation = best_pos[3:]
+        # 2. 每层金字塔进行精配准
+        # for ds_pow in range(max_downsample_pow - 1, -1, -1):
+        #     # 两次循环的数据结构不一样。。。
+        #     pre_ds_times = 2**(ds_pow+1)
+        #     downsample_times = 2**ds_pow
+        #     current_pyramid = pyramid_cfgs.get(downsample_times)
+        #     last_pyramid = pyramid_cfgs.get(pre_ds_times)
+        #     self.params_remapping(last_pyramid, current_pyramid)
+        #     current_pyramid.delta_translation = translation_delta * downsample_times
+        #     current_pyramid.delta_rotation = rotation_delta
+        #     self.run_fine_reg_optim(optim_class, current_pyramid)
+
+        # 3. 输出最后一层金字塔配准结果
+
+    def run_fine_reg_optim(self, optim_class, pyramid):
+        config = self.config
+        run_times = config.run_times
+
+        gbest_val = -1
+        gbest_pos = None
+
+        for i in range(run_times):
+            print(f"current loop times: {i+1}")
+            rand_seed = config.rand_seed + i
+            # 每一次迭代随机种子+1，这样的方式保证结果的一致
+            np.random.seed(rand_seed)
+            # global_match_datas = GlobalMatchDatas(config, self)
+            optim = optim_class(config)
+            optim.set_pyramid(pyramid)
+            optim.set_runid(i)
+            self.set_optim_algorithm(optim)
+            optim.run_fine_reg()
+            best_solution, best_val = optim.best_solution, optim.best_value
+            if best_val > gbest_val:
+                gbest_val = best_val
+                gbest_pos = best_solution
+            print(f"best val:{gbest_val}, pos: {gbest_pos}")
+
+        return gbest_val, gbest_pos
 
     def _read_iter_data(self, record_id):
         # 先构造dict

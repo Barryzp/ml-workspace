@@ -6,7 +6,7 @@ cement_sample_index : 4
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
-sample_bse_index : 2
+sample_bse_index : 1
 # 对应bse放大某个倍数下，第几个BSE成像图像
 zoom_bse_index : 1
 # ct图像采样间隔区间
@@ -101,13 +101,12 @@ bse_cropped_offset : [401, 128]
 # BSE图像的兴趣域尺寸
 bse_roi_size : [624, 512]
 # 下采样倍数
-downsample_times : 1
+downsample_times : 8
 # 搜索的区域大小
-latent_slice_area : 80
+latent_slice_area : 100
 # 设置分块的大小
 patch_size : 128
-matched_slice_index : 597
-# 在采样倍数下距离左上角的偏移量
-matched_translate : [598, 813]
-matched_rotation : 244
+matched_slice_index : 581
+matched_translate : [91.6544097817154, 87.07544078676693, 32.52688484623326]
+matched_rotation : [-0.1054189786808674, -0.1401416009581744, 240.68028321131897]
 # endregion

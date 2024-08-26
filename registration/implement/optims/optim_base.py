@@ -74,6 +74,8 @@ class OptimBase:
         self.current_fes = 0
         self.max_fes = config.max_fes
 
+        self.pyramid_cfg = None
+
         # 用于保存迭代过程中寻找到的最优fitness
         self.records = []
         # 用于保存评估过程中寻找到的最优fitness
@@ -88,7 +90,8 @@ class OptimBase:
         # 配准的相关结果
         self.best_match_img = None
 
-        if self.config.mode != "test":
+        # 设置匹配过程对应3d块的唯一索引
+        if self.config.mode == "matched":
             # 设置初始位移以及旋转角度
             self.init_translate = self.config.init_translate
             self.translate_delta = self.config.translate_delta
@@ -96,9 +99,6 @@ class OptimBase:
             self.init_rotation = self.config.init_rotation
             self.rotation_delta = self.config.rotation_delta
             self.rot_z_delta = self.config.rot_z_delta
-
-        # 设置匹配过程对应3d块的唯一索引
-        if self.config.mode == "matched":
             self.matched_3dct_id = matched_3dct_id
     
     def gen_random_position(self):
@@ -120,6 +120,9 @@ class OptimBase:
     # 用来区别每一次运行保存的值
     def set_runid(self, run_id):
         self.run_id = run_id
+
+    def set_pyramid(self, pyramid):
+        self.pyramid_cfg = pyramid
 
     def clear_datas(self):
         self.records = []
@@ -147,7 +150,18 @@ class OptimBase:
 
         self.fitness_fun = fitness_fun
         if self.config.mode == "matched" : self.init_match_params(reg_obj)
+        if self.config.mode == "3d" : self.init_reg_3d_params()
     
+    # 初始化3d参数
+    def init_reg_3d_params(self):
+        pyramid_cfg = self.pyramid_cfg
+
+        self.init_translate = pyramid_cfg.translation - pyramid_cfg.delta_translation
+        self.translate_delta = pyramid_cfg.delta_translation * 2
+
+        self.init_rotation = pyramid_cfg.rotation - pyramid_cfg.delta_rotation
+        self.rotation_delta = pyramid_cfg.delta_rotation * 2
+
     # 对于不同的ct块还不一样
     def init_match_params(self, reg_obj):
         ct_index_array = reg_obj.get_3dct_index_array(self.matched_3dct_id)
@@ -218,12 +232,6 @@ class OptimBase:
         self.parameters_num = 6
         ############## 初始参数变量范围设置，六个（translate_x,y,z, rotation_x,y,z）###################
         # 参数的范围在registration中已经设置完毕了
-
-        # z轴的旋转角度分段优化
-        init_rotation_z = self.init_rotation[-1]
-        rotation_delta_z = self.rotation_delta[-1]
-
-        # 这个config就不能是公用的了
         # 这个坐标需要注意，是需要记录的
         init_translate = self.init_translate
         init_rotation = self.init_rotation
@@ -237,7 +245,7 @@ class OptimBase:
                 init_translate[2],
                 init_rotation[0], 
                 init_rotation[1],
-                init_rotation_z,
+                init_rotation[2],
         ])
         self.maxV = np.array([
             init_translate[0] + translate_delta[0], 
@@ -245,7 +253,7 @@ class OptimBase:
                 init_translate[2] + translate_delta[2],
                 init_rotation[0] + rotation_delta[0], 
                 init_rotation[1] + rotation_delta[1],
-                init_rotation_z + rotation_delta_z,
+                init_rotation[2] + rotation_delta[2],
         ])
 
     def auto_nonlinear_sp_lambda(self, k=12, a=0.7):
@@ -261,22 +269,21 @@ class OptimBase:
     # 保存迭代过程中的参数
     def save_iteration_params(self):
         file_path = Tools.get_save_path(self.config)
-        file_name = f"pso_params_{self.config.mode}.csv"
+        optim_name = self.__class__.__name__
+        file_name = f"{optim_name}_params_{self.config.mode}.csv"
 
-        if self.config.mode == "2d" :
+        mode = self.config.mode
+        if mode == "2d" :
             columns = ["iterations", "x", "y", "rotation", "fitness", "weighted_sp", "mi", "sp"]
-        elif self.config.mode == "3d":
-            columns = ["iterations", 
-                       "x", "y", "z", 
-                       "rotation_x", "rotation_y", "rotation_z",
-                       "fitness"]
-        elif self.config.mode == "matched":
+        else:
             columns = ["iterations",
                        "slice_index", 
                        "translate_x", "translate_y", "translate_z", 
                        "rotation_x", "rotation_y", "rotation_z", 
                        "fitness"]
-            file_name = f"{self.run_id}_{self.matched_3dct_id}_pso_params_3d_ct.csv"
+            file_name = f"{self.run_id}_{self.matched_3dct_id}_{optim_name}_params_{mode}.csv"
+            if mode == "3d":
+                file_name = f"{self.run_id}_{self.pyramid_cfg.downsample_times}_{self.matched_3dct_id}_{optim_name}_params_{mode}.csv"
 
         Tools.save_params2df(self.records, columns, file_path, file_name)
 
@@ -320,7 +327,10 @@ class OptimBase:
     def save_iteration_best_reg_img(self, img_array, fes):
         file_path = Tools.get_save_path(self.config)
         file_name = f"fes_{fes}_best_reg.bmp"
-        if self.config.mode == "matched": file_name = f"best_reg_3dct.bmp"
+        mode = self.config.mode
+        if mode == "matched": file_name = f"best_reg_3dct.bmp"
+        if mode == "3d": file_name = f"{self.pyramid_cfg.downsample_times}_{self.run_id}_fes_{fes}_best_reg.bmp" 
+        
         Tools.save_img(file_path, file_name, img_array)
 
     def save_iter_records(self, iter):
@@ -363,12 +373,16 @@ class OptimBase:
         mode = self.config.mode
         if mode == "2d":
             self.init_with_2d_params()
-        elif mode == "matched":
+        elif mode == "matched" or mode == "3d":
             self.init_with_3d_params()
 
     # 反复进行循环run函数，目的是寻找最优
     def run_matched_with_loops(self):
         self.run_matched()
+
+    def run_fine_reg(self):
+        self.run()
+        self.save_iteration_params()
 
     def recording_data_item_for_std_optim(self, iterations):
         # HACK 能够绝对值化的前提在于已经平移到原点了
@@ -384,9 +398,10 @@ class OptimBase:
 
     # 记录当前
     def recording_data_item_FEs(self):
-        if self.config.mode == "matched":
+        mode = self.config.mode
+        if mode == "matched" or mode == "3d":
             self.recording_data_item_for_reg()
-        elif self.config.mode == "test":
+        elif mode == "test":
             self.recording_data_item_for_optim_test()
 
     # 记录当前
@@ -417,18 +432,19 @@ class OptimBase:
         __ = fit_res[1]
         data_item = iter_best_position
 
-        if self.config.mode == "matched":
-            z_index = fit_res[2]
-            data_item = np.insert(data_item, 0, z_index)
-            if current_fes / 10000 == 0:
-                self.save_iteration_best_reg_img(__, current_fes)
-            print(f"fes: {current_fes}, fitness: {cur_iter_best}, params: {iter_best_position}")
-            self.set_global_best_datas(cur_iter_best, iter_best_position, __, z_index, self.matched_3dct_id)
+        mode = self.config.mode
+        z_index = fit_res[2]
+        data_item = np.insert(data_item, 0, z_index)
+        print_iter = 5000
+        if mode == "3d": print_iter = 1000
+        if current_fes % print_iter == 0:
+            self.save_iteration_best_reg_img(__, current_fes)
+        print(f"fes: {current_fes}, fitness: {cur_iter_best}, params: {iter_best_position}")
+        self.set_global_best_datas(cur_iter_best, iter_best_position, __, z_index, self.matched_3dct_id)
 
         data_item = np.insert(data_item, 0, current_fes)
         data_item = np.insert(data_item, data_item.size, cur_iter_best)
         self.records.append(data_item.tolist())
-
 
     # 使用此方法粒子数的数量必须是2^n
     def spawn_uniform_particles(self):

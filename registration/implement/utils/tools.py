@@ -107,9 +107,9 @@ class Tools:
         return Tools.caculate_hist_entropy(hist_2d)
 
     # 下采样图像
-    def downsample_image(image_np, downsample_times, size = None):
+    def downsample_image(image_np, downsample_times, size = None, interpolation=cv2.INTER_AREA):
         # 使用缩放因子来减半图片尺寸，下采样采用cv2.INTER_AREA的方式进行插值，尽可能降低插值带来的灰度分布变化
-        resized_image = cv2.resize(image_np, dsize=size, fx=1/downsample_times, fy=1/downsample_times, interpolation=cv2.INTER_AREA)
+        resized_image = cv2.resize(image_np, dsize=size, fx=1/downsample_times, fy=1/downsample_times, interpolation=interpolation)
         return resized_image
 
     # 上采样图像
