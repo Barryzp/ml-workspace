@@ -68,7 +68,7 @@ AVALIABLE_RANGE = {
 SAMPLE_NUM = 1000
 SAMPLES = 53
 
-ROOT = 'G:/CT/'
+ROOT = 'H:/CT'
 BMP = ".bmp"
 JPG = ".jpg"
 TIF = ".tif"
