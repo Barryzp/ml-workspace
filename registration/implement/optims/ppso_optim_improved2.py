@@ -2,7 +2,8 @@ import numpy as np
 from utils.tools import Tools
 from optims.ppso_optim import PPSO_optim, Particle_PPSO
 
-# ppso改进方案4：loser向任意上面的任意一层好粒子学，winner正常学
+# ppso改进方案4：loser向任意上面的任意一层好粒子学，winner正常学，
+# 大于一定迭代次数之后loser还朝着上方学习
 class Particle_PPSO4(Particle_PPSO):
 
     # winner更新速度, 想着上层学
@@ -28,7 +29,7 @@ class Particle_PPSO4(Particle_PPSO):
         self.velocity = updated_velocity
         self.check()
 
-    # loser更新速度，loser朝着上层的学，顶层loser朝着winner学
+    # loser更新速度，loser朝着上任意一层学习，顶层loser朝着winner学
     def update_velocity_loser(self, winner_pos, upper_pos, swtich_strategy = False, is_top_layer=False):
         dim = self.position.shape[0]
         random_coeff1 = np.random.rand(dim)
@@ -151,7 +152,8 @@ class PPSO_optim4(PPSO_optim):
         return self.best_solution
 
 
-# ppso改进方案5：之前是正常的PPSO，大于一定迭代次数后，loser向任意上面的任意一层好粒子学，winner正常学
+# ppso改进方案5：之前是正常的PPSO，
+# 大于一定迭代次数后，loser向任意上面的任意一层好粒子学，再加上一个随机扩散速度来增加粒子的多样性
 class Particle_PPSO5(Particle_PPSO4):
     # winner更新速度, 想着上层学
     def update_velocity_winner(self, upper_pos, swtich_strategy = False, is_top = False):
@@ -188,7 +190,6 @@ class Particle_PPSO5(Particle_PPSO4):
 
         random_part = np.zeros_like(self.position)
         if not swtich_strategy : random_part = self.optim.gen_random_position()
-
 
         if swtich_strategy and not is_top_layer:
             updated_loser_velocities = (random_coeff1 * self.velocity 

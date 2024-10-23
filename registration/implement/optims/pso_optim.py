@@ -20,8 +20,8 @@ class PSO_optim(OptimBase):
         super(PSO_optim, self).init_with_2d_params()
         # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
         # 位移限制的范围
-        translate_delta = self.config.translate_delta
-        rotation_delta = self.config.rotation_delta[-1]
+        translate_delta = self.translate_delta
+        rotation_delta = self.rotation_delta[-1]
         speed_x = translate_delta[0] * self.speed_param_ratio
         speed_y = translate_delta[1] * self.speed_param_ratio
         speed_rotation = rotation_delta * self.speed_param_ratio
@@ -31,8 +31,8 @@ class PSO_optim(OptimBase):
         super(PSO_optim, self).init_with_3d_params()
 
         # 位移限制的范围
-        translate_delta = self.config.translate_delta
-        rotation_delta = self.config.rotation_delta
+        translate_delta = self.translate_delta
+        rotation_delta = self.rotation_delta
 
         # 每个粒子的移动速度是不同的, [speed_x, speed_y, speed_z, rotation_x, rotation_y, rotation_z]
         speed_x = translate_delta[0] * self.speed_param_ratio

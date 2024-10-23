@@ -55,7 +55,7 @@ class CSO_optim(PPSO_optim):
             winners = particles[winner_indeces]
             
             # 得到种群的平均位置
-            mean_pos = np.zeros((self.config.solution_dimension))
+            mean_pos = np.zeros_like((self.best_solution))
             for particle in particles:
                 mean_pos += particle.position 
             mean_pos = mean_pos / particle_num            

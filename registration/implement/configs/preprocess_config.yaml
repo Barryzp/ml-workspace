@@ -2,7 +2,7 @@
 # 图像预处理配置文件
 record_id : "记录的防伪标签"
 # 对应第几个水泥样本
-cement_sample_index : 4
+cement_sample_index : 12
 # bse放大倍数
 bse_zoom_times : 100
 # 样品第几个SEM成像
@@ -23,15 +23,15 @@ end_interval_index : 0
 # ct源文件路径
 ct_src_root : "D:/workspace/ml-workspace/registration/datasets"
 # bse图像源文件路径
-bse_src_root : "G:/BSE"
+bse_src_root : "H:/BSE"
 # 处理过后图像的存放路径
 data_save_root : "D:/workspace/ml-workspace/registration/datasets"
 # endregion
 
 # region 裁剪图像配置
 # 中心点偏移量(遮罩的)+右移动，-左移动，+下移动，-上移动
-center_offset_x : 40
-center_offset_y : -90
+center_offset_x : -5
+center_offset_y : -35
 crop_radius : 580
 
 # 矩形裁剪配置
@@ -45,7 +45,7 @@ rect_roi_width : 624
 rect_roi_height : 512
 
 # 裁剪时偏移量 +右移动，-左移动，-下移动，+上移动
-roi_cropped_offset : [-3, -25]
+roi_cropped_offset : [-50, 0]
 # 裁剪时的增强算法配置
 bse_clipLimit : 3.0
 bse_tileGridSize : [8, 8]

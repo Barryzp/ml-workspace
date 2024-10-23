@@ -47,6 +47,7 @@ class Registration:
             # 匹配过程中ct的索引数组
             self.ct_index_array = ct_index_array
             # 下采样的切片间隔
+            self.bse_diameter_interval = None
             self.ct_slice_inteval = ct_slice_inteval
             self.start_ct_index = ct_index_array[0]
             self.matched_3dct_indeces = None
@@ -55,10 +56,10 @@ class Registration:
 
         self.load_img()
         self.set_config_delta()
-    
+
     def set_config_delta(self):
         mode = self.config.mode
-        if mode == "2d":
+        if mode == "2d" or mode == "2d-only":
             bse_height, bse_width = self.get_bse_img_shape()
             ct_height, ct_width = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
             self.config.rotation_center_xy = [ct_width/2, ct_height/2]
@@ -118,6 +119,7 @@ class Registration:
         optim.set_init_params(similarity_fun, self)
 
     def get_bse_diameter_interval(self):
+        return self.bse_diameter_interval
         sample_id = self.config.cement_sample_index
         zoom_times = self.config.bse_zoom_times
         times = zoom_times // 100
@@ -150,8 +152,11 @@ class Registration:
             ct_slice_img = cv2.imread(img_file_path, cv2.IMREAD_GRAYSCALE) 
             ct_mask_img = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
             self.ct_slice_ori_shape = ct_mask_img.shape
+
+            filtered_toggle = self.config.filtered_toggle
+
             # 用于兼容以前的代码，以前只过滤了较小粒径的水泥颗粒，这样灵活一些
-            ct_mask_img = Tools.filter_by_diameter_bin_img(ct_mask_img, [particle_min, particle_max])
+            ct_mask_img = Tools.filter_by_diameter_bin_img(ct_mask_img, [particle_min, particle_max]) if filtered_toggle else ct_mask_img
 
             if self.config.downsampled: 
                 ct_mask_img = Tools.downsample_bin_img(ct_mask_img, self.config.downsample_times)
@@ -181,23 +186,31 @@ class Registration:
             self.ct_matched_3d.append(ct_matched_3d)
             self.ct_matched_msk_3d.append(ct_matched_msk_3d)
 
-    def _load_ct_img(self):
-        if self.config.debug:
-            self.ct_img = cv2.imread(self.config.debug_ct_path, cv2.IMREAD_GRAYSCALE)
-            self.ct_msk_img_ori = np.copy(self.ct_img)
-            self.ct_img_ori = cv2.imread(self.config.debug_ct_ori_path, cv2.IMREAD_GRAYSCALE)
-            if self.config.downsampled: self.ct_img = Tools.downsample_image(self.ct_img, self.config.downsample_times)
-            self.config.cropped_ct_size = self.ct_img.shape
-            return
+    def _load_ct_img_debug(self):
+        self.ct_img = cv2.imread(self.config.debug_ct_path, cv2.IMREAD_GRAYSCALE)
+        self.ct_msk_img_ori = np.copy(self.ct_img)
+        self.ct_img_ori = cv2.imread(self.config.debug_ct_ori_path, cv2.IMREAD_GRAYSCALE)
+        if self.config.downsampled: self.ct_img = Tools.downsample_image(self.ct_img, self.config.downsample_times)
+        self.config.cropped_ct_size = self.ct_img.shape
 
+    def _load_ct_img(self):
         data_path = self.config.data_path
         cement_sample_index = self.config.cement_sample_index
         sample_bse_index = self.config.sample_bse_index
         ct_2d_index = self.config.ct_2d_index
 
-        ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/s{sample_bse_index}/enhanced"
-        self.ct_img = cv2.imread(f"{ct_image_path}/slice_enhanced_{ct_2d_index}.bmp", cv2.IMREAD_GRAYSCALE)
-        self.ct_img_ori = np.copy(self.ct_img)
+        scale_ratio = self.config.size_threshold_ratio
+        diamter_interval = self.get_bse_diameter_interval()
+        particle_min = diamter_interval[0]
+        particle_max = diamter_interval[1] * scale_ratio
+
+        ct_image_path = f"{data_path}/sample{cement_sample_index}/ct/matched"
+        self.ct_img = cv2.imread(f"{ct_image_path}/{ct_2d_index}_mask_ct.bmp", cv2.IMREAD_GRAYSCALE)
+        self.ct_img_ori = cv2.imread(f"{ct_image_path}/{ct_2d_index}_enhanced_ct.bmp", cv2.IMREAD_GRAYSCALE)
+
+        self.ct_img = Tools.filter_by_diameter_bin_img(self.ct_img, [particle_min, particle_max]) if self.config.filtered_toggle else self.ct_img
+        Tools.save_img(ct_image_path, "test_filter_ct.bmp", self.ct_img)
+
         if self.config.downsampled: self.ct_img = Tools.downsample_image(self.ct_img, self.config.downsample_times)
         self.config.cropped_ct_size = self.ct_img.shape
 
@@ -265,17 +278,15 @@ class Registration:
 
         self.itk_img = itk.image_from_array(image_array)
     
+    def _load_bse_img_debug(self):
+        self.bse_img = cv2.imread(self.config.debug_bse_path, cv2.IMREAD_GRAYSCALE)
+        self.bse_img_ori = cv2.imread(self.config.debug_bse_ori_path, cv2.IMREAD_GRAYSCALE)
+        self.bse_mask_ori = np.copy(self.bse_img)
+        if self.config.downsampled: 
+            self.bse_img = Tools.downsample_image(self.bse_img, self.config.downsample_times)
+
     # 加载参考图像
     def _load_bse_img(self):
-        if self.config.debug:
-            self.bse_img = cv2.imread(self.config.debug_bse_path, cv2.IMREAD_GRAYSCALE)
-            self.bse_img_ori = cv2.imread(self.config.debug_bse_ori_path, cv2.IMREAD_GRAYSCALE)
-            self.bse_mask_ori = np.copy(self.bse_img)
-            if self.config.downsampled: 
-                self.bse_img = Tools.downsample_image(self.bse_img, self.config.downsample_times)
-                num_labels_m, labels_m, self.stats_r, centroids_m = cv2.connectedComponentsWithStats(self.bse_img, 4, cv2.CV_32S)
-            return
-
         src_path, file_name = Tools.get_processed_bse_path(self.config)
         prefix = file_name
         suffix = self.config.bse_suffix
@@ -286,10 +297,22 @@ class Registration:
         self.bse_img_ori = np.copy(self.bse_img)
         self.bse_ori_shape = self.bse_img_ori.shape
 
+        mode = self.config.mode
+
         # HACK 暂时先这么处理吧
-        if self.config.mode == "matched":
+        if mode == "matched" or mode == "2d-only":
             bse_mask_path = f"{src_path}/{prefix}-{self.config.mask_suffix}.bmp"
-            self.bse_img = cv2.imread(bse_mask_path, cv2.IMREAD_GRAYSCALE)
+            mask_img = cv2.imread(bse_mask_path, cv2.IMREAD_GRAYSCALE)
+            self.bse_mask_ori = np.copy(mask_img)
+            # 对粒径进行处理
+            # 首先获取有多少的颗粒
+            # HACK 注意保存粒径，现在是在测试阶段
+            _, contours = Tools.find_contours_in_bin_img(mask_img)
+            diameter_interval = Tools.get_typical_particle_diameter(contours, self.config.quantile)
+            mask_img = Tools.filter_by_diameter_bin_img(mask_img, diameter_interval) if self.config.filtered_toggle else mask_img
+            # Tools.save_img(src_path, "test_filter.bmp", mask_img)
+            self.bse_img = mask_img
+            self.bse_diameter_interval = diameter_interval
 
         # 金字塔精配准就不进行下采样了
 
@@ -305,34 +328,16 @@ class Registration:
         # (height, width)(rows, column)
         return self.bse_img_ori.shape
 
-    # 加载遮罩图像
-    def _load_masked_img(self):
-        if self.config.debug and self.config.masked:
-            self.masked_img = cv2.imread(self.config.debug_mask_path, cv2.IMREAD_GRAYSCALE)
-            if self.config.downsampled: self.masked_img = Tools.downsample_bin_img(self.masked_img, self.config.downsample_times)
-            return
-
-        src_path, prefix = Tools.get_processed_bse_path(self.config)
-
-        if self.config.masked:
-            file_name = f"{prefix}-{self.config.mask_suffix}.bmp"
-            masked_path = f"{src_path}/{file_name}"
-            self.masked_img = cv2.imread(masked_path, cv2.IMREAD_GRAYSCALE)
-            self.bse_mask_ori = np.copy(self.masked_img)
-            if self.config.downsampled: self.masked_img = Tools.downsample_bin_img(self.masked_img, self.config.downsample_times)
-
     # 加载图像
     def load_img(self):
         self._load_bse_img()
-        print(f"H_Refer: {Tools.caculate_entropy(self.bse_img)}")
+        mode = self.config.mode
 
-        if self.config.masked:
-            self._load_masked_img()
-        if self.config.mode == "2d":
+        if mode == "2d" or mode == "2d-only":
             self._load_ct_img()
-        elif self.config.mode == "3d":
+        elif mode == "3d":
             self._load_fine_reg_ct()
-        elif self.config.mode == "matched":
+        elif mode == "matched":
             self._load_matched_ct3d_imgs()
             bse_height, bse_width = self.get_bse_img_shape()
             self.bse_indeces_in_ct = self.init_bse_indeces((bse_width, bse_height))
@@ -462,11 +467,11 @@ class Registration:
         integer_indeces = Tools.force_convert_uint(index_array)
 
         max_item = np.max(integer_indeces)
-        if max_item >= 240:
-            print("stop here...")
+        # if max_item >= 240:
+        #     print("stop here...")
 
         # 通过index_array来进行索引切片
-        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+        result =  Tools.safe_indexing_volume(volume, integer_indeces) #volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
         
         # 获取这个切片中Z方向最多的元素，也就是找到起最多包含的断层面
         most_prob_slice_index = Tools.most_frequent_element(integer_indeces[:, 2])
@@ -478,6 +483,31 @@ class Registration:
             pass
         
         return result, most_prob_slice_index
+
+    def crop_rect_from_2dct(self, x, interpolation = "None"):
+        image = self.ct_img_ori
+        r_height, r_width = self.get_bse_ori_img_shape()
+        f_height, f_width = image.shape
+
+        rotation_center_xy = [f_width * .5, f_height * .5]
+
+
+        ds_times = self.config.downsample_times
+
+        x_delta = int(x[0].item() * ds_times)
+        y_delta = int(x[1].item() * ds_times)
+
+        # 步骤 2: 旋转图像、裁剪图像
+        angle = x[2].item()
+
+        pos_x, pos_y, w, h = x_delta, y_delta, r_width, r_height  # 裁剪位置和大小
+        cropped_image = Tools.crop_rotate_mi(image, 
+                                             rotation_center_xy, 
+                                          (f_width, f_height), 
+                                          angle, 
+                                          [pos_x, pos_y, w, h])
+
+        return cropped_image
 
     # 从ct图像中根据索引切片
     def crop_slice_from_3dct(self, x, volume, interpolation = "None"):
@@ -494,11 +524,11 @@ class Registration:
         integer_indeces = Tools.force_convert_uint(index_array)
 
         max_item = np.max(integer_indeces)
-        if max_item >= 240:
-            print("stop here...")
+        # if max_item >= 240:
+        #     print("stop here...")
 
         # 通过index_array来进行索引切片
-        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+        result = Tools.safe_indexing_volume(volume, integer_indeces) #volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
         
         # 获取这个切片中Z方向最多的元素，也就是找到起最多包含的断层面
         most_prob_slice_index = Tools.most_frequent_element(integer_indeces[:, 2])
@@ -530,7 +560,7 @@ class Registration:
         integer_indeces = Tools.force_convert_uint(index_array)
 
         # 通过index_array来进行索引切片
-        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+        result = Tools.safe_indexing_volume(volume, integer_indeces) #volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
         
         # 获取这个切片中Z方向最多的元素，也就是找到起最多包含的断层面
         most_prob_slice_index = Tools.most_frequent_element(integer_indeces[:, 2])
@@ -649,11 +679,16 @@ class Registration:
             return getattr(self, self.config.debug_simiarity)(x)
             # if self.config.debug_simiarity == "similarity_dice":
             #     return self.similarity_dice(x)
-        if self.config.mode == "2d":
+        
+        mode = self.config.mode
+
+        if mode == "2d":
             return self.similarity_2d(x)
-        elif self.config.mode == "3d":
+        elif mode == "2d-only":
+            return self.similarity_dice(x)
+        elif mode == "3d":
             return self.similarity_3d(x, pyramid)
-        elif self.config.mode == "matched":
+        elif mode == "matched":
             return self.similarity_matched_dice(x, match3dct_idx)
 
     def save_matched_result(self, position):
@@ -695,6 +730,7 @@ class Registration:
         pre_start_idx = pyramid_pre.start_idx
         pre_translation = pyramid_pre.translation
 
+        # HACK 有问题哦，best_matched_slice并不代表位于中间
         # 先转换到原始匹配的大CT块
         translation_in_ori = pre_translation * pre_ds_times
         # z轴上还要加上起始索引才得到原始大CT块的相对位置

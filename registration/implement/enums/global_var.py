@@ -1,5 +1,7 @@
 class Mode:
     matched = "matched"
+    only_2d = "2d-only"
+    
 
 class MatchUnit:
     #（1）原始的：divided分成若干个组，若干个块儿，每个算法在每个块儿内运行

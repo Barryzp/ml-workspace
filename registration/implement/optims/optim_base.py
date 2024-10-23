@@ -68,6 +68,8 @@ class OptimBase:
         self.global_share_obj = global_share_datas
         self.matched_3dct_id = -1
 
+        self.reg_obj = None
+
         self.current_iterations = 0
         self.config = config
 
@@ -90,8 +92,9 @@ class OptimBase:
         # 配准的相关结果
         self.best_match_img = None
 
+        mode = self.config.mode
         # 设置匹配过程对应3d块的唯一索引
-        if self.config.mode == "matched":
+        if mode == "matched":
             # 设置初始位移以及旋转角度
             self.init_translate = self.config.init_translate
             self.translate_delta = self.config.translate_delta
@@ -100,14 +103,36 @@ class OptimBase:
             self.rotation_delta = self.config.rotation_delta
             self.rot_z_delta = self.config.rot_z_delta
             self.matched_3dct_id = matched_3dct_id
-    
+        elif mode == "2d" or mode == "2d-only":
+            self.init_translate = self.config.init_translate
+            self.translate_delta = self.config.translate_delta
+        
+            self.init_rotation = self.config.init_rotation
+            self.rotation_delta = self.config.rotation_delta
+
     def gen_random_position(self):
         position = np.random.uniform(self.minV, self.maxV)
         return position
 
-    # 检测当前评估次数是否到达最大
+    # 检测当前评估次数是否到达最大或者是其它情况（比如已经发现了其它突破阈值的参数）
     def check_end(self):
+        return self.meet_max_fes() or self.has_found_improved_params()
+
+    def meet_max_fes(self):
         return self.current_fes > self.max_fes
+
+    # 是否其它并行算法已经找到了最佳参数
+    def has_found_improved_params(self):
+        if self.config.mode != "matched": return False
+        global_share_obj = self.global_share_obj
+        if global_share_obj != None:
+            does_found = global_share_obj.does_found_better_match()
+            better_match_id = global_share_obj.global_best_volume_index
+            # 如果自己是那个最佳算法就先跑下去，就继续寻找最优
+            if self.matched_3dct_id == better_match_id: return False
+            # 如果不是那个最佳算法就跳出来结束搜寻
+            else: return does_found
+        return False
 
     # 增加评估次数
     def add_fes(self):
@@ -140,6 +165,7 @@ class OptimBase:
 
         pos_np = position
         pos_np = np.insert(pos_np, 0, best_slice)
+        pos_np = np.insert(pos_np, 0, self.current_fes)
         pos_np = np.insert(pos_np, 0, ct3d_index)
         pos_np = np.insert(pos_np, pos_np.size, fitness)
         self.global_share_obj.put_in_share_objects(pos_np.tolist())
@@ -147,10 +173,13 @@ class OptimBase:
     def set_init_params(self, fitness_fun, reg_obj, fun_id = None):
         self.init_basic_params()
         self.fun_id = fun_id
+        self.reg_obj = reg_obj
 
         self.fitness_fun = fitness_fun
-        if self.config.mode == "matched" : self.init_match_params(reg_obj)
-        if self.config.mode == "3d" : self.init_reg_3d_params()
+
+        mode = self.config.mode
+        if mode == "matched" : self.init_match_params(reg_obj)
+        if mode == "3d" : self.init_reg_3d_params()
     
     # 初始化3d参数
     def init_reg_3d_params(self):
@@ -162,8 +191,41 @@ class OptimBase:
         self.init_rotation = pyramid_cfg.rotation - pyramid_cfg.delta_rotation
         self.rotation_delta = pyramid_cfg.delta_rotation * 2
 
-    # 对于不同的ct块还不一样
     def init_match_params(self, reg_obj):
+        ct_index_array = reg_obj.get_3dct_index_array(self.matched_3dct_id)
+
+        ct_depth = len(ct_index_array)
+        latent_depth = self.config.latent_bse_depth
+        bse_height_cur, bse_width_cur = reg_obj.get_bse_img_shape()
+        ct_height_cur, ct_width_cur = self.config.cropped_ct_size[0], self.config.cropped_ct_size[1]
+        
+        bse_height_ori, bse_width_ori = reg_obj.get_bse_ori_img_shape()
+        
+        self.init_translate = [0, 0, 0]
+        
+        translate_delta_x = ct_width_cur - bse_width_cur
+        translate_delta_y = ct_height_cur - bse_height_cur
+        translate_delta_z = ct_depth - 1
+        self.translate_delta = [translate_delta_x, translate_delta_y, translate_delta_z]
+
+        sin_theta_width = latent_depth / (bse_width_ori * 0.5)
+        sin_theta_height = latent_depth / (bse_height_ori * 0.5)
+        radians_height = math.asin(sin_theta_height)
+        degree_height = math.degrees(radians_height)
+        radians_width = math.asin(sin_theta_width)
+        degree_width = math.degrees(radians_width)
+
+        self.init_rotation = [-degree_width, -degree_height, self.init_rotation[-1]]
+        rotation_delta_x = degree_width * 2
+        rotation_delta_y = degree_height * 2
+        rotation_delta_z = self.rotation_delta[-1]
+        self.rotation_delta = [rotation_delta_x, 
+                                      rotation_delta_y, 
+                                      rotation_delta_z]
+
+
+    # 对于不同的ct块还不一样
+    def init_match_params_deprecated(self, reg_obj):
         ct_index_array = reg_obj.get_3dct_index_array(self.matched_3dct_id)
 
         ct_depth = len(ct_index_array)
@@ -273,8 +335,10 @@ class OptimBase:
         file_name = f"{optim_name}_params_{self.config.mode}.csv"
 
         mode = self.config.mode
-        if mode == "2d" :
+        if mode == "2d":
             columns = ["iterations", "x", "y", "rotation", "fitness", "weighted_sp", "mi", "sp"]
+        elif mode == "2d-only":
+            columns = ["iterations", "index", "x", "y", "rotation", "fitness"]
         else:
             columns = ["iterations",
                        "slice_index", 
@@ -324,9 +388,9 @@ class OptimBase:
         Tools.save_params2df(self.records_fes, columns, file_path, file_name)
 
 
-    def save_iteration_best_reg_img(self, img_array, fes):
+    def save_iteration_best_reg_img(self, img_array, fes, suffix=""):
         file_path = Tools.get_save_path(self.config)
-        file_name = f"fes_{fes}_best_reg.bmp"
+        file_name = f"fes_{fes}_best_reg{suffix}.bmp"
         mode = self.config.mode
         if mode == "matched": file_name = f"best_reg_3dct.bmp"
         if mode == "3d": file_name = f"{self.pyramid_cfg.downsample_times}_{self.run_id}_fes_{fes}_best_reg.bmp" 
@@ -359,7 +423,7 @@ class OptimBase:
     # best_val为正值
     def set_global_best_datas(self, best_val, best_position, best_img, ct_matching_slice_index, volume_index):
         if self.global_share_obj == None: return
-        self.global_share_obj.set_best(best_val, best_position, best_img, ct_matching_slice_index, volume_index)
+        self.global_share_obj.set_best(best_val, best_position, best_img, ct_matching_slice_index, volume_index, self.run_id)
 
     def run_matched(self):
         self.run()
@@ -371,7 +435,7 @@ class OptimBase:
     def run(self):
         # 将参数初始化一下
         mode = self.config.mode
-        if mode == "2d":
+        if mode == "2d" or mode == "2d-only":
             self.init_with_2d_params()
         elif mode == "matched" or mode == "3d":
             self.init_with_3d_params()
@@ -401,9 +465,11 @@ class OptimBase:
         mode = self.config.mode
         if mode == "matched" or mode == "3d":
             self.recording_data_item_for_reg()
+        # 这个test意思是在测试优化函数上面跑，而不是测试代码
         elif mode == "test":
             self.recording_data_item_for_optim_test()
-
+        elif mode == "2d" or mode == "2d-only":
+            self.recording_data_item_for_reg()
     # 记录当前
     def recording_data_item_for_optim_test(self):
         eval_times = self.get_fes()
@@ -412,7 +478,7 @@ class OptimBase:
 
         cur_iter_best = abs(self.best_value)
 
-        if eval_times % 5000 == 0:
+        if eval_times % 500 == 0:
             print(f"{self.__class__.__name__}, eval_times: {eval_times}, fitness: {cur_iter_best}", flush=True)
             # logging.info(f"{self.__class__.__name__}, eval_times: {eval_times}, fitness: {cur_iter_best}")
         data_item = [eval_times, cur_iter_best]
@@ -436,10 +502,16 @@ class OptimBase:
         z_index = fit_res[2]
         data_item = np.insert(data_item, 0, z_index)
         print_iter = 5000
+
         if mode == "3d": print_iter = 1000
         if current_fes % print_iter == 0:
             self.save_iteration_best_reg_img(__, current_fes)
+            if mode == "2d-only":
+                # 顺便把原图片也截一下
+                ori_crop_ct = self.reg_obj.crop_rect_from_2dct(iter_best_position)
+                self.save_iteration_best_reg_img(ori_crop_ct, current_fes, "_ori_ct")
         print(f"fes: {current_fes}, fitness: {cur_iter_best}, params: {iter_best_position}")
+        
         self.set_global_best_datas(cur_iter_best, iter_best_position, __, z_index, self.matched_3dct_id)
 
         data_item = np.insert(data_item, 0, current_fes)

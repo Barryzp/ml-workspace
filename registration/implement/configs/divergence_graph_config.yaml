@@ -1,0 +1,33 @@
+
+# 这是专门用于验证函数的优化效果的
+
+record_id : "matched-paper-4-S1-1-3dct" # -fiter_bigsize
+remark : "测试收敛函数的读取"
+data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
+
+show_log : True
+run_times : 20
+
+fun_ids : ["4-S1"]
+
+# ppso参数
+layer_config : [4, 8, 20, 32]
+phi : 0.008
+#     if dimensions == 50:
+#         phi = 0.04
+#     elif dimensions == 30:
+#         phi = 0.02
+#     else:
+#         phi = 0.008
+
+# cso参数
+cso_phi : 0.1
+# 胜利者随机游走的权重
+random_part_weight : 0.0
+
+# 图像绘制标记
+markers : ['o', 'v', '^', '<', '>', '1', '2', '3', '4', 
+           's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_', ',', '.', ]
+colors : ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'maroon',
+          'gray', 'orange', 'pink', 'brown', 'purple', 'lime', 'olive', 'navy', 
+          'teal', 'aqua', 'fuchsia', 'white', 'silver', 'gold']

@@ -546,15 +546,15 @@ class Tools:
         translation[0], translation[1] = translation[1], translation[0]
 
         translation = np.array(translation)
-        # 需要在这个地方进行判定不，不能为负，为负就跳出异常
+        # 需要在这个地方进行判定不，不能为负，为负就跳出异常，无所谓，反正后面索引不到就为0
         after_translate = points + translation
-        if after_translate.min() < 0 : raise ValueError("索引小于零，访问越界！")
+        # if after_translate.min() < 0 : 
+        #     after_translate = Tools.constrain_position(after_translate)
         return after_translate
 
-    def remapping_from_optim_pos(pos_ori, start_slice_idx_matched, downsample_times, start_slice_idx_remapping):
+    def remapping_from_optim_pos(pos_ori, start_slice_idx_matched, downsample_times):
         # 在原始CT图像中应该处在的Z轴位移
         z_optim = downsample_times * pos_ori[2].item() + start_slice_idx_matched
-        z_optim = z_optim - start_slice_idx_remapping
         pos_remapping = np.array([
             # translation_x, y, z
             pos_ori[0].item() * downsample_times,
@@ -566,7 +566,7 @@ class Tools:
             pos_ori[5].item(),
         ])
         return pos_remapping
-        
+    
     # 加载3d ct图像
     def load_3dct_as_np_array(cement_id, index_array):
         ct_3d = None
@@ -581,17 +581,44 @@ class Tools:
         
         return ct_3d
 
-    # 从三维体素中进行切片，使用的是优化的参数值，注意：参数值使用的是volume的参考系下的，
-    # 所以不能直接用position，坐标需要重映射，见GlobalMatchDatas，有用法
-    def crop_slice_from_volume_use_position(crop_size, volume, position):
-        # crop_size : [width, height]
-        integer_indeces = Tools.get_slice_indeces_after_transformed(crop_size, position)
-        # 对indeces进行变换
-        # 通过index_array来进行索引切片
-        result = volume[integer_indeces[..., 2], integer_indeces[..., 0], integer_indeces[..., 1]]
+    def safe_indexing_volume(volume, integer_indices):
+        """
+        根据给定的索引返回数组中的值，如果索引超出范围，则返回0。
+        :param volume: 多维数组（如3D体积数据）
+        :param integer_indices: 索引数组，形如[..., 3]，表示对应于volume的多维索引
+        :return: 返回索引后的结果，超出范围的索引值替换为0
+        """
+        # 获取数组的形状
+        max_z, max_x, max_y = volume.shape
+
+        # 判断哪些索引超出了边界
+        valid_mask = (
+            (integer_indices[..., 2] >= 0) & (integer_indices[..., 2] < max_z) &
+            (integer_indices[..., 0] >= 0) & (integer_indices[..., 0] < max_x) &
+            (integer_indices[..., 1] >= 0) & (integer_indices[..., 1] < max_y)
+        )
+
+        # 创建一个结果数组，默认值为0
+        result = np.zeros(integer_indices.shape[:-1], dtype=volume.dtype)
+
+        # 对于合法的索引，进行实际的取值操作
+        result[valid_mask] = volume[
+            # integer_indices[..., 2]的shape和valid_mask是一样的，反正只要有一个非法，其余的也是非法的
+            integer_indices[..., 2][valid_mask],
+            integer_indices[..., 0][valid_mask],
+            integer_indices[..., 1][valid_mask]
+        ]
+
         return result
 
-    def get_slice_indeces_after_transformed(crop_size, position):
+    # 从三维体素中进行切片，使用的是优化的参数值，注意：参数值使用的是volume的参考系下的，
+    # 所以不能直接用position，坐标需要重映射，见GlobalMatchDatas，有用法
+    def crop_slice_from_volume_use_position(integer_indeces, volume):
+        # 通过index_array来进行索引切片
+        result = Tools.safe_indexing_volume(volume, integer_indeces)
+        return result
+
+    def transformed_slice_indeces(crop_size, position):
         position = position.copy()
         translation = position[:3]
         rotation = position[3:]
@@ -672,20 +699,27 @@ class Tools:
         # （1）确实就是超出去了怎么办，其中有负值，那么怎么处理，这个地方设置不当容易造成溢出
         # （2）可以事先进行先验的范围设置
         # 这个地方不能直接这样暴力地转换，要进行四舍五入的处理
-        min_value = points_after_transform.min()
-        if min_value < 0 :
-            arr = points_after_transform
-            min_index = np.argmin(arr)
-            min_index_multi_dim = np.unravel_index(min_index, arr.shape)
-            index = arr[min_index_multi_dim[:2]]
-            raise ValueError("索引小于零，访问越界！")
+        # min_value = points_after_transform.min()
+        # if min_value < 0 :
+        #     arr = points_after_transform
+        #     min_index = np.argmin(arr)
+        #     min_index_multi_dim = np.unravel_index(min_index, arr.shape)
+        #     index = arr[min_index_multi_dim[:2]]
+        #     points_after_transform = Tools.constrain_position(points_after_transform)
+            # raise ValueError("索引小于零，访问越界！")
 
         return points_after_transform
 
+    def constrain_position(position):
+        print("索引小于零，访问越界，都置为0！")
+        position[position<0]=0
+        return position
+
+    # 不用转化为无符号，后面有安全索引操作
     def force_convert_uint(index_array):
-        index_array = np.round(index_array)
-        index_array = index_array.astype(np.uint16)
-        return index_array
+        round_arr = np.round(index_array)
+        indeces = round_arr.astype(np.int16)
+        return indeces
 
     # 三次线性插值
     def trilinear_interpolation(ct_image, index_array):
@@ -809,6 +843,13 @@ class Tools:
             hist.append(diameter)
         return hist
 
+    # 获取图像的平均粒径
+    def get_mean_diameter_bin_img(bin_img):
+        contours, hierarchy = cv2.findContours(bin_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        diameter_hist = Tools.statstics_diameter_hist(contours)
+        mean_diameter = np.mean(diameter_hist)
+        return mean_diameter
+
     # 基于轮廓得到代表性的最小粒径大小（从最大颗粒开始，往前的20个作为选择的目标）
     def get_typical_particle_diameter(contours, quantile):
         diameter_array = []
@@ -853,6 +894,7 @@ class Tools:
         return filtered_image
     
         # 通过粒径的大小对图像进行筛选
+    
     def filter_by_diameter_bin_img(bin_img, diameter_interval):
         contours_img, contours = Tools.find_contours_in_bin_img(bin_img)
         # 创建一个空白图像用于绘制筛选后的轮廓
@@ -862,6 +904,7 @@ class Tools:
         for contour in contours:
             area = cv2.contourArea(contour)
             contour_diameter = Tools.projected_area_diameter(area)
+            # print(f"contour_diameter: {contour_diameter}")
             if contour_diameter >= (diameter_min-1) and contour_diameter <= (diameter_max+1):
                 cv2.drawContours(filtered_image, [contour], -1, (255), thickness=cv2.FILLED)
             else:

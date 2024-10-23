@@ -20,34 +20,34 @@ class GlobalMatchDatas():
         self.reg_obj = reg
 
     # 这个best_val都是正值
-    def set_best(self, best_val, best_position, best_img, ct_slice_index, volume_index):
+    def set_best(self, best_val, best_position, best_img, ct_slice_index, volume_index, run_id=-1):
         if best_val > self.global_best_value:
             self.iteration_count += 1
             self.global_best_value = best_val
             self.global_best_position = best_position
             self.global_best_img = best_img
             print(f"id: {self.iteration_count}; best val: {best_val}; ct_slice_index: {ct_slice_index}")
-            self.global_best_volume_index = volume_index
-            ori_slice_img, ct_slice_index = self.reg_obj.crop_slice_from_ori_3dct(best_position, volume_index)
-            self.aim_slice_index = ct_slice_index
 
-            # 把这张图片保存一下
-            file_path = Tools.get_save_path(self.config)
-            mask_file_name = f"{self.iteration_count}-{ct_slice_index}-a-mask_ct.bmp"
-            Tools.save_img(file_path, mask_file_name, best_img)
-            slice_file_name = f"{self.iteration_count}-{ct_slice_index}-a-slice_ct.bmp"
-            Tools.save_img(file_path, slice_file_name, ori_slice_img)
-            
-            # self.save_best_match(ct_slice_index, best_position)
-
-        # if best_val > self.config.matched_save_lower_threshold:
-        #     # 临时保存一下
-        #     self.lower_save_count += 1
-        #     self.save_above_crop_ct(ct_slice_index, best_position)
+            mode = self.config.mode
+            if mode == "matched":
+                self.global_best_volume_index = volume_index
+                ori_slice_img, ct_slice_index = self.reg_obj.crop_slice_from_ori_3dct(best_position, volume_index)
+                self.aim_slice_index = ct_slice_index
+                # 把这张图片保存一下 HACK 最好加一个run_times
+                file_path = Tools.get_save_path(self.config)
+                mask_file_name = f"{self.iteration_count}-{run_id}-{ct_slice_index}-a-mask_ct.bmp"
+                Tools.save_img(file_path, mask_file_name, best_img)
+                slice_file_name = f"{self.iteration_count}-{run_id}-{ct_slice_index}-a-slice_ct.bmp"
+                Tools.save_img(file_path, slice_file_name, ori_slice_img)
+                # self.save_best_match(ct_slice_index, best_position)
+            elif mode == "2d" or mode == "2d-only":
+                pass
 
         if self.global_best_value > self.threshold:
             self.stop_loop = True
 
+    def does_found_better_match(self):
+        return self.global_best_value >= self.config.matched_lower_threshold
 
     def save_above_crop_ct(self, slice_index, position):
         ct_ori_file_name = f"{self.lower_save_count}_{slice_index}_match_ori_ct.bmp"
@@ -82,28 +82,41 @@ class GlobalMatchDatas():
     # 保存最佳图像这里需要将坐标映射到3D的CT图像以及3D的Mask中，
     def save_best_3dct_inmatch(self):
         best_pos = self.global_best_position
-        latent_bse_depth = self.config.latent_bse_depth
         downsample_times = self.config.downsample_times
         bse_height, bse_width = self.reg_obj.bse_ori_shape
 
         index_array = self.reg_obj.get_3dct_index_array(self.global_best_volume_index)
 
+        # HACK 这个切片始终有问题，得给它重新设置一下
+        # 之前的逻辑太复杂，我直接就这样，
+        # （1）先直接进行变换
+        # （2）获取到最小和最大的Z
+        # （3）最小的Z对应的实际slice_index是多少呢？这个需要记录一下
+
         # 1. 首先是获得咱们这个ct的start_slice_idx
         start_index_in_match3dct = index_array[0]
-        # 2. 获取切预览图像时应该的start_slice_idx, 也就是出现最多的slice_idx
-        start_index_in_preview3dct = self.aim_slice_index - latent_bse_depth
-        pos_remapping = Tools.remapping_from_optim_pos(best_pos, start_index_in_match3dct,
-                                                       downsample_times, 
-                                                       start_index_in_preview3dct)
+        # 2. 坐标重映射，映射到在原始坐标空间中的变换参数
+        pos_remapping = Tools.remapping_from_optim_pos(best_pos, 
+                                                       start_index_in_match3dct,
+                                                       downsample_times)
+
+        # 3. 将BSE索引进行变换，再进行读取图像
+        transformed_indeces = Tools.transformed_slice_indeces([bse_width, bse_height], pos_remapping)
+        # 4. 获取Z的最小值和最大值，然后连续读取即可
+        all_z = transformed_indeces[:, :, -1]
+        min_z = np.min(all_z)
+        max_z = np.max(all_z)
 
         # 获取索引数组
-        index_array = np.arange(0, latent_bse_depth * 2) + start_index_in_preview3dct
-        # 3. 加载原始大小的3d CT图像
+        index_array = np.arange(min_z, max_z + 1)
+        # 5. 加载原始大小的3d CT图像
         ct_ori = Tools.load_3dct_as_np_array(self.config.cement_sample_index, index_array)
-        # 4. 对于Mask图像就直接上采样二值化即可
+        # 6. 对于Mask图像就直接上采样二值化即可
         mask_upsample = Tools.upsample_bin_img(self.global_best_img, downsample_times)
-        # 5. 对原始图像裁剪保存
-        slice_from_ct = Tools.crop_slice_from_volume_use_position([bse_width, bse_height], ct_ori, pos_remapping)
+        # 7. 将坐标变换到以最小Z为起点的原点
+        transformed_indeces[:, :, -1] -= min_z
+        # 8. 对原始图像裁剪保存
+        slice_from_ct = Tools.crop_slice_from_volume_use_position(transformed_indeces, ct_ori)
         
         # 保存这两张图片
         self.save_best_result(slice_from_ct, mask_upsample)
@@ -114,17 +127,20 @@ class GlobalMatchDatas():
 
         mask_file_name = f"1A-{best_slice}-a-mask_ct.bmp"
         bse_mask_name = f"1A-{best_slice}-a-mask_bse.bmp"
+        bse_filter_mask_name = f"1A-{best_slice}-a-mask-filter_bse.bmp"
         ct_file_name = f"1A-{best_slice}-b-ori_ct.bmp"
         bse_file_name = f"1A-{best_slice}-b-ori_bse.bmp"
 
         # 原本的bse图像
         bse_img_ori = self.reg_obj.bse_img_ori
         bse_mask_ori = self.reg_obj.bse_mask_ori
+        bse_mask_filter = self.reg_obj.bse_img
 
         Tools.save_img(file_path, ct_file_name, result_ct_matched)
         Tools.save_img(file_path, mask_file_name, result_mask_ct_matched)
         Tools.save_img(file_path, bse_file_name, bse_img_ori)
         Tools.save_img(file_path, bse_mask_name, bse_mask_ori)
+        Tools.save_img(file_path, bse_filter_mask_name, bse_mask_filter)
 
     # 保存最佳图像 并截取对应剪切的CT图像
     def save_all_best_match_imgs(self):
@@ -170,3 +186,7 @@ class GlobalMatchDatas():
     
     def put_in_share_objects(self, ls):
         self.share_records_out.append(ls)
+    
+    # 清空共享数据（多层匹配的）
+    def clear_share_objects(self):
+        self.share_records_out = []
