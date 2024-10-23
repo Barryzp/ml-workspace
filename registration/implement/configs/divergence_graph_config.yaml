@@ -1,12 +1,12 @@
 
 # 这是专门用于验证函数的优化效果的
 
-record_id : "matched-paper-4-S1-1-3dct" # -fiter_bigsize
+record_id : "matched-paper-3dct-optim-4-S1" # -fiter_bigsize
 remark : "测试收敛函数的读取"
-data_save_path : "D:/workspace/ml-workspace/registration/result/matched"
+data_save_path : "D:/workspace/ml-workspace/registration/result/paper"
 
 show_log : True
-run_times : 20
+run_times : 10
 
 fun_ids : ["4-S1"]
 

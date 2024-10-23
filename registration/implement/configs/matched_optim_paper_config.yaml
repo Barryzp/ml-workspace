@@ -1,0 +1,170 @@
+
+record_id : "matched-paper-3dct-optim-4-S1" #"matched-paper-11-S1-1-3dct" # -fiter_bigsize
+remark : "ppso4"
+data_save_path : "D:/workspace/ml-workspace/registration/result/paper"
+
+
+# 用于直接测试配准图像，直接从路径中加载，免得麻烦
+debug: False
+debug_ct_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample2/ct/matched/574_enhanced_ct.bmp"
+debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample2/ct/matched/574_mask_ct.bmp"
+debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample2/bse/s1/100/2-1-1-roi-mask.bmp"
+debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample2/bse/s1/100/2-1-1-enhanced-roi.bmp"
+
+# region 水泥样品相关信息
+# 对应第几个水泥样本
+cement_sample_index : 4
+# bse放大倍数
+bse_zoom_times : 100
+# 样品第几个SEM成像
+sample_bse_index : 1
+# 对应bse放大某个倍数下，第几个BSE成像图像
+zoom_bse_index : 1
+# endregion
+
+# region 相关路径
+# 图像路径
+data_path : "D:/workspace/ml-workspace/registration/datasets"
+# 图像后缀
+# bse图像后缀，编号外的
+bse_suffix : "enhanced-roi"
+# bse mask图像后缀
+mask_suffix : "roi-mask"
+# ct 切片图像, 普通的是enhanced_ct，遮罩是mask_ct
+ct_slice_suffix: "enhanced_ct"
+ct_mask_suffix : "mask_ct"
+# 模式：
+# 2d-only，仅仅是两张图片的配准，不涉及多层图片的匹配
+# 2d代表2d/2d配准，也就是CT切片直接和BSE图像配准，这个主要用在对比上面
+# 3d代表2d/3d配准，进行目标配准，流程的最后一步
+# matched代表匹配
+mode : "matched" #"2d-only"
+# 匹配的对象，分为三类
+#（1）原始的：divided分成若干个组，若干个块儿，每个算法在每个块儿内运行
+#（2）整体的：comp_one用一个算法跑，一个整体的块儿
+#（3）整体然后分层：comp_hierarchy（2）结果不行时就采用（3）
+match_unit : "comp_one" #"divided" #"comp_one"
+
+# 新的方法，这个颗粒大小的下限和上限需要根据BSE图像处理的配置中的来进行区别x-1-1-config
+# 需要去进行读取这个配置
+# 设置一定的阈值范围，正式的水泥粒径大小应该在[min/ratio, max*ratio]
+size_threshold_ratio : 1.2 #[0.8, 1.5, 2.5]
+filtered_toggle : False
+
+# 直方图划分
+bins : 256
+# spatial_information阈值设定，ct对应0项，bse对应1项，大于这个阈值的才保留
+threshold : [128, 180]
+# spatial_information差异值在多大范围内才进行统计
+bound : [0, 100]
+# 是否自动改变lambda
+auto_lambda : False
+# spatial_information占的权重系数
+lamda_mis : 0.1
+
+# 剪切的ct尺寸
+cropped_ct_size : [1024, 1024]
+
+# 上一个版本start是：25，end是15
+# 删除掉前面的几张图像
+start_index_from_begin : 20
+# 删除后面几张图片
+end_index_from_last : 20
+quantile : 20
+# 间隔多少张来抽取一张图像进行匹配
+sample_interval : 4
+downsampled : True
+downsample_times : 8
+# 分层匹配的3dct原始深度
+matched_3dct_depth : 160
+matched_threshold: 0.8
+# 大于这个值的就保存一下
+matched_lower_threshold: 0.5
+# 进行多少次运行
+run_times : 20
+run_benchmark : 0.35
+# 是否有遮罩
+masked : True
+
+
+# 潜在的bse图像能够存在的深度
+latent_bse_depth : 20
+# CT图像的XOY平面上的旋转中心
+rotation_center_xy : [512.0, 512.0]
+# 初始旋转角度
+init_rotation : [.0, .0, 0.0]
+# 将旋转角度分成若干个范围来进行优化，优化搜索空间的大小
+rot_z_delta : 360
+# 基于初始旋转角度，允许的最大增量
+rotation_delta : [0.0, 0.0, 360.0]
+# 初始位移，以图像的左上角为原点
+init_translate : [0.0, 0.0, 0.0]
+# 最大允许的平移量范围，这个是根据BSE和CT的相对大小来进行计算的
+translate_delta : [368.0, 368.0, 0.0]
+# 限制搜索范围，特别是对于位于中央区域的样本来说，中央区域的BSE图像显然就是1
+center_search_border : [1024.0, 1024.0, 0.0]
+
+
+# 2d/3d配准相关
+# ct图像开始索引
+start_index : 10
+# ct图像终止索引
+end_index : 49
+
+# 2d索引
+ct_2d_index : 494
+
+
+# region 优化参数
+rand_seed : 45
+solution_dimension : 6
+# 切换搜索策略比率，当前FE占总FE的多少
+switch_strategy_ratio : 0.5
+# 注意：需要是偶数，考虑到CSO和PPSO这种要配对的算法
+save_fes_interval : 100
+# 每一个参数需要多少次的fes
+evaluate_times : 5000
+# PSO 参数
+# 粒子个数
+particle_num : 512
+# 迭代次数
+iteratons : 100
+# HACK 可以进行改进 惯性权重，范围在[0.4, 2]，为1回退到基本粒子群算法，值越大全局寻优能力强，局部寻优能力弱；反之值越小局部寻优能力强
+weight_inertia : 0.729  # Inertia weight
+# 个体学习因子，朝着个体最佳方向
+individual_w : 1.56    # Cognitive (particle's best) weight [0, 4]
+# 群体学习因子，朝着全局最佳方向
+global_w : 2.78    # Social (swarm's best) weight [0, 4]
+# 粒子速度的变化范围的比例，一般是粒子的取值范围的10%~20%
+speed_param_ratio : 0.18 # 0.1 ~ 0.2
+
+
+# CMA-ES 参数
+# 初始多维高斯分布标准差
+sigma0 : 45
+# 种群数量
+pop_size : 256
+# 最大迭代数目
+max_iter : 50
+
+# ppso参数
+layer_config : [4, 8, 20, 32] #[4, 8, 20, 32] #[8, 24, 32, 48]
+phi : 0.008
+#     if dimensions == 50:
+#         phi = 0.04
+#     elif dimensions == 30:
+#         phi = 0.02
+#     else:
+#         phi = 0.008
+# endregion
+
+
+show_log : True
+
+
+# 图像绘制标记
+markers : ['o', 'v', '^', '<', '>', '1', '2', '3', '4', 
+           's', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd', '|', '_', ',', '.', ]
+colors : ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'maroon',
+          'gray', 'orange', 'pink', 'brown', 'purple', 'lime', 'olive', 'navy', 
+          'teal', 'aqua', 'fuchsia', 'white', 'silver', 'gold']
