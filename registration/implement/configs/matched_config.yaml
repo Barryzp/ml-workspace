@@ -11,6 +11,9 @@ debug_ct_path: "D:/workspace/ml-workspace/registration/datasets/sample2/ct/match
 debug_bse_path: "D:/workspace/ml-workspace/registration/datasets/sample2/bse/s1/100/2-1-1-roi-mask.bmp"
 debug_bse_ori_path: "D:/workspace/ml-workspace/registration/datasets/sample2/bse/s1/100/2-1-1-enhanced-roi.bmp"
 
+# 是否输出图像
+output_img: True
+
 # region 水泥样品相关信息
 # 对应第几个水泥样本
 cement_sample_index : 2

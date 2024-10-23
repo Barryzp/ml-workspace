@@ -33,12 +33,14 @@ class GlobalMatchDatas():
                 self.global_best_volume_index = volume_index
                 ori_slice_img, ct_slice_index = self.reg_obj.crop_slice_from_ori_3dct(best_position, volume_index)
                 self.aim_slice_index = ct_slice_index
-                # 把这张图片保存一下 HACK 最好加一个run_times
-                file_path = Tools.get_save_path(self.config)
-                mask_file_name = f"{self.iteration_count}-{run_id}-{ct_slice_index}-a-mask_ct.bmp"
-                Tools.save_img(file_path, mask_file_name, best_img)
-                slice_file_name = f"{self.iteration_count}-{run_id}-{ct_slice_index}-a-slice_ct.bmp"
-                Tools.save_img(file_path, slice_file_name, ori_slice_img)
+                
+                if self.config.output_img:
+                    # 把这张图片保存一下
+                    file_path = Tools.get_save_path(self.config)
+                    mask_file_name = f"{self.iteration_count}-{run_id}-{ct_slice_index}-a-mask_ct.bmp"
+                    Tools.save_img(file_path, mask_file_name, best_img)
+                    slice_file_name = f"{self.iteration_count}-{run_id}-{ct_slice_index}-a-slice_ct.bmp"
+                    Tools.save_img(file_path, slice_file_name, ori_slice_img)
                 # self.save_best_match(ct_slice_index, best_position)
             elif mode == "2d" or mode == "2d-only":
                 pass
