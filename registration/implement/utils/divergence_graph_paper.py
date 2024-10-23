@@ -1,12 +1,49 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from registration_framework import Registration
+from match_global_datas import GlobalMatchDatas
+import threading, os, multiprocessing
 
 class DivergenceTools:
 
     def __init__(self, config) -> None:
         self.config = config
+
+    def single_process_run(self, optim_class, registration, global_match_datas):
+        count = 0
+        config = registration.config
+        # 设定随机种子来一波固定的随机种子
+        for i in range(config.run_times):
+            print(f"current loop times: {i+1}")
+            rand_seed = config.rand_seed + i
+            # 每一次迭代随机种子+1，这样的方式保证结果的一致
+            np.random.seed(rand_seed)
+            optim = optim_class(config, global_match_datas, 0)
+            optim.set_runid(i)
+            registration.set_optim_algorithm(optim)
+            optim.run_matched_with_loops()
+
+            if optim.best_value >= config.run_benchmark :
+                count+=1
+            if optim.best_value >= 0.5:
+                print(f"seed: {rand_seed}")
+
+        print(f"{optim.__class__.__name__} meet our demands count: {count}")
+
+    # 测试所有的优化函数和优化算法，多线程，每个优化算法单独占用一个线程进行优化
+    def test_all_optims_multi_process(self, optim_classes, config, slice_interval, index_array):
+        processes = []
+        for optim in optim_classes:
+            registration = Registration(config, slice_interval, index_array)
+            global_match_datas = GlobalMatchDatas(config, registration)
+            process = multiprocessing.Process(target=self.single_process_run, args=(optim, registration, global_match_datas))
+            processes.append(process)
+            process.start()
+
+        # 等待所有进程完成
+        for process in processes:
+            process.join()
 
     # 读取优化算法对应的相关数据
     # optim_method：对应优化算法

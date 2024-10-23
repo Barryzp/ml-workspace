@@ -6,7 +6,7 @@ remark : "测试收敛函数的读取"
 data_save_path : "D:/workspace/ml-workspace/registration/result/paper"
 
 show_log : True
-run_times : 10
+run_times : 20
 
 fun_ids : ["4-S1"]
 
